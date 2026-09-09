@@ -4,6 +4,7 @@ import com.chess99.data.dto.*
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
 
 interface AuthApi {
@@ -29,7 +30,9 @@ interface AuthApi {
     suspend fun revokeAllTokens(): Response<RevokeAllResponse>
 
     @POST("auth/logout")
-    suspend fun logout(): Response<MessageResponse>
+    suspend fun logout(
+        @Header("Authorization") authorization: String? = null,
+    ): Response<MessageResponse>
 
     @GET("user")
     suspend fun getCurrentUser(): Response<UserDto>

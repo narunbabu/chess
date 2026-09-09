@@ -18,7 +18,11 @@ interface AuthRepository {
     suspend fun facebookMobileLogin(accessToken: String): Result<AuthResult>
     suspend fun refreshToken(deviceName: String? = null): Result<AuthResult>
     suspend fun revokeAllTokens(): Result<Int>
-    suspend fun logout(): Result<Unit>
+    /**
+     * Clears local authentication immediately, then makes a bounded,
+     * best-effort attempt to revoke [sessionToken] on the server.
+     */
+    suspend fun logout(sessionToken: String? = getToken()): Result<Unit>
     suspend fun getCurrentUser(): Result<User>
     fun isLoggedIn(): Boolean
     fun getToken(): String?

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.IOException
@@ -284,11 +285,11 @@ class AuthViewModel @Inject constructor(
     fun getFacebookCallbackManager() = facebookSignInHelper.callbackManager
 
     fun logout() {
-        viewModelScope.launch {
-            authRepository.logout()
-            _uiState.update {
-                AuthUiState(isAuthenticated = false)
-            }
+        val sessionToken = authRepository.getToken()
+        authRepository.clearSession()
+        _uiState.update { AuthUiState(isAuthenticated = false) }
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            authRepository.logout(sessionToken)
         }
     }
 
