@@ -4,9 +4,17 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -22,6 +30,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
@@ -29,6 +39,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chess99.R
 import com.chess99.engine.*
@@ -105,6 +116,7 @@ fun ChessBoardView(
     // Selection state for tap-tap moves
     var selectedSquare by remember { mutableIntStateOf(-1) }
     var legalMoveTargets by remember { mutableStateOf(emptyList<Int>()) }
+    var pendingPromotion by remember { mutableStateOf<PendingPromotionMove?>(null) }
 
     // Drag state
     var draggedPiece by remember { mutableIntStateOf(Piece.NONE) }
@@ -210,6 +222,19 @@ fun ChessBoardView(
             }
         }
 
+        fun submitMove(fromSq: Int, toSq: Int, piece: Int, dragged: Boolean = false) {
+            val from = Square.toAlgebraic(fromSq)
+            val to = Square.toAlgebraic(toSq)
+            val isPromotion = Piece.type(piece) == Piece.PAWN &&
+                (Square.rank(toSq) == 0 || Square.rank(toSq) == 7)
+            if (isPromotion) {
+                pendingPromotion = PendingPromotionMove(from, to, fromSq, toSq, dragged)
+            } else {
+                if (dragged) dragMoveSquares = fromSq to toSq
+                onMove?.invoke(from, to, null)
+            }
+        }
+
         val boardDescription = boardContentDescription(
             turnIsWhite = game.turn == com.chess99.engine.Color.WHITE,
             inCheck = game.isCheck(),
@@ -220,23 +245,22 @@ fun ChessBoardView(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .semantics { contentDescription = boardDescription }
+                .semantics {
+                    contentDescription = boardDescription
+                    liveRegion = LiveRegionMode.Polite
+                }
                 .pointerInput(isInteractive, game.fen()) {
                     if (!isInteractive) return@pointerInput
                     detectTapGestures { offset ->
                         val sq = viewToBoard(offset.x, offset.y)
                         if (selectedSquare != -1 && sq in legalMoveTargets) {
                             // Execute move
-                            val fromAlg = Square.toAlgebraic(selectedSquare)
-                            val toAlg = Square.toAlgebraic(sq)
                             val piece = game.get(selectedSquare)
-                            val isPromotion = Piece.type(piece) == Piece.PAWN &&
-                                    (Square.rank(sq) == 0 || Square.rank(sq) == 7)
                             val captured = game.get(sq)
                             if (captured != Piece.NONE) {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             }
-                            onMove?.invoke(fromAlg, toAlg, if (isPromotion) 'q' else null)
+                            submitMove(selectedSquare, sq, piece)
                             selectedSquare = -1
                             legalMoveTargets = emptyList()
                         } else if (selectedSquare == sq) {
@@ -273,18 +297,11 @@ fun ChessBoardView(
                             if (isDragging && dragFrom != -1) {
                                 val sq = viewToBoard(dragOffset.x, dragOffset.y)
                                 if (sq in legalMoveTargets) {
-                                    val fromAlg = Square.toAlgebraic(dragFrom)
-                                    val toAlg = Square.toAlgebraic(sq)
-                                    // The player already dragged the piece here —
-                                    // suppress the slide for this move.
-                                    dragMoveSquares = dragFrom to sq
-                                    val isPromotion = Piece.type(draggedPiece) == Piece.PAWN &&
-                                            (Square.rank(sq) == 0 || Square.rank(sq) == 7)
                                     val captured = game.get(sq)
                                     if (captured != Piece.NONE) {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     }
-                                    onMove?.invoke(fromAlg, toAlg, if (isPromotion) 'q' else null)
+                                    submitMove(dragFrom, sq, draggedPiece, dragged = true)
                                 }
                             }
                             isDragging = false
@@ -469,6 +486,191 @@ fun ChessBoardView(
             drawCoordinates(textMeasurer, sqSize, boardOrientation)
         }
     }
+
+    pendingPromotion?.let { move ->
+        PromotionChoiceDialog(
+            onChoose = { promotion ->
+                if (move.dragged) dragMoveSquares = move.fromSquare to move.toSquare
+                pendingPromotion = null
+                onMove?.invoke(move.from, move.to, promotion)
+            },
+            onDismiss = { pendingPromotion = null },
+        )
+    }
+}
+
+private data class PendingPromotionMove(
+    val from: String,
+    val to: String,
+    val fromSquare: Int,
+    val toSquare: Int,
+    val dragged: Boolean,
+)
+
+/**
+ * Visible, non-overlapping move entry for switch access, keyboards and TalkBack.
+ * It deliberately sits outside the square Canvas so gesture play remains intact.
+ */
+@Composable
+fun AccessibleChessMoveControls(
+    game: ChessGame,
+    isInteractive: Boolean,
+    onMove: (from: String, to: String, promotion: Char?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var selectedFrom by remember(game.fen()) { mutableIntStateOf(-1) }
+    var pendingPromotion by remember { mutableStateOf<PendingPromotionMove?>(null) }
+    val legalMoves = remember(game.fen()) { accessibleMoveOptions(game) }
+    val sourceSquares = remember(legalMoves) { legalMoves.map { it.fromSquare }.distinct() }
+    val destinations = remember(legalMoves, selectedFrom) {
+        legalMoves.filter { it.fromSquare == selectedFrom }.map { it.toSquare }.distinct()
+    }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = { expanded = !expanded },
+            enabled = isInteractive,
+            modifier = Modifier
+                .fillMaxWidth()
+                .sizeIn(minHeight = 48.dp),
+        ) {
+            Text(if (expanded) "Close accessible move input" else "Accessible move input")
+        }
+
+        if (expanded) {
+            Text(
+                text = if (selectedFrom == -1) {
+                    "Choose one of your pieces"
+                } else {
+                    "${pieceSpokenName(game.get(selectedFrom))} on ${Square.toAlgebraic(selectedFrom)} selected. Choose a legal destination."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                sourceSquares.forEach { square ->
+                    OutlinedButton(
+                        onClick = { selectedFrom = square },
+                        modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
+                    ) {
+                        Text("${pieceSpokenName(game.get(square))} ${Square.toAlgebraic(square)}")
+                    }
+                }
+            }
+            if (selectedFrom != -1) {
+                Row(
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    destinations.forEach { toSquare ->
+                        Button(
+                            onClick = {
+                                val from = Square.toAlgebraic(selectedFrom)
+                                val to = Square.toAlgebraic(toSquare)
+                                val piece = game.get(selectedFrom)
+                                val promotes = Piece.type(piece) == Piece.PAWN &&
+                                    (Square.rank(toSquare) == 0 || Square.rank(toSquare) == 7)
+                                if (promotes) {
+                                    pendingPromotion = PendingPromotionMove(
+                                        from,
+                                        to,
+                                        selectedFrom,
+                                        toSquare,
+                                        dragged = false,
+                                    )
+                                } else {
+                                    onMove(from, to, null)
+                                    selectedFrom = -1
+                                }
+                            },
+                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
+                        ) {
+                            Text("Move to ${Square.toAlgebraic(toSquare)}")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pendingPromotion?.let { move ->
+        PromotionChoiceDialog(
+            onChoose = { promotion ->
+                pendingPromotion = null
+                selectedFrom = -1
+                onMove(move.from, move.to, promotion)
+            },
+            onDismiss = { pendingPromotion = null },
+        )
+    }
+}
+
+internal data class AccessibleMoveOption(
+    val fromSquare: Int,
+    val toSquare: Int,
+    val promotion: Char?,
+)
+
+/** Same legal-move source used by gestures, exposed for deterministic a11y tests. */
+internal fun accessibleMoveOptions(game: ChessGame): List<AccessibleMoveOption> =
+    game.legalMoves().map { move ->
+        AccessibleMoveOption(
+            fromSquare = move.from,
+            toSquare = move.to,
+            promotion = move.uci().getOrNull(4),
+        )
+    }
+
+@Composable
+private fun PromotionChoiceDialog(
+    onChoose: (Char) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Choose promotion piece") },
+        text = { Text("Promote the pawn to a queen, rook, bishop or knight.") },
+        confirmButton = {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                listOf('q' to "Queen", 'r' to "Rook", 'b' to "Bishop", 'n' to "Knight")
+                    .forEach { (piece, label) ->
+                        TextButton(
+                            onClick = { onChoose(piece) },
+                            modifier = Modifier.sizeIn(minHeight = 48.dp),
+                        ) { Text(label) }
+                    }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.sizeIn(minHeight = 48.dp),
+            ) { Text("Cancel") }
+        },
+    )
+}
+
+private fun pieceSpokenName(piece: Int): String {
+    val color = if (Piece.color(piece) == com.chess99.engine.Color.WHITE) "White" else "Black"
+    val name = when (Piece.type(piece)) {
+        Piece.PAWN -> "pawn"
+        Piece.KNIGHT -> "knight"
+        Piece.BISHOP -> "bishop"
+        Piece.ROOK -> "rook"
+        Piece.QUEEN -> "queen"
+        Piece.KING -> "king"
+        else -> "piece"
+    }
+    return "$color $name"
 }
 
 // ── Drawing Helpers ──────────────────────────────────────────────────

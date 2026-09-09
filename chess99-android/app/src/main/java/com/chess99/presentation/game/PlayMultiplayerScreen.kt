@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.chess99.engine.ChessGame
 import com.chess99.presentation.common.ActiveGameType
+import com.chess99.presentation.common.AccessibleChessMoveControls
 import com.chess99.presentation.common.ChessBoardView
 import com.chess99.presentation.common.GameCompletionAnimation
 import com.chess99.presentation.common.GameNavigationWarningDialog
@@ -420,6 +421,13 @@ private fun GameBoard(
                 .padding(horizontal = 8.dp),
         )
 
+        AccessibleChessMoveControls(
+            game = game,
+            isInteractive = isMyTurn && state.isWebSocketConnected,
+            onMove = onMove,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+
         // Player timer (bottom)
         GameTimerDisplay(
             timeSeconds = if (state.playerColor == com.chess99.engine.Color.WHITE) state.whiteTimeSeconds else state.blackTimeSeconds,
@@ -534,49 +542,57 @@ private fun GameControlsRow(
 ) {
     var showResignConfirm by remember { mutableStateOf(false) }
 
-    // Four controls have to share this row in a casual game (Draw / Pause / Undo
-    // / Resign), so the buttons run tight: minimal content padding, 4dp gaps and
-    // single-line labels. Without this every label wraps mid-word ("Dra w").
-    val controlPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+    val controlPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
         // Draw button
         OutlinedButton(
             onClick = onOfferDraw,
             enabled = !drawOfferedByMe,
             contentPadding = controlPadding,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .heightIn(min = 48.dp),
         ) {
-            Icon(Icons.Default.Handshake, contentDescription = null, modifier = Modifier.size(14.dp))
-            Spacer(modifier = Modifier.width(3.dp))
+            Icon(Icons.Default.Handshake, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 if (drawOfferedByMe) "Offered" else "Draw",
-                fontSize = 11.sp,
+                fontSize = 14.sp,
                 maxLines = 1,
                 softWrap = false,
             )
         }
-
-        Spacer(modifier = Modifier.width(4.dp))
 
         // Pause button (casual only)
         if (!isRated) {
             OutlinedButton(
                 onClick = onPause,
                 contentPadding = controlPadding,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp),
             ) {
-                Icon(Icons.Default.Pause, contentDescription = null, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(3.dp))
-                Text("Pause", fontSize = 11.sp, maxLines = 1, softWrap = false)
+                Icon(Icons.Default.Pause, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Pause", fontSize = 14.sp, maxLines = 1, softWrap = false)
             }
-            Spacer(modifier = Modifier.width(4.dp))
         }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
 
         // Takeback - web parity with GameContainer.js's Undo. Hidden entirely in
         // rated games (where it can never be used) rather than shown disabled.
@@ -585,22 +601,23 @@ private fun GameControlsRow(
                 onClick = onRequestUndo,
                 enabled = canRequestUndo,
                 contentPadding = controlPadding,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp),
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.Undo,
                     contentDescription = null,
-                    modifier = Modifier.size(14.dp),
+                    modifier = Modifier.size(18.dp),
                 )
-                Spacer(modifier = Modifier.width(3.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     if (undoRequestPending) "Asked" else "Undo $undoChancesRemaining",
-                    fontSize = 11.sp,
+                    fontSize = 14.sp,
                     maxLines = 1,
                     softWrap = false,
                 )
             }
-            Spacer(modifier = Modifier.width(4.dp))
         }
 
         // Resign button
@@ -610,11 +627,14 @@ private fun GameControlsRow(
                 contentColor = MaterialTheme.colorScheme.error,
             ),
             contentPadding = controlPadding,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .heightIn(min = 48.dp),
         ) {
-            Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(14.dp))
-            Spacer(modifier = Modifier.width(3.dp))
-            Text("Resign", fontSize = 11.sp, maxLines = 1, softWrap = false)
+            Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Resign", fontSize = 14.sp, maxLines = 1, softWrap = false)
+        }
         }
     }
 
