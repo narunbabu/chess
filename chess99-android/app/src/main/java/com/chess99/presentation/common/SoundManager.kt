@@ -26,7 +26,7 @@ class SoundManager @Inject constructor(
     private var checkSound: Int = 0
     private var gameEndSound: Int = 0
     private var captureSound: Int = 0
-    private var isLoaded = false
+    private val loadedSounds = java.util.concurrent.ConcurrentHashMap.newKeySet<Int>()
     private var isMuted = false
 
     init {
@@ -40,17 +40,15 @@ class SoundManager @Inject constructor(
             .setAudioAttributes(attrs)
             .build()
 
-        soundPool.setOnLoadCompleteListener { _, _, status ->
-            if (status == 0) isLoaded = true
+        soundPool.setOnLoadCompleteListener { _, sampleId, status ->
+            if (status == 0) loadedSounds.add(sampleId)
         }
 
-        // Load sound resources
-        // NOTE: Add these sound files to res/raw/
-        // moveSound = soundPool.load(context, R.raw.move, 1)
-        // checkSound = soundPool.load(context, R.raw.check, 1)
-        // gameEndSound = soundPool.load(context, R.raw.game_end, 1)
-        // captureSound = soundPool.load(context, R.raw.capture, 1)
-        isLoaded = true // Set true for now until sound files are added
+        // Reuse Chess99's existing web game sounds in the native package.
+        moveSound = soundPool.load(context, R.raw.move, 1)
+        checkSound = soundPool.load(context, R.raw.check, 1)
+        gameEndSound = soundPool.load(context, R.raw.game_end, 1)
+        captureSound = soundPool.load(context, R.raw.capture, 1)
     }
 
     fun playMove() { play(moveSound) }
@@ -61,7 +59,7 @@ class SoundManager @Inject constructor(
     fun setMuted(muted: Boolean) { isMuted = muted }
 
     private fun play(soundId: Int) {
-        if (!isLoaded || isMuted || soundId == 0) return
+        if (isMuted || !loadedSounds.contains(soundId)) return
         soundPool.play(soundId, 1.0f, 1.0f, 1, 0, 1.0f)
     }
 
