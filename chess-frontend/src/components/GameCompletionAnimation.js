@@ -781,6 +781,33 @@ const GameCompletionAnimation = ({
                   Report
                 </button>
               )}
+              {onPreview && (
+                <button
+                  onClick={onPreview}
+                  disabled={isMediaGenerating}
+                  style={{
+                    background: isMediaGenerating ? '#555' : 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                    color: 'white',
+                    padding: '10px 16px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    fontSize: '0.82rem',
+                    fontWeight: '700',
+                    cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    opacity: isMediaGenerating ? 0.6 : 1,
+                    flex: '1 1 auto',
+                    justifyContent: 'center',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 3px 10px rgba(139, 92, 246, 0.3)'
+                  }}
+                >
+                  👁️ Review
+                </button>
+              )}
               <button onClick={handleViewInHistory} disabled={isMediaGenerating} style={{
                 backgroundColor: '#3d3a37', color: '#bababa', padding: '8px 14px', borderRadius: '8px',
                 border: '1px solid #4a4744', fontSize: '0.8rem', fontWeight: '600',
@@ -811,6 +838,33 @@ const GameCompletionAnimation = ({
                   opacity: isMediaGenerating ? 0.6 : 1
                 }}>
                   Report
+                </button>
+              )}
+              {onPreview && (
+                <button
+                  onClick={onPreview}
+                  disabled={isMediaGenerating}
+                  style={{
+                    background: isMediaGenerating ? '#555' : 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                    color: 'white',
+                    padding: '10px 16px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    fontSize: '0.82rem',
+                    fontWeight: '700',
+                    cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    opacity: isMediaGenerating ? 0.6 : 1,
+                    flex: '1 1 auto',
+                    justifyContent: 'center',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 3px 10px rgba(139, 92, 246, 0.3)'
+                  }}
+                >
+                  👁️ Review
                 </button>
               )}
               <button onClick={handlePlayAgain} disabled={isMediaGenerating} style={{

@@ -294,6 +294,8 @@ const PlayComputer = () => {
 
   // Tour state for casual play feature tour
   const [tourOpen, setTourOpen] = useState(false);
+  const [preGameTourPending, setPreGameTourPending] = useState(false);
+  const preGameTourPendingRef = useRef(false);
   const tourStorageKey = user?.id
     ? `chess99:casual_tour:v1:${user.id}`
     : 'chess99:casual_tour:v1:guest';
@@ -557,6 +559,22 @@ const PlayComputer = () => {
     handleTimer: startTimerInterval, pauseTimer, switchTimer, resetTimer
   } = useGameTimer(playerColor, game, handleTimerFlag, timeControlMin * 60, incrementSec);
 
+  // First-use teaching is setup, not thinking time. A later, voluntary tour
+  // does not change the clock or award time to an already-running game.
+  const handleTourOpenChange = useCallback((open) => {
+    setTourOpen(open);
+    if (!open && preGameTourPendingRef.current) {
+      preGameTourPendingRef.current = false;
+      setPreGameTourPending(false);
+      setActiveTimer('w');
+      startTimerInterval();
+      moveStartTimeRef.current = Date.now();
+      setGameStatus('White to move.');
+      const saved = loadActiveGameState();
+      if (saved) saveActiveGameState({ ...saved, preGameTourPending: false });
+    }
+  }, [setActiveTimer, startTimerInterval]);
+
   // --- Fetch companions once on mount ---
   useEffect(() => {
     if (isGuestCasualMode && !localStorage.getItem('auth_token')) {
@@ -678,7 +696,14 @@ const PlayComputer = () => {
       const currentTurn = restoredGame.turn();
       const computerColor = color === 'w' ? 'b' : 'w';
 
-      if (currentTurn === color) {
+      if (saved.preGameTourPending) {
+        preGameTourPendingRef.current = true;
+        setPreGameTourPending(true);
+        setTourOpen(true);
+        setActiveTimer(null);
+        pauseTimer();
+        setGameStatus('Finish the introduction to start. Your clock is paused.');
+      } else if (currentTurn === color) {
         setActiveTimer(color);
         setIsTimerRunning(true);
         startTimerInterval();
@@ -1035,6 +1060,71 @@ const PlayComputer = () => {
   // Keep handleGameCompleteRef in sync for timer flag handler
   useEffect(() => { handleGameCompleteRef.current = handleGameComplete; }, [handleGameComplete]);
 
+  // --- Review navigation from the game-end card ---
+  // Builds the in-memory review payload (works for guests — no API needed),
+  // suppresses GameReview's end-card re-show, seeds the lastGameHistory
+  // fallback (survives refresh/state loss), then navigates to the review page.
+  const handleReviewGame = useCallback(() => {
+    const currentSyntheticOpponent = syntheticOpponentRef.current;
+    const activeBackendGame = backendGameRef.current || backendGame;
+    const backendId = activeBackendGame?.id || null;
+    const reviewReport = buildCurrentReviewReport();
+    const nowIso = new Date().toISOString();
+    const reviewId = backendId || `local_${Date.now()}`;
+
+    // Parsed moves array with a Start entry prepended — shape per GameHistoryPage.handlePreviewGame
+    const parsedMoves = [
+      { move: { san: 'Start' }, fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' },
+      ...(gameHistory || []).map(h => ({
+        move: { san: h?.move?.san || 'Unknown' },
+        fen: h?.fen,
+        time: h?.timeSpent || 0,
+        evaluation: h?.evaluation || null,
+        learningHelp: h?.learningHelp,
+      })),
+    ];
+
+    const payload = {
+      id: reviewId,
+      date: nowIso,
+      played_at: nowIso,
+      player_color: playerColor,
+      game_mode: 'computer',
+      computer_depth: computerDepth,
+      computer_level: computerDepth,
+      moves: parsedMoves,
+      final_score: Math.abs(playerScore),
+      opponent_score: Math.abs(computerScore),
+      result: gameResult,
+      game_id: backendId,
+      // Synthetic opponent identity — so review shows correct name/avatar
+      opponent_name: currentSyntheticOpponent?.name || null,
+      opponent_avatar_url: currentSyntheticOpponent?.avatar_url || null,
+      opponent_rating: currentSyntheticOpponent?.rating || null,
+      review_report: reviewReport,
+      review_summary: reviewReport.summary,
+      best_button_uses: reviewReport.bestButtonUses,
+      review_enabled_used: reviewReport.reviewEnabledUsed,
+    };
+
+    try {
+      // Suppress GameReview's auto end-card re-show for this game
+      sessionStorage.setItem(`endcard_dismissed_${reviewId}`, '1');
+      // Wire GameReview's localStorage fallback (refresh / shared URL / state loss)
+      localStorage.setItem('lastGameHistory', JSON.stringify(payload));
+    } catch (err) {
+      console.warn('[PlayComputer] Failed to persist review payload:', err);
+    }
+
+    if (backendId) {
+      // Route id enables PostGameAnalysis + shareable URL; state renders instantly
+      navigate(`/play/review/${backendId}`, { state: { gameHistory: payload } });
+    } else {
+      // Guests: state-only review, no sanctum-protected API calls
+      navigate('/game-review', { state: { gameHistory: payload } });
+    }
+  }, [gameHistory, playerColor, computerDepth, playerScore, computerScore, gameResult, backendGame, buildCurrentReviewReport, navigate]);
+
   // --- Effects ---
 
   // Effect for handling screen orientation changes and mobile landscape detection
@@ -1177,6 +1267,7 @@ const PlayComputer = () => {
           saveActiveGameState({
             fen: game.fen(),
             gameStarted: true,
+            preGameTourPending: preGameTourPendingRef.current,
             playerColor,
             computerDepth,
             ratedMode,
@@ -1239,6 +1330,7 @@ const PlayComputer = () => {
           saveActiveGameState({
             fen: game.fen(),
             gameStarted: true,
+            preGameTourPending: preGameTourPendingRef.current,
             playerColor,
             computerDepth,
             ratedMode,
@@ -1438,6 +1530,7 @@ const PlayComputer = () => {
         saveActiveGameState({
           fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
           gameStarted: true,
+          preGameTourPending: preGameTourPendingRef.current,
           playerColor: color,
           computerDepth: bot.computer_level || computerDepth,
           ratedMode: lobbyRatedMode,
@@ -1950,7 +2043,8 @@ const PlayComputer = () => {
 
 
   // --- Player Move Logic (onDrop on ChessBoard) ---
-   const onDrop = useCallback((sourceSquare, targetSquare) => {
+   const onDrop = useCallback((sourceSquare, targetSquare, piece, promotion = 'q') => {
+        if (preGameTourPendingRef.current) return false;
         // Convert playerColor to chess.js format for comparison
         // playerColor might already be in chess.js format ('w' or 'b') or full format ('white' or 'black')
         const playerColorChess = playerColor === 'white' || playerColor === 'w' ? 'w' : 'b';
@@ -1992,7 +2086,7 @@ const PlayComputer = () => {
             moveResult = gameCopy.move({
                 from: sourceSquare,
                 to: targetSquare,
-                promotion: "q", // Automatically promote to queen for simplicity
+                promotion,
             });
         } catch (error) {
             // chess.js throws error for completely invalid format, but returns null for illegal moves
@@ -2121,6 +2215,7 @@ const PlayComputer = () => {
         saveActiveGameState({
           fen: gameCopy.fen(),
           gameStarted: true,
+          preGameTourPending: preGameTourPendingRef.current,
           playerColor,
           computerDepth,
           ratedMode,
@@ -2236,14 +2331,12 @@ const PlayComputer = () => {
         // Start the game immediately — don't wait for backend API
         setGameStarted(true);
 
-        // Auto-show casual play tour on first game
-        if (effectiveRatedMode === 'casual') {
-          const hasSeenTour = localStorage.getItem(tourStorageKey) === 'completed';
-          if (!hasSeenTour) {
-            // Delay slightly so board renders before tour spotlight
-            setTimeout(() => setTourOpen(true), 800);
-          }
-        }
+        const needsTour = effectiveRatedMode === 'casual'
+          && localStorage.getItem(tourStorageKey) !== 'completed';
+        preGameTourPendingRef.current = needsTour;
+        setPreGameTourPending(needsTour);
+        setTourOpen(needsTour);
+        setGameStatus(needsTour ? 'Finish the introduction to start. Your clock is paused.' : 'White to move.');
 
         previousGameStateRef.current = new Chess(); // Initial state for history
         setGameHistory([]);
@@ -2262,9 +2355,10 @@ const PlayComputer = () => {
         console.log(`[PlayComputer] 🎮 Game started - Mode: ${effectiveRatedMode}, Difficulty: ${effectiveComputerDepth}, Undo chances: ${initialUndoChances}`);
 
         // White always starts in chess, so set active timer to white
-        setActiveTimer("w"); // White always starts
-        startTimerInterval(); // Start the first timer (White's timer)
-        if (effectivePlayerColor === "w") {
+        setActiveTimer(needsTour ? null : 'w');
+        if (needsTour) pauseTimer();
+        else startTimerInterval();
+        if (!needsTour && effectivePlayerColor === "w") {
             // If player is White, record their move start time immediately
             moveStartTimeRef.current = Date.now();
         }
@@ -2285,6 +2379,7 @@ const PlayComputer = () => {
         saveActiveGameState({
           fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
           gameStarted: true,
+          preGameTourPending: needsTour,
           playerColor: effectivePlayerColor,
           computerDepth: effectiveComputerDepth,
           ratedMode: effectiveRatedMode,
@@ -2334,12 +2429,15 @@ const PlayComputer = () => {
         setGameStarted, setCountdownActive, setGameHistory, setMoveCount, setGameOver, // Stable setters
         setPlayerScore, setLastMoveEvaluation, setGame, setMoveCompleted, setGameStatus, // Stable setters
         setCurrentGameId, setBackendGame, setUndoChancesRemaining, setSearchParams, // Stable setters
-        setSyntheticOpponent, resetMoveReviewTracking // Stable setter (used for pending opponent)
+        setSyntheticOpponent, resetMoveReviewTracking, tourStorageKey, pauseTimer
     ]);
 
     const resetGame = useCallback(() => {
         // Resets the entire game state back to the pre-game setup screen
         console.log("Resetting game...");
+        preGameTourPendingRef.current = false;
+        setPreGameTourPending(false);
+        setTourOpen(false);
         clearActiveGameState(); // Clear refresh persistence
         if (timerRef.current) clearInterval(timerRef.current);
         if (replayTimerRef.current) clearInterval(replayTimerRef.current);
@@ -2905,6 +3003,7 @@ const PlayComputer = () => {
     }, []);
 
    const handleCompanionMove = useCallback(async (move) => {
+        if (preGameTourPendingRef.current) return;
         // Companions cannot play in rated games
         if (ratedMode === 'rated' || ratedMode === 'learning') return;
         // It must be the player's turn
@@ -3054,10 +3153,10 @@ const PlayComputer = () => {
           {!countdownActive && (
             <div className="flex justify-start mb-4">
               <button
-                onClick={() => navigate('/lobby')}
+                onClick={() => navigate(user ? '/lobby' : '/')}
                 className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors"
               >
-                ← Back to Lobby
+                {user ? '← Back to Play' : '← Home'}
               </button>
             </div>
           )}
@@ -3124,18 +3223,15 @@ const PlayComputer = () => {
           </div>
           <div className="color-selection mb-2">
             <h3 className="text-xl font-semibold mb-2">Select Your Color:</h3>
-            <label className="color-toggle-container inline-flex items-center cursor-pointer" htmlFor="color-toggle">
-              <span className="mr-3">White</span>
-              <div className="relative">
-                <input type="checkbox" id="color-toggle" className="sr-only"
-                  checked={playerColor === 'b'}
-                  onChange={handleColorToggle}
-                  disabled={countdownActive} />
-                <div className="w-14 h-8 bg-surface-elevated rounded-full"></div>
-                <div className={`dot absolute top-1 bg-white w-6 h-6 rounded-full transition ${playerColor === 'b' ? 'left-7' : 'left-1'}`}></div>
-              </div>
-              <span className="ml-3">Black</span>
-            </label>
+            <div className="flex gap-3 justify-center" role="group" aria-label="Your colour">
+              {[['w', 'White'], ['b', 'Black']].map(([colour, label]) => (
+                <button type="button" key={colour} className="c99-choice" aria-pressed={playerColor === colour}
+                  disabled={countdownActive} onClick={() => { if (playerColor !== colour) handleColorToggle(); }}>
+                  {playerColor === colour ? '✓ ' : ''}{label}
+                </button>
+              ))}
+            </div>
+            <p className="text-sm text-[#c3beb6] mt-2">White moves first. {playerColor === 'b' ? 'The computer will start.' : 'You will start.'}</p>
           </div>
 
           {/* Board theme preview — only for logged-in users */}
@@ -3170,7 +3266,7 @@ const PlayComputer = () => {
           })()}
 
           {!countdownActive && (
-            <button className="start-button large green bg-chess-green hover:bg-chess-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 mt-4" onClick={startGame} disabled={countdownActive}>
+            <button className="start-button c99-primary mt-4" onClick={startGame} disabled={countdownActive}>
               Play
             </button>
           )}
@@ -3203,6 +3299,8 @@ const PlayComputer = () => {
   const gameContainerSection = (
     <GameContainer
       mode="computer"
+      accessibleMoveData={{ fen: game.fen(), disabled: !gameStarted || gameOver || isReplayMode || preGameTourPending || computerMoveInProgress || game.turn() !== playerColor,
+        onMove: (from, to, promotion) => onDrop(from, to, null, promotion) }}
       boardTheme={boardTheme}
       pieceStyle={pieceStyle}
       onBoardThemeChange={setBoardTheme}
@@ -3223,7 +3321,7 @@ const PlayComputer = () => {
         } : null,
         opponentData: syntheticOpponent
           ? {
-              name: syntheticOpponent.name,
+              name: `${syntheticOpponent.name} · Computer`,
               avatar_url: syntheticOpponent.avatar_url,
               rating: syntheticOpponent.rating,
               personality: syntheticOpponent.personality,
@@ -3236,7 +3334,10 @@ const PlayComputer = () => {
       gameData={{
         game,
         gameHistory,
-        gameStatus,
+        gameStatus: preGameTourPending ? 'Finish the introduction to start. Your clock is paused.'
+          : gameStarted && !gameOver && !isReplayMode
+            ? `${game.turn() === 'w' ? 'White' : 'Black'} to move.${game.isCheck() ? ' Check.' : ''}${!isTimerRunning ? ' Clock paused.' : ''}`
+            : gameStatus,
         moveCompleted,
         isReplayMode,
         currentReplayMove,
@@ -3266,11 +3367,11 @@ const PlayComputer = () => {
         onCompanionSelect: handleCompanionSelect,
         onCompanionDismiss: handleCompanionDismiss,
         onMove: handleCompanionMove,
-        isMyTurn: game?.turn() === playerColor,
+        isMyTurn: !preGameTourPending && game?.turn() === playerColor,
       }}
       cctData={{
         game,
-        isActive: gameStarted && !gameOver,
+        isActive: gameStarted && !gameOver && !preGameTourPending,
         isRated: ratedMode === 'rated',
         onArrowsChange: setCctArrows,
         onLabelsChange: setCctLabels,
@@ -3327,7 +3428,7 @@ const PlayComputer = () => {
         isPortrait
       }}
       tourOpen={tourOpen}
-      onTourOpen={setTourOpen}
+      onTourOpen={handleTourOpenChange}
       tourStorageKey={tourStorageKey}
     >
       <ChessBoard
@@ -3718,6 +3819,7 @@ const PlayComputer = () => {
             gameId={backendGame?.id || null} // Link rating update to this game (idempotency)
             ratedMode={ratedMode} // Only update rating for rated games
             reviewReport={liveReviewReport}
+            onPreview={gameHistory.length > 0 ? handleReviewGame : undefined}
             onClose={() => {
               setShowGameCompletion(false);
 

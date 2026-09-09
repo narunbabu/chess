@@ -47,15 +47,17 @@ export default function DifficultyMeter({
               key={level.label}
               onClick={() => handleSelect(idx)}
               disabled={disabled}
+              aria-pressed={isActive}
               title={`Depth ${level.range[0]}–${level.range[1]}, ~${level.movetime}ms think time`}
               style={{
                 padding: "8px 4px",
                 borderRadius: "8px",
                 border: isActive ? `2px solid ${level.color}` : "2px solid #3d3a37",
                 background: isActive ? `${level.color}22` : "transparent",
-                color: isActive ? level.color : "#8b8987",
+                color: "#f5f2ec",
                 fontWeight: isActive ? "700" : "500",
-                fontSize: "0.75rem",
+                fontSize: "0.875rem",
+                minHeight: "48px",
                 cursor: disabled ? "not-allowed" : "pointer",
                 transition: "all 0.15s ease",
                 display: "flex",
@@ -71,8 +73,8 @@ export default function DifficultyMeter({
           );
         })}
       </div>
-      <div style={{ textAlign: "center", marginTop: "6px", fontSize: "0.7rem", color: "#8b8987" }}>
-        {activeIdx >= 0 ? `${LEVELS[activeIdx].label} · depth ${currentValue}` : `depth ${currentValue}`}
+      <div style={{ textAlign: "center", marginTop: "8px", fontSize: "0.875rem", color: "#c3beb6" }}>
+        {activeIdx >= 0 ? `${LEVELS[activeIdx].label} computer opponent` : 'Choose a computer level'}
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ import GameChat from './GameChat';
 import CompanionControls from '../game/CompanionControls';
 import CCTPanel from '../game/CCTPanel';
 import PlayFeatureTour from './PlayFeatureTour';
+import AccessibleMoveControls from './AccessibleMoveControls';
 
 // Extract SAN from any gameHistory entry format:
 //   PlayComputer objects: { move: { san: "e4" }, ... }
@@ -100,6 +101,7 @@ const buildReviewArrows = (result, topMoveLimit = 5) => {
 const GameContainer = ({
   mode = 'computer',
   children,
+  accessibleMoveData = null,
   header = null,
   timerData = {},
   gameData = {},
@@ -985,18 +987,6 @@ const GameContainer = ({
           )}
         </div>
       </div>
-      {/* Game status */}
-      {drawClaimInfo?.available && drawClaimInfo.reason === 'threefold_repetition' ? (
-        <div className="gc-status-bar" style={{ borderColor: '#e8a93e', color: '#e8a93e' }}>
-          Threefold Repetition{drawClaimInfo.isCasual ? ' — Auto-Draw' : ' — Claim Available'}
-        </div>
-      ) : drawClaimInfo?.available && drawClaimInfo.reason === 'fifty_move_rule' ? (
-        <div className="gc-status-bar" style={{ borderColor: '#e8a93e', color: '#e8a93e' }}>
-          50-Move Rule — Claim Available
-        </div>
-      ) : gameStatus && !gameStatus.match(/^(White|Black)'s turn$/i) ? (
-        <div className="gc-status-bar">{gameStatus}</div>
-      ) : null}
     </div>
   );
 
@@ -1061,6 +1051,11 @@ const GameContainer = ({
 
       {/* CENTER — board hero zone */}
       <div className="gc-center">
+        <div role="status" className="gc-status-bar">
+          {drawClaimInfo?.available
+            ? (drawClaimInfo.reason === 'threefold_repetition' ? 'Threefold repetition — draw available' : '50-move rule — draw available')
+            : gameStatus}
+        </div>
         {/* Toolbar */}
         <div className="gc-toolbar">
           {boardTheme !== undefined && onBoardThemeChange && (
@@ -1113,6 +1108,7 @@ const GameContainer = ({
         {/* Action bar / Replay bar — custom actionBar prop takes priority */}
         {actionBar || renderActionBar()}
         {renderReplayBar()}
+        {accessibleMoveData && <AccessibleMoveControls {...accessibleMoveData} />}
 
         {bestUseNudge && !gameOver && (
           <div className="gc-best-use-nudge" role="status">

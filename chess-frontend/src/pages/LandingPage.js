@@ -274,21 +274,21 @@ const LandingPage = () => {
 
                 <div className="flex flex-col gap-3 max-w-sm mx-auto lg:mx-0">
                   <button
-                    onClick={handleLoginPlay}
-                    className="bg-[#81b64c] text-white px-8 py-4 rounded-lg text-xl font-bold hover:bg-[#a3d160] transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+                    onClick={handleGuestPlay}
+                    className="c99-primary text-xl"
                   >
-                    Login and Play
+                    Play as guest
                   </button>
                   <button
-                    onClick={handleGuestPlay}
-                    className="bg-[#312e2b] text-white px-8 py-3 rounded-lg text-base font-semibold border border-[#4a4744] hover:bg-[#3d3a37] transition-all"
+                    onClick={handleLoginPlay}
+                    className="c99-secondary"
                   >
-                    Play Now
+                    Sign in to save your progress
                   </button>
                 </div>
 
                 <p className="text-[#bababa] text-sm mt-4">
-                  Join <span className="text-[#81b64c] font-semibold">1,000+ young players</span> · beginner-friendly · no pressure
+                  No account needed to try a computer game. Choose your level and learn at your pace.
                 </p>
               </div>
 
@@ -300,11 +300,19 @@ const LandingPage = () => {
         </section>
 
         <section className="bg-[#1a1a18] border-t border-[#3d3a37]/50 py-10 sm:py-14 px-4">
+          <div className="c99-hub-grid max-w-5xl mx-auto mb-8">
+            <article className="c99-hub-card"><h2>Play a computer</h2><p>A friendly practice game. Choose your colour and level; no account needed.</p><button className="c99-primary" onClick={handleGuestPlay}>Try a game</button></article>
+            <article className="c99-hub-card"><h2>Play online</h2><p>Sign in to find an opponent, keep your history, and build your rating.</p><button className="c99-secondary" onClick={handleLoginPlay}>Sign in to play online</button></article>
+            <article className="c99-hub-card"><h2>Learn a little</h2><p>Find lessons, puzzles, and practice in one place. Start with the basics.</p><Link className="c99-secondary" to="/learn">Explore learning</Link></article>
+          </div>
+          <details className="max-w-5xl mx-auto text-[#f5f2ec]">
+          <summary className="cursor-pointer py-3 font-semibold">Explore all play modes</summary>
           <PlayModeGuide
             groups={ONBOARDING_GUIDE_GROUPS}
             isAuthenticated={isAuthenticated}
             onAction={handleGuideAction}
           />
+          </details>
         </section>
 
         {/* Compact Feature Strip */}

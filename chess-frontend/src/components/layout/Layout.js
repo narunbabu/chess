@@ -3,9 +3,12 @@ import { useLocation } from 'react-router-dom';
 import Header from './Header';
 import Background from './Background';
 import EnrolledUnderBanner from './EnrolledUnderBanner';
+import PrimaryNavigation from './PrimaryNavigation';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Layout = ({ children }) => {
   const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const isLandingPage = location.pathname === '/';
   const isLoginPage = location.pathname === '/login';
   const isPlayPage = location.pathname === '/play' || location.pathname.startsWith('/play/');
@@ -64,13 +67,14 @@ const Layout = ({ children }) => {
   }
 
   return (
-    <div>
+    <div className={isAuthenticated && !isPlayPage ? 'c99-with-mobile-nav' : ''}>
       {!isPlayPage && <Background />}
       <div ref={headerRef}>
         <Header />
       </div>
       <EnrolledUnderBanner />
       <div className="relative">{children}</div>
+      {isAuthenticated && !isPlayPage && <PrimaryNavigation mobile />}
     </div>
   );
 };

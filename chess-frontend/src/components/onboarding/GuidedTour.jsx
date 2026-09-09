@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import './GuidedTour.css';
 
 const getTargetRect = (selector) => {
@@ -33,6 +33,7 @@ const GuidedTour = ({
   storageKey,
 }) => {
   const [activeIndex, setActiveIndex] = useState(0);
+  const dialogRef = useRef(null);
   const [targetRect, setTargetRect] = useState(null);
   const activeStep = steps[activeIndex];
 
@@ -61,11 +62,18 @@ const GuidedTour = ({
 
   const finishTour = useCallback(() => {
     if (storageKey) {
-      localStorage.setItem(storageKey, 'completed');
+      try { localStorage.setItem(storageKey, 'completed'); } catch { /* Private storage must not trap the player. */ }
     }
     onClose?.();
     setActiveIndex(0);
   }, [onClose, storageKey]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const previousFocus = document.activeElement;
+    dialogRef.current?.querySelector('button:not(:disabled)')?.focus();
+    return () => previousFocus?.focus?.();
+  }, [isOpen]);
 
   const tooltipStyle = useMemo(() => {
     const isMobile = window.innerWidth <= 560;
@@ -117,7 +125,15 @@ const GuidedTour = ({
       };
 
   return (
-    <div className="guided-tour" role="dialog" aria-modal="true" aria-labelledby="guided-tour-title">
+    <div ref={dialogRef} className="guided-tour" role="dialog" aria-modal="true" aria-labelledby="guided-tour-title" onKeyDown={event => {
+      if (event.key === 'Escape') { event.preventDefault(); finishTour(); }
+      if (event.key !== 'Tab') return;
+      const buttons = Array.from(dialogRef.current.querySelectorAll('button:not(:disabled)'));
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }}>
       <div className="guided-tour-scrim" />
 
       {targetRect && (

@@ -5,12 +5,12 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useActiveGame } from '../../hooks/useActiveGame';
+import useDailyStreak from '../../hooks/useDailyStreak';
 import { useGameNavigation } from '../../contexts/GameNavigationContext';
 import { trackAuth, trackNavigation } from '../../utils/analytics';
 import { isPlatformAdmin, isOrganizationAdmin, isAmbassador } from '../../utils/permissionHelpers';
 import { BACKEND_URL } from '../../config';
-import { MdDashboard } from 'react-icons/md';
-import { IoGameController, IoSchool, IoTrophy, IoPlay, IoStatsChart } from 'react-icons/io5';
+import { IoStatsChart } from 'react-icons/io5';
 import presenceService from '../../services/presenceService';
 import { getEcho } from '../../services/echoSingleton';
 import { getPreferredGameMode } from '../../utils/gamePreferences';
@@ -20,6 +20,7 @@ import AvatarQuickEdit from '../common/AvatarQuickEdit';
 import NameQuickEdit from '../common/NameQuickEdit';
 import api from '../../services/api';
 import './Header.css';
+import PrimaryNavigation from './PrimaryNavigation';
 
 /**
  * Header component extracted from App.js AppHeader
@@ -33,12 +34,10 @@ const Header = () => {
   const { isAuthenticated, logout, user, fetchUser } = useAuth();
   const { currentTier, isPremium, isStandard } = useSubscription();
   const { activeGame, loading } = useActiveGame();
+  const { streak, longest } = useDailyStreak();
   const { navigateWithGuard, activeGame: navActiveGame, isRatedGame, handleNavigationAttempt } = useGameNavigation();
   const [showNavPanel, setShowNavPanel] = useState(false);
   const [showMatchmaking, setShowMatchmaking] = useState(false);
-  const [showLearnDropdown, setShowLearnDropdown] = useState(false);
-  const [learnDropdownPos, setLearnDropdownPos] = useState({ top: 0, left: 0 });
-  const learnWrapperRef = useRef(null);
   const [onlineStats, setOnlineStats] = useState({ onlineCount: 0, availablePlayers: 0 });
   const [recentChampionship, setRecentChampionship] = useState(null);
   const [wsConnected, setWsConnected] = useState(false);
@@ -408,118 +407,7 @@ const Header = () => {
 
       {isAuthenticated && (
         <div className="center-section">
-          <button
-            className={`nav-link nav-icon-link${showMatchmaking ? ' active' : ''}`}
-            onClick={() => {
-              // Block starting a new game during an active multiplayer game
-              if (navActiveGame?.isActive && !navActiveGame?.isPaused) {
-                handleNavigationAttempt('/');
-                return;
-              }
-              // Block starting a new game while on the /play page (computer/synthetic game in progress)
-              if (location.pathname === '/play' || location.pathname.startsWith('/play/multiplayer/')) {
-                return; // Already playing — ignore
-              }
-              setShowMatchmaking(true);
-            }}
-            title="Play Now"
-            aria-label="Play Now"
-            style={{ color: '#81b64c', fontWeight: '700', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-          >
-            <IoPlay size={24} />
-            <span className="nav-text">Play</span>
-            <span
-              title={wsConnected ? 'Live — real-time matchmaking active' : 'Connecting...'}
-              style={{
-                display: 'inline-block',
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                backgroundColor: wsConnected ? '#4caf50' : '#f44336',
-                marginLeft: 4,
-                flexShrink: 0,
-                transition: 'background-color 0.3s',
-              }}
-            />
-          </button>
-          <Link
-            to="/dashboard"
-            className="nav-link nav-icon-link"
-            onClick={(e) => {
-              e.preventDefault();
-              handleNavItemClick(() => navigate('/dashboard'), '/dashboard');
-            }}
-            title="Dashboard"
-            aria-label="Dashboard"
-          >
-            <MdDashboard size={24} />
-            <span className="nav-text">Dashboard</span>
-          </Link>
-          <Link
-            to="/lobby"
-            className="nav-link nav-icon-link"
-            onClick={(e) => {
-              e.preventDefault();
-              handleNavItemClick(() => navigate('/lobby'), '/lobby');
-            }}
-            title="Lobby"
-            aria-label="Lobby"
-          >
-            <IoGameController size={24} />
-            <span className="nav-text">Lobby</span>
-          </Link>
-          {/* Learn dropdown trigger */}
-          <div
-            ref={learnWrapperRef}
-            className="nav-learn-wrapper"
-            onMouseEnter={() => {
-              const rect = learnWrapperRef.current?.getBoundingClientRect();
-              if (rect) setLearnDropdownPos({ top: rect.bottom + 4, left: rect.left + rect.width / 2 });
-              setShowLearnDropdown(true);
-            }}
-            onMouseLeave={() => setShowLearnDropdown(false)}
-          >
-            <button
-              className={`nav-link nav-icon-link${['/tutorial','/tactical-trainer','/training','/puzzles'].some(p => location.pathname.startsWith(p)) ? ' active' : ''}`}
-              onClick={() => {
-                const rect = learnWrapperRef.current?.getBoundingClientRect();
-                if (rect) setLearnDropdownPos({ top: rect.bottom + 4, left: rect.left + rect.width / 2 });
-                setShowLearnDropdown(d => !d);
-              }}
-              title="Learn"
-              aria-label="Learn"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >
-              <IoSchool size={24} />
-              <span className="nav-text">Learn ▾</span>
-            </button>
-          </div>
-          <Link
-            to="/championships"
-            className="nav-link nav-icon-link"
-            onClick={(e) => {
-              e.preventDefault();
-              handleNavItemClick(() => navigate('/championships'), '/championships');
-            }}
-            title="Championships"
-            aria-label="Championships"
-          >
-            <IoTrophy size={24} />
-            <span className="nav-text">Championships</span>
-          </Link>
-          <Link
-            to="/leaderboard"
-            className="nav-link nav-icon-link"
-            onClick={(e) => {
-              e.preventDefault();
-              handleNavItemClick(() => navigate('/leaderboard'), '/leaderboard');
-            }}
-            title="Leaderboard"
-            aria-label="Leaderboard"
-          >
-            <IoStatsChart size={24} />
-            <span className="nav-text">Leaderboard</span>
-          </Link>
+          <PrimaryNavigation onNavigate={to => handleNavItemClick(() => navigate(to), to)} />
           {!loading && activeGame && (
             <button
               onClick={handleResumeGame}
@@ -601,6 +489,14 @@ const Header = () => {
                   {currentTier}
                 </span>
               )}
+              {streak > 0 && (
+                <span
+                  className="header-streak-badge"
+                  title={`${streak}-day activity streak — games, puzzles, lessons and challenges count. Longest: ${longest}`}
+                >
+                  🔥 {streak}
+                </span>
+              )}
             </div>
             <div className="user-avatar" data-tour="profile-menu" onClick={handleUserMenuClick} title="User Menu" aria-label="User Menu">
               <img
@@ -655,6 +551,14 @@ const Header = () => {
                   <p className="nav-user-email">{user?.email}</p>
                   <p>Rating: {user?.rating || 400}</p>
                   <p>Learner Elo: {user?.learner_rating || 400}</p>
+                  {streak > 0 && (
+                    <p
+                      className="nav-user-streak"
+                      title={`${streak}-day activity streak — games, puzzles, lessons and challenges count. Longest: ${longest}`}
+                    >
+                      🔥 {streak} day{streak !== 1 ? 's' : ''} active
+                    </p>
+                  )}
                   <div className="nav-quick-actions">
                     <button
                       className="nav-quick-action-btn"
@@ -823,45 +727,6 @@ const Header = () => {
         document.body || document.createElement('div')
       )}
 
-      {/* Learn dropdown — portalled to body so it escapes header stacking context */}
-      {showLearnDropdown && createPortal(
-        <div
-          className="learn-dropdown"
-          style={{ top: learnDropdownPos.top, left: learnDropdownPos.left }}
-          onMouseEnter={() => setShowLearnDropdown(true)}
-          onMouseLeave={() => setShowLearnDropdown(false)}
-        >
-          <button
-            className="learn-dropdown-item"
-            onClick={() => { setShowLearnDropdown(false); handleNavItemClick(() => navigate('/tutorial'), '/tutorial'); }}
-          >
-            <span className="learn-dropdown-icon">📖</span>
-            <span>Lessons</span>
-          </button>
-          <button
-            className="learn-dropdown-item learn-dropdown-item--highlight"
-            onClick={() => { setShowLearnDropdown(false); handleNavItemClick(() => navigate('/tactical-trainer'), '/tactical-trainer'); }}
-          >
-            <span className="learn-dropdown-icon">🧩</span>
-            <span>Tactical Trainer</span>
-          </button>
-          <button
-            className="learn-dropdown-item"
-            onClick={() => { setShowLearnDropdown(false); handleNavItemClick(() => navigate('/ebook'), '/ebook'); }}
-          >
-            <span className="learn-dropdown-icon">📘</span>
-            <span>Chess 0→1000 E-Book</span>
-          </button>
-          <button
-            className="learn-dropdown-item"
-            onClick={() => { setShowLearnDropdown(false); handleNavItemClick(() => navigate('/training'), '/training'); }}
-          >
-            <span className="learn-dropdown-icon">🏋️</span>
-            <span>Training Drills</span>
-          </button>
-        </div>,
-        document.body
-      )}
 
       {/* Matchmaking modal — opened by the Play nav button */}
       {isAuthenticated && (

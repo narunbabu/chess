@@ -5,6 +5,7 @@ import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import { HelmetProvider } from 'react-helmet-async';
 import './index.css';
+import './styles/experience.css';
 import App from './App';
 import { initAnalytics } from './utils/initAnalytics';
 
