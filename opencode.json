@@ -1,0 +1,44 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "webfetch": "ask",
+    "edit": "allow",
+    "external_directory": {
+      "*": "ask",
+      "D:\\ArunApps\\Chess-Web\\**": "allow",
+      "C:\\Users\\ab\\AppData\\Local\\Temp\\opencode\\**": "allow"
+    },
+    "bash": {
+      "*": "ask",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git show*": "allow",
+      "git branch*": "allow",
+      "git rev-parse*": "allow",
+      "git ls-files*": "allow",
+      "git config --get*": "allow",
+      "git add*": "allow",
+      "git commit*": "allow",
+      "git restore --staged*": "allow",
+      "pnpm install*": "allow",
+      "pnpm build*": "allow",
+      "pnpm test*": "allow",
+      "pnpm lint*": "allow",
+      "pnpm typecheck*": "allow",
+      "php artisan test*": "allow",
+      "php artisan migrate --pretend*": "allow",
+      "composer install*": "allow",
+      "gradlew*": "allow",
+      ".\\gradlew*": "allow",
+      "./gradlew*": "allow",
+      "powershell -*": "allow",
+      "powershell.exe -*": "allow",
+      "rg *": "allow"
+    }
+  }
+}
