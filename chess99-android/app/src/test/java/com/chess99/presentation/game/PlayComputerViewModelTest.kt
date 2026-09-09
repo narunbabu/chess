@@ -9,14 +9,18 @@ import com.chess99.engine.SimulatedOpponent
 import com.chess99.engine.StockfishEngine
 import com.chess99.engine.StockfishResult
 import com.chess99.presentation.social.ShareManager
+import com.chess99.presentation.history.LocalGameReviewRecord
+import com.chess99.presentation.history.LocalGameReviewStore
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -48,6 +52,7 @@ class PlayComputerViewModelTest {
     private lateinit var matchmakingApi: MatchmakingApi
     private lateinit var gameApi: GameApi
     private lateinit var shareManager: ShareManager
+    private lateinit var localGameReviewStore: LocalGameReviewStore
     private lateinit var viewModel: PlayComputerViewModel
 
     private val persona = SyntheticPlayer(
@@ -70,6 +75,7 @@ class PlayComputerViewModelTest {
         matchmakingApi = mockk(relaxed = true)
         gameApi = mockk(relaxed = true)
         shareManager = mockk(relaxed = true)
+        localGameReviewStore = mockk(relaxed = true)
 
         // The fake engine answers with a real ranked move list for the position.
         coEvery { engine.getBestMove(any(), any(), any()) } answers {
@@ -77,7 +83,13 @@ class PlayComputerViewModelTest {
             StockfishResult(ranked.first().uci, ranked, thinkTimeMs = 12)
         }
 
-        viewModel = PlayComputerViewModel(engine, matchmakingApi, gameApi, shareManager)
+        viewModel = PlayComputerViewModel(
+            engine,
+            matchmakingApi,
+            gameApi,
+            shareManager,
+            localGameReviewStore,
+        )
     }
 
     @After
@@ -90,6 +102,38 @@ class PlayComputerViewModelTest {
 
     private fun jsonResponse(json: String): Response<JsonObject> =
         Response.success(JsonParser.parseString(json).asJsonObject)
+
+    @Test
+    fun `rated local game is blocked before engine starts`() = runTest {
+        viewModel.setupGame(mode = GameMode.RATED)
+        viewModel.startGame()
+        assertEquals(GamePhase.SETUP, viewModel.uiState.value.gamePhase)
+        assertNotNull(viewModel.uiState.value.error)
+        coVerify(exactly = 0) { engine.initialize() }
+    }
+
+    @Test
+    fun `persona request preserves each explicitly selected colour`() = runTest {
+        val request = slot<JsonObject>()
+        coEvery { gameApi.createComputerGame(capture(request)) } returns jsonResponse("{\"id\": 42}")
+        for (color in listOf(Color.WHITE, Color.BLACK)) {
+            viewModel.setupGame(playerColor = color)
+            viewModel.startPersonaGame(persona)
+            assertEquals(if (color == Color.WHITE) "white" else "black", request.captured.get("player_color").asString)
+        }
+    }
+
+    @Test
+    fun `failed rated persona cannot fall back to an unrecorded local game`() = runTest {
+        coEvery { gameApi.createComputerGame(any()) } returns errorResponse()
+        viewModel.setupGame(mode = GameMode.RATED)
+        viewModel.startPersonaGame(persona, GameMode.RATED)
+        viewModel.consumeStartGameError()
+        viewModel.startGame()
+        assertEquals(GamePhase.SETUP, viewModel.uiState.value.gamePhase)
+        assertNotNull(viewModel.uiState.value.error)
+        coVerify(exactly = 0) { engine.initialize() }
+    }
 
     // ── Setup: the three web game modes ──────────────────────────────
 
@@ -173,6 +217,17 @@ class PlayComputerViewModelTest {
     }
 
     @Test
+    fun `start is idempotent so the clock and black opening move begin once`() = runTest {
+        viewModel.setupGame(playerColor = Color.BLACK, difficulty = 4)
+
+        viewModel.startGame()
+        viewModel.startGame()
+
+        assertEquals(1, viewModel.uiState.value.moveHistory.size)
+        coVerify(exactly = 1) { engine.getBestMove(any(), any(), any()) }
+    }
+
+    @Test
     fun `a player move is applied and answered by the computer`() = runTest {
         viewModel.setupGame(playerColor = Color.WHITE, difficulty = 4)
         viewModel.startGame()
@@ -186,6 +241,29 @@ class PlayComputerViewModelTest {
         assertEquals(Color.BLACK, state.moveHistory[1].playerColor)
         assertTrue("board must have advanced", state.fen != ChessGame.STARTING_FEN)
         assertEquals(Color.WHITE, state.activeTimer)
+    }
+
+    @Test
+    fun `new setup ignores a stale computer reply from the previous position`() = runTest {
+        val result = kotlinx.coroutines.CompletableDeferred<StockfishResult>()
+        coEvery { engine.getBestMove(any(), any(), any()) } coAnswers {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { result.await() }
+        }
+        viewModel.setupGame(playerColor = Color.WHITE, difficulty = 4)
+        viewModel.startGame()
+        viewModel.onPlayerMove("e2", "e4", null)
+
+        viewModel.setupGame(playerColor = Color.BLACK, difficulty = 8)
+        result.complete(
+            StockfishResult("e7e5", SimulatedOpponent.rankedMoves(ChessGame()), thinkTimeMs = 12)
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(GamePhase.SETUP, state.gamePhase)
+        assertEquals(ChessGame.STARTING_FEN, state.fen)
+        assertTrue(state.moveHistory.isEmpty())
+        assertFalse(state.computerMoveInProgress)
     }
 
     @Test
@@ -242,7 +320,7 @@ class PlayComputerViewModelTest {
     }
 
     @Test
-    fun `undo is refused in rated mode`() = runTest {
+    fun `rated local setup rejects moves and undo`() = runTest {
         viewModel.setupGame(playerColor = Color.WHITE, difficulty = 4, mode = GameMode.RATED)
         viewModel.startGame()
         viewModel.onPlayerMove("e2", "e4", null)
@@ -250,8 +328,10 @@ class PlayComputerViewModelTest {
 
         viewModel.undoMove()
 
-        assertEquals("a rated game must not be rewindable", fenAfterMoves, viewModel.uiState.value.fen)
-        assertEquals(2, viewModel.uiState.value.moveHistory.size)
+        assertEquals(ChessGame.STARTING_FEN, fenAfterMoves)
+        assertEquals("a rejected rated game must not be rewindable", fenAfterMoves, viewModel.uiState.value.fen)
+        assertEquals(GamePhase.SETUP, viewModel.uiState.value.gamePhase)
+        assertTrue(viewModel.uiState.value.moveHistory.isEmpty())
     }
 
     @Test
@@ -284,12 +364,83 @@ class PlayComputerViewModelTest {
         )
     }
 
+    // ── Shared Learning help ─────────────────────────────────
+
+    @Test
+    fun `best move in learning mode reveals a legal arrow and spends one shared chance`() = runTest {
+        viewModel.setupGame(playerColor = Color.WHITE, difficulty = 4, mode = GameMode.LEARNING, learningHelpLimit = 3)
+        viewModel.startGame()
+
+        viewModel.requestBestMove()
+
+        val state = viewModel.uiState.value
+        assertNotNull(state.bestMoveUci)
+        assertTrue(state.bestMoveFrom >= 0)
+        assertTrue(state.bestMoveTo >= 0)
+        assertEquals(2, state.undoChancesRemaining)
+        assertFalse(state.bestMoveInProgress)
+
+        viewModel.requestBestMove()
+        assertEquals("showing the same hint twice must not double charge", 2, viewModel.uiState.value.undoChancesRemaining)
+    }
+
+    @Test
+    fun `rated and casual games cannot request a best move`() = runTest {
+        for (mode in listOf(GameMode.RATED, GameMode.CASUAL)) {
+            viewModel.setupGame(playerColor = Color.WHITE, difficulty = 4, mode = mode)
+            viewModel.startGame()
+            val budget = viewModel.uiState.value.undoChancesRemaining
+
+            viewModel.requestBestMove()
+
+            assertNull(viewModel.uiState.value.bestMoveUci)
+            assertEquals(budget, viewModel.uiState.value.undoChancesRemaining)
+        }
+    }
+
+    @Test
+    fun `failed best move does not spend a help chance`() = runTest {
+        coEvery { engine.getBestMove(any(), any(), any()) } throws java.io.IOException("engine unavailable")
+        viewModel.setupGame(playerColor = Color.WHITE, difficulty = 4, mode = GameMode.LEARNING, learningHelpLimit = 2)
+        viewModel.startGame()
+
+        viewModel.requestBestMove()
+
+        val state = viewModel.uiState.value
+        assertEquals(2, state.undoChancesRemaining)
+        assertNull(state.bestMoveUci)
+        assertNotNull(state.error)
+    }
+
+    @Test
+    fun `new setup cancels stale best move without painting or charging it`() = runTest {
+        val result = kotlinx.coroutines.CompletableDeferred<StockfishResult>()
+        coEvery { engine.getBestMove(any(), any(), any()) } coAnswers {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { result.await() }
+        }
+        viewModel.setupGame(playerColor = Color.WHITE, difficulty = 4, mode = GameMode.LEARNING, learningHelpLimit = 2)
+        viewModel.startGame()
+        viewModel.requestBestMove()
+
+        viewModel.setupGame(playerColor = Color.BLACK, difficulty = 7, mode = GameMode.LEARNING, learningHelpLimit = 4)
+        result.complete(
+            StockfishResult("e2e4", SimulatedOpponent.rankedMoves(ChessGame()), thinkTimeMs = 12)
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(4, state.undoChancesRemaining)
+        assertNull(state.bestMoveUci)
+        assertEquals(Color.BLACK, state.playerColor)
+    }
+
     // ── Results ──────────────────────────────────────────────────────
 
     @Test
     fun `resigning ends the game as a loss by resignation`() = runTest {
         viewModel.setupGame(playerColor = Color.WHITE, difficulty = 4)
         viewModel.startGame()
+        viewModel.onPlayerMove("e2", "e4", null)
 
         viewModel.resign()
 
@@ -300,6 +451,28 @@ class PlayComputerViewModelTest {
         assertEquals(Winner.OPPONENT, result.winner)
         assertEquals(GamePhase.COMPLETED, viewModel.uiState.value.gamePhase)
         assertFalse(viewModel.uiState.value.isTimerRunning)
+        val savedReview = slot<LocalGameReviewRecord>()
+        io.mockk.verify(exactly = 1) { localGameReviewStore.save(capture(savedReview)) }
+        assertEquals(2, savedReview.captured.moves.size)
+        assertEquals(viewModel.uiState.value.fen, savedReview.captured.moves.last().fen)
+        assertEquals(EndReason.RESIGNATION, savedReview.captured.result.endReason)
+    }
+
+    @Test
+    fun `play again preserves setup and starts a fresh board`() = runTest {
+        viewModel.setupGame(playerColor = Color.BLACK, difficulty = 7, mode = GameMode.LEARNING, learningHelpLimit = 3)
+        viewModel.startGame()
+        viewModel.resign()
+
+        viewModel.playAgain()
+
+        val state = viewModel.uiState.value
+        assertEquals(GamePhase.PLAYING, state.gamePhase)
+        assertEquals(Color.BLACK, state.playerColor)
+        assertEquals(7, state.difficulty)
+        assertEquals(GameMode.LEARNING, state.gameMode)
+        assertEquals(3, state.maxUndoChances)
+        assertNull(state.gameResult)
     }
 
     @Test

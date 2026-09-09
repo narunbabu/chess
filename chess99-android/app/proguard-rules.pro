@@ -33,6 +33,18 @@
 # fields survive minification for reflective Gson binding).
 -keep class com.chess99.presentation.learn.tactical.** { *; }
 
+# Latest offline computer-game review is persisted as Gson JSON. Keep the
+# reflected field and enum names stable in release builds so restart/review
+# remains compatible with records written by an earlier app process.
+-keep class com.chess99.presentation.history.LocalGameReviewRecord { *; }
+-keep class com.chess99.presentation.game.GameMoveRecord { *; }
+-keep class com.chess99.presentation.game.GameResultState { *; }
+-keep class com.chess99.presentation.game.GameMode { *; }
+-keep class com.chess99.presentation.game.ResultStatus { *; }
+-keep class com.chess99.presentation.game.EndReason { *; }
+-keep class com.chess99.presentation.game.Winner { *; }
+-keep class com.chess99.engine.Color { *; }
+
 # Pusher
 -keep class com.pusher.** { *; }
 -dontwarn com.pusher.**

@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.*
@@ -40,6 +41,7 @@ fun PlayComputerScreen(
     onNavigateBack: () -> Unit,
     onNavigateToTacticalTrainer: () -> Unit = {},
     onNavigateToMultiplayerGame: (Int) -> Unit = {},
+    onNavigateToLocalReview: () -> Unit = {},
     viewModel: PlayComputerViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -72,10 +74,16 @@ fun PlayComputerScreen(
     }
 
     // Sound effects
-    val soundManager = remember { SoundManager::class.java }
+    val soundManager = remember(shareContext) { SoundManager(shareContext.applicationContext) }
+    DisposableEffect(soundManager) { onDispose { soundManager.release() } }
     LaunchedEffect(state.soundToPlay) {
         state.soundToPlay?.let {
-            // In production: soundManager.playXxx() based on sound type
+            when (it) {
+                MoveSound.MOVE -> soundManager.playMove()
+                MoveSound.CAPTURE -> soundManager.playCapture()
+                MoveSound.CHECK -> soundManager.playCheck()
+                MoveSound.GAME_END -> soundManager.playGameEnd()
+            }
             viewModel.soundPlayed()
         }
     }
@@ -151,10 +159,10 @@ fun PlayComputerScreen(
                 modifier = Modifier.padding(padding),
                 onMove = { from, to, promo -> viewModel.onPlayerMove(from, to, promo) },
                 onUndo = { viewModel.undoMove() },
+                onBestMove = { viewModel.requestBestMove() },
                 onResign = { viewModel.resign() },
-                onNewGame = {
-                    viewModel.setupGame()
-                },
+                onReview = onNavigateToLocalReview,
+                onPlayAgain = { viewModel.playAgain() },
                 onShare = {
                     val shareable = viewModel.buildShareableGame()
                     shareScope.launch {
@@ -318,7 +326,9 @@ private fun GameSetupContent(
         Spacer(modifier = Modifier.height(8.dp))
         when (gameMode) {
             GameMode.RATED -> Text(
-                text = "No undo, no pause, affects your rating",
+                text = if (personaState.selectedPersona == null)
+                    "Choose a named online opponent above for rated play. Custom computer games are not rated."
+                else "No undo or pause. Rated play requires a server connection.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -344,7 +354,8 @@ private fun GameSetupContent(
             onClick = {
                 onStartGame(selectedColor, difficulty, gameMode, personaState.selectedPersona)
             },
-            enabled = !personaState.isStartingGame,
+            enabled = !personaState.isStartingGame &&
+                (gameMode != GameMode.RATED || personaState.selectedPersona != null),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -436,15 +447,19 @@ private fun GamePlayContent(
     modifier: Modifier = Modifier,
     onMove: (String, String, Char?) -> Unit,
     onUndo: () -> Unit,
+    onBestMove: () -> Unit,
     onResign: () -> Unit,
-    onNewGame: () -> Unit,
+    onReview: () -> Unit,
+    onPlayAgain: () -> Unit,
     onShare: () -> Unit,
 ) {
     val game = remember(state.fen) { ChessGame(state.fen) }
     val isPlayerTurn = game.turn == state.playerColor && !state.computerMoveInProgress
 
     Column(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Opponent timer (top)
@@ -464,10 +479,22 @@ private fun GamePlayContent(
             isInteractive = isPlayerTurn && state.gamePhase == GamePhase.PLAYING,
             lastMoveFrom = state.lastMoveFrom,
             lastMoveTo = state.lastMoveTo,
+            arrows = if (state.bestMoveFrom >= 0 && state.bestMoveTo >= 0) {
+                listOf(BoardArrow(state.bestMoveFrom, state.bestMoveTo, 0xCC2E7D32L))
+            } else {
+                emptyList()
+            },
             onMove = onMove,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp),
+        )
+
+        AccessibleChessMoveControls(
+            game = game,
+            isInteractive = isPlayerTurn && state.gamePhase == GamePhase.PLAYING,
+            onMove = onMove,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
 
         // Player timer (bottom)
@@ -483,15 +510,28 @@ private fun GamePlayContent(
         Spacer(modifier = Modifier.height(8.dp))
 
         // Status message
-        if (state.computerMoveInProgress) {
+        if (state.computerMoveInProgress || state.bestMoveInProgress) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Computer thinking...", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    if (state.bestMoveInProgress) "Finding a best move..." else "Computer thinking...",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
+        } else {
+            Text(
+                text = when {
+                    game.isCheck() && game.turn == state.playerColor -> "Your king is in check. Your turn."
+                    game.isCheck() -> "Computer is in check. Computer's turn."
+                    isPlayerTurn -> "Your turn"
+                    else -> "Computer's turn"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
 
         // Game controls
@@ -500,17 +540,30 @@ private fun GamePlayContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             ) {
+                if (state.learningMode && state.undoChancesRemaining > 0) {
+                    OutlinedButton(
+                        onClick = onBestMove,
+                        enabled = isPlayerTurn && !state.bestMoveInProgress && state.bestMoveUci == null,
+                        modifier = Modifier.sizeIn(minHeight = 48.dp),
+                    ) {
+                        Icon(Icons.Default.Lightbulb, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Best")
+                    }
+                }
+
                 // Undo button
                 if (!state.isRated && state.undoChancesRemaining > 0) {
                     OutlinedButton(
                         onClick = onUndo,
                         enabled = isPlayerTurn && state.moveHistory.size >= 2,
+                        modifier = Modifier.sizeIn(minHeight = 48.dp),
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
+                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Undo (${state.undoChancesRemaining})")
+                        Text("Undo")
                     }
                 }
 
@@ -518,17 +571,36 @@ private fun GamePlayContent(
                 OutlinedButton(
                     onClick = onResign,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.sizeIn(minHeight = 48.dp),
                 ) {
                     Icon(Icons.Default.Flag, contentDescription = "Resign")
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Resign")
                 }
             }
+            if (state.learningMode) {
+                Text(
+                    text = "${state.undoChancesRemaining} help ${if (state.undoChancesRemaining == 1) "chance" else "chances"} left for Best or Undo",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (!state.isRated && state.undoChancesRemaining > 0) {
+                Text(
+                    text = "${state.undoChancesRemaining} ${if (state.undoChancesRemaining == 1) "undo" else "undos"} left",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         // Game result
         state.gameResult?.let { result ->
-            GameResultCard(result = result, onNewGame = onNewGame, onShare = onShare)
+            GameResultCard(
+                result = result,
+                onReview = onReview,
+                onPlayAgain = onPlayAgain,
+                onShare = onShare,
+            )
         }
 
         // Move list
@@ -537,7 +609,6 @@ private fun GamePlayContent(
                 moves = state.moveHistory,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
                     .padding(horizontal = 16.dp),
             )
         }
@@ -549,7 +620,8 @@ private fun GamePlayContent(
 @Composable
 private fun GameResultCard(
     result: GameResultState,
-    onNewGame: () -> Unit,
+    onReview: () -> Unit,
+    onPlayAgain: () -> Unit,
     onShare: () -> Unit,
 ) {
     Card(
@@ -582,18 +654,30 @@ private fun GameResultCard(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Button(
+                onClick = onReview,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .sizeIn(minHeight = 48.dp),
             ) {
-                Button(onClick = onNewGame) {
-                    Text("New Game")
-                }
-                OutlinedButton(onClick = onShare) {
+                Text("Review game")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onPlayAgain,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .sizeIn(minHeight = 48.dp),
+            ) {
+                Text("Play again")
+            }
+            TextButton(
+                onClick = onShare,
+                modifier = Modifier.sizeIn(minHeight = 48.dp),
+            ) {
                     Icon(Icons.Default.Share, contentDescription = null)
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Share")
-                }
             }
         }
     }
@@ -606,7 +690,7 @@ private fun MoveListDisplay(
     moves: List<GameMoveRecord>,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.verticalScroll(rememberScrollState())) {
+    Column(modifier = modifier) {
         Text("Moves", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(4.dp))
 

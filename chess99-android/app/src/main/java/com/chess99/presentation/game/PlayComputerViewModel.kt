@@ -6,6 +6,8 @@ import com.chess99.data.api.GameApi
 import com.chess99.data.api.MatchmakingApi
 import com.chess99.domain.model.SyntheticPlayer
 import com.chess99.engine.*
+import com.chess99.presentation.history.LocalGameReviewRecord
+import com.chess99.presentation.history.LocalGameReviewStore
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
@@ -14,7 +16,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import timber.log.Timber
 import javax.inject.Inject
-import kotlin.random.Random
 
 /**
  * ViewModel for PlayComputer screen.
@@ -29,6 +30,7 @@ class PlayComputerViewModel @Inject constructor(
     private val matchmakingApi: MatchmakingApi,
     private val gameApi: GameApi,
     val shareManager: com.chess99.presentation.social.ShareManager,
+    private val localGameReviewStore: LocalGameReviewStore,
 ) : ViewModel() {
 
     companion object {
@@ -53,7 +55,10 @@ class PlayComputerViewModel @Inject constructor(
     val personaState: StateFlow<PersonaUiState> = _personaState.asStateFlow()
 
     private var game = ChessGame()
+    private var gameGeneration = 0L
+    private var startGameJob: Job? = null
     private var computerMoveJob: Job? = null
+    private var bestMoveJob: Job? = null
     private var timerJob: Job? = null
 
     // ── Setup ────────────────────────────────────────────────────────
@@ -64,6 +69,11 @@ class PlayComputerViewModel @Inject constructor(
         mode: GameMode = GameMode.CASUAL,
         learningHelpLimit: Int = DEFAULT_LEARNING_HELP_LIMIT,
     ) {
+        startGameJob?.cancel()
+        computerMoveJob?.cancel()
+        bestMoveJob?.cancel()
+        timerJob?.cancel()
+        gameGeneration += 1
         game = ChessGame()
         val isRated = mode == GameMode.RATED
         // Learning mode: undo budget == the helpline pool (default 5), mirroring
@@ -167,7 +177,7 @@ class PlayComputerViewModel @Inject constructor(
             _personaState.value = _personaState.value.copy(isStartingGame = true, startGameError = null)
             try {
                 val body = JsonObject().apply {
-                    addProperty("player_color", if (Random.nextBoolean()) "white" else "black")
+                    addProperty("player_color", if (_uiState.value.playerColor == Color.WHITE) "white" else "black")
                     addProperty("computer_level", persona.computerLevel)
                     addProperty("time_control", 10)
                     addProperty("increment", 0)
@@ -214,25 +224,47 @@ class PlayComputerViewModel @Inject constructor(
     }
 
     fun startGame() {
-        viewModelScope.launch {
+        if (_uiState.value.gamePhase != GamePhase.SETUP || startGameJob?.isActive == true) return
+        // Elo requires a successfully created server game; never silently play
+        // a rated game locally after a failed persona request.
+        if (_uiState.value.isRated) {
+            _uiState.value = _uiState.value.copy(
+                error = "Rated play needs a named online opponent and a server connection. Choose an opponent and retry, or select Casual to play offline.",
+            )
+            return
+        }
+        val expectedGeneration = gameGeneration
+        startGameJob = viewModelScope.launch {
             // Initialize engine
             try {
                 stockfishEngine.initialize()
                 stockfishEngine.newGame()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: EngineInitException) {
-                _uiState.value = _uiState.value.copy(
-                    error = EngineFailureCopy.MESSAGE,
-                    engineInitFailed = true,
-                )
+                if (expectedGeneration == gameGeneration && _uiState.value.gamePhase == GamePhase.SETUP) {
+                    _uiState.value = _uiState.value.copy(
+                        error = EngineFailureCopy.MESSAGE,
+                        engineInitFailed = true,
+                    )
+                }
                 return@launch
             } catch (e: Exception) {
                 // Non-init failure (e.g. newGame()'s UCI handshake) — same honest
                 // copy; still offer the puzzle redirect since the engine is
                 // unusable for this session either way.
-                _uiState.value = _uiState.value.copy(
-                    error = EngineFailureCopy.MESSAGE,
-                    engineInitFailed = true,
-                )
+                if (expectedGeneration == gameGeneration && _uiState.value.gamePhase == GamePhase.SETUP) {
+                    _uiState.value = _uiState.value.copy(
+                        error = EngineFailureCopy.MESSAGE,
+                        engineInitFailed = true,
+                    )
+                }
+                return@launch
+            }
+
+            // Engine setup can outlive a setup change or a rapid leave/restart.
+            // Never let that stale callback start a clock or make a black move.
+            if (expectedGeneration != gameGeneration || _uiState.value.gamePhase != GamePhase.SETUP) {
                 return@launch
             }
 
@@ -285,6 +317,9 @@ class PlayComputerViewModel @Inject constructor(
             lastMoveTo = move.to,
             moveHistory = state.moveHistory + moveRecord,
             activeTimer = state.computerColor,
+            bestMoveFrom = -1,
+            bestMoveTo = -1,
+            bestMoveUci = null,
             soundToPlay = sound,
         )
 
@@ -304,15 +339,26 @@ class PlayComputerViewModel @Inject constructor(
         computerMoveJob?.cancel()
         computerMoveJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(computerMoveInProgress = true)
+            val expectedGeneration = gameGeneration
+            val expectedFen = game.fen()
 
             try {
                 val result = stockfishEngine.getBestMove(
-                    fen = game.fen(),
+                    fen = expectedFen,
                     depth = _uiState.value.difficulty,
                     // Persona games play at the bot's ELO; plain difficulty games
                     // pass null (ELO derived from the difficulty level).
                     opponentElo = _personaState.value.selectedPersona?.rating,
                 )
+
+                // A cancelled native-engine request may still return. Applying it
+                // to a replayed/undone/new position would corrupt the local game.
+                if (expectedGeneration != gameGeneration ||
+                    _uiState.value.gamePhase != GamePhase.PLAYING ||
+                    game.fen() != expectedFen
+                ) {
+                    return@launch
+                }
 
                 val move = game.moveUci(result.bestMove) ?: run {
                     // Engine returned invalid move, try any legal move
@@ -363,6 +409,77 @@ class PlayComputerViewModel @Inject constructor(
         }
     }
 
+    // ── Best move (Learning help pool) ──────────────────────────────
+
+    /**
+     * Reveals, but does not play, Stockfish's best legal move. Learning mode
+     * shares one explicit budget between Best and Undo; rated and casual games
+     * cannot request engine assistance. The chance is charged only after a
+     * current-position, legal result is ready, so retries/failures cost nothing.
+     */
+    fun requestBestMove() {
+        val state = _uiState.value
+        if (!state.learningMode || state.isRated) return
+        if (state.gamePhase != GamePhase.PLAYING || state.computerMoveInProgress) return
+        if (state.bestMoveInProgress || state.undoChancesRemaining <= 0) return
+        if (state.bestMoveUci != null) return // same-position reveal is already visible
+        if (game.turn != state.playerColor) return
+
+        val expectedGeneration = gameGeneration
+        val expectedFen = game.fen()
+        bestMoveJob?.cancel()
+        bestMoveJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(bestMoveInProgress = true)
+            try {
+                val result = stockfishEngine.getBestMove(
+                    fen = expectedFen,
+                    depth = _uiState.value.difficulty,
+                    opponentElo = null,
+                )
+                if (expectedGeneration != gameGeneration ||
+                    game.fen() != expectedFen ||
+                    _uiState.value.gamePhase != GamePhase.PLAYING ||
+                    game.turn != _uiState.value.playerColor
+                ) {
+                    return@launch
+                }
+
+                val uci = result.bestMove.lowercase()
+                if (uci.length !in 4..5) throw IllegalStateException("Invalid engine move")
+                val from = uci.substring(0, 2)
+                val to = uci.substring(2, 4)
+                val promotion = uci.getOrNull(4)
+                val legal = game.legalMovesFrom(from).any {
+                    it.toAlgebraic == to &&
+                        (promotion == null || it.uci().getOrNull(4) == promotion)
+                }
+                if (!legal) throw IllegalStateException("Engine move is not legal")
+
+                val current = _uiState.value
+                _uiState.value = current.copy(
+                    bestMoveInProgress = false,
+                    bestMoveFrom = Square.fromAlgebraic(from),
+                    bestMoveTo = Square.fromAlgebraic(to),
+                    bestMoveUci = uci,
+                    undoChancesRemaining = current.undoChancesRemaining - 1,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (expectedGeneration == gameGeneration && game.fen() == expectedFen) {
+                    _uiState.value = _uiState.value.copy(
+                        bestMoveInProgress = false,
+                        error = "A best move isn't available right now. Your help chance was not used.",
+                    )
+                }
+            } finally {
+                if (expectedGeneration == gameGeneration && _uiState.value.bestMoveInProgress) {
+                    _uiState.value = _uiState.value.copy(bestMoveInProgress = false)
+                }
+            }
+        }
+    }
+
     // ── Undo ─────────────────────────────────────────────────────────
 
     fun undoMove() {
@@ -384,6 +501,9 @@ class PlayComputerViewModel @Inject constructor(
             lastMoveTo = -1,
             moveHistory = state.moveHistory.dropLast(2),
             undoChancesRemaining = state.undoChancesRemaining - 1,
+            bestMoveFrom = -1,
+            bestMoveTo = -1,
+            bestMoveUci = null,
         )
     }
 
@@ -393,18 +513,14 @@ class PlayComputerViewModel @Inject constructor(
         if (_uiState.value.gamePhase != GamePhase.PLAYING) return
         computerMoveJob?.cancel()
 
-        _uiState.value = _uiState.value.copy(
-            gamePhase = GamePhase.COMPLETED,
-            gameResult = GameResultState(
+        completeGame(
+            GameResultState(
                 status = ResultStatus.LOST,
                 endReason = EndReason.RESIGNATION,
                 winner = Winner.OPPONENT,
                 details = "You resigned",
             ),
-            isTimerRunning = false,
-            soundToPlay = MoveSound.GAME_END,
         )
-        stopTimer()
     }
 
     // ── Game Over ────────────────────────────────────────────────────
@@ -465,11 +581,39 @@ class PlayComputerViewModel @Inject constructor(
             )
         }
 
-        _uiState.value = state.copy(
+        completeGame(result)
+    }
+
+    private fun completeGame(result: GameResultState) {
+        startGameJob?.cancel()
+        computerMoveJob?.cancel()
+        bestMoveJob?.cancel()
+        stopTimer()
+        _uiState.value = _uiState.value.copy(
             gamePhase = GamePhase.COMPLETED,
             gameResult = result,
             isTimerRunning = false,
+            computerMoveInProgress = false,
+            bestMoveInProgress = false,
             soundToPlay = MoveSound.GAME_END,
+        )
+        persistCompletedReview()
+    }
+
+    private fun persistCompletedReview() {
+        val state = _uiState.value
+        val result = state.gameResult ?: return
+        localGameReviewStore.save(
+            LocalGameReviewRecord(
+                startingFen = ChessGame.STARTING_FEN,
+                moves = state.moveHistory,
+                result = result,
+                playerColor = state.playerColor,
+                opponentName = state.opponentDisplayName ?: "Computer",
+                difficulty = state.difficulty,
+                gameMode = state.gameMode,
+                completedAtEpochMillis = System.currentTimeMillis(),
+            )
         )
     }
 
@@ -486,17 +630,14 @@ class PlayComputerViewModel @Inject constructor(
                 if (state.activeTimer == state.playerColor) {
                     val newTime = state.playerTimeSeconds - 1
                     if (newTime <= 0) {
-                        _uiState.value = state.copy(
-                            playerTimeSeconds = 0,
-                            gamePhase = GamePhase.COMPLETED,
-                            gameResult = GameResultState(
+                        _uiState.value = state.copy(playerTimeSeconds = 0)
+                        completeGame(
+                            GameResultState(
                                 status = ResultStatus.LOST,
                                 endReason = EndReason.TIMEOUT,
                                 winner = Winner.OPPONENT,
                                 details = "You ran out of time",
-                            ),
-                            isTimerRunning = false,
-                            soundToPlay = MoveSound.GAME_END,
+                            )
                         )
                         return@launch
                     }
@@ -504,17 +645,14 @@ class PlayComputerViewModel @Inject constructor(
                 } else {
                     val newTime = state.computerTimeSeconds - 1
                     if (newTime <= 0) {
-                        _uiState.value = state.copy(
-                            computerTimeSeconds = 0,
-                            gamePhase = GamePhase.COMPLETED,
-                            gameResult = GameResultState(
+                        _uiState.value = state.copy(computerTimeSeconds = 0)
+                        completeGame(
+                            GameResultState(
                                 status = ResultStatus.WON,
                                 endReason = EndReason.TIMEOUT,
                                 winner = Winner.PLAYER,
                                 details = "Computer ran out of time",
-                            ),
-                            isTimerRunning = false,
-                            soundToPlay = MoveSound.GAME_END,
+                            )
                         )
                         return@launch
                     }
@@ -536,6 +674,20 @@ class PlayComputerViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null, engineInitFailed = false)
+    }
+
+    /** Starts another local game with the exact colour, difficulty and mode. */
+    fun playAgain() {
+        val previous = _uiState.value
+        if (previous.gamePhase != GamePhase.COMPLETED) return
+        setupGame(
+            playerColor = previous.playerColor,
+            difficulty = previous.difficulty,
+            mode = previous.gameMode,
+            learningHelpLimit = previous.maxUndoChances,
+        )
+        _uiState.value = _uiState.value.copy(opponentDisplayName = previous.opponentDisplayName)
+        startGame()
     }
 
     // ── Share (victory image) ────────────────────────────────────────────
@@ -575,7 +727,9 @@ class PlayComputerViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        startGameJob?.cancel()
         computerMoveJob?.cancel()
+        bestMoveJob?.cancel()
         timerJob?.cancel()
         viewModelScope.launch { stockfishEngine.shutdown() }
     }
@@ -604,6 +758,10 @@ data class PlayComputerUiState(
     val activeTimer: Color = Color.WHITE,
     val isTimerRunning: Boolean = false,
     val computerMoveInProgress: Boolean = false,
+    val bestMoveInProgress: Boolean = false,
+    val bestMoveFrom: Int = -1,
+    val bestMoveTo: Int = -1,
+    val bestMoveUci: String? = null,
     val gameResult: GameResultState? = null,
     val soundToPlay: MoveSound? = null,
     val error: String? = null,
