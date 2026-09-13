@@ -17,6 +17,7 @@ import com.chess99.presentation.navigation.Chess99NavGraph
 import com.chess99.presentation.navigation.DeepLinkHandler
 import com.chess99.presentation.navigation.PendingDeepLinkStore
 import com.chess99.presentation.navigation.Screen
+import com.chess99.presentation.navigation.coldStartDestination
 import com.chess99.presentation.navigation.requiresAuthentication
 import com.chess99.presentation.onboarding.OnboardingPreferences
 import com.chess99.presentation.theme.Chess99Theme
@@ -54,11 +55,12 @@ class MainActivity : ComponentActivity() {
                     // T2 (S7): authenticated -> Home; not authenticated and the
                     // first-run pager hasn't been seen yet -> Onboarding;
                     // otherwise (returning, not-yet-authenticated user) -> Login.
-                    val startDestination = when {
-                        tokenManager.isLoggedIn() -> Screen.Home.route
-                        !onboardingPreferences.hasSeenOnboarding() -> Screen.Onboarding.route
-                        else -> Screen.Login.route
-                    }
+                    // Extracted so restart-after-logout semantics are unit-tested
+                    // (see coldStartDestination).
+                    val startDestination = coldStartDestination(
+                        isLoggedIn = tokenManager.isLoggedIn(),
+                        hasSeenOnboarding = onboardingPreferences.hasSeenOnboarding(),
+                    )
 
                     Chess99NavGraph(
                         navController = nc,

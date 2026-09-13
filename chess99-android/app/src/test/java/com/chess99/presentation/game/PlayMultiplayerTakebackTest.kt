@@ -52,6 +52,11 @@ class PlayMultiplayerTakebackTest {
         every { socketService.events } returns socketEvents
         coEvery { socketService.initialize(42) } returns true
         coEvery { socketService.requestUndo() } returns Result.success(JsonObject())
+        // Stubbed explicitly: a relaxed placeholder here reaches
+        // loadChatHistory's onSuccess as a non-JsonObject and the leaked
+        // ClassCastException fails an unrelated later runTest class
+        // (order-dependent, --max-workers=2).
+        coEvery { socketService.getChatMessages() } returns Result.success(JsonObject())
 
         val gameApi = mockk<GameApi>(relaxed = true)
         coEvery { gameApi.getGame(42) } returns jsonResponse(

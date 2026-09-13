@@ -29,4 +29,18 @@ class MainNavigationTest {
         assertNull(mainDestinationForRoute("login"))
         assertNull(mainDestinationForRoute(null))
     }
+
+    @Test
+    fun `restart with a retained session resumes Home`() {
+        assertEquals("home", coldStartDestination(isLoggedIn = true, hasSeenOnboarding = true))
+        assertEquals("home", coldStartDestination(isLoggedIn = true, hasSeenOnboarding = false))
+    }
+
+    @Test
+    fun `restart after logout never resumes the authenticated Home screen`() {
+        // Returning user (onboarding seen, session cleared by logout).
+        assertEquals("login", coldStartDestination(isLoggedIn = false, hasSeenOnboarding = true))
+        // Genuine first run.
+        assertEquals("onboarding", coldStartDestination(isLoggedIn = false, hasSeenOnboarding = false))
+    }
 }

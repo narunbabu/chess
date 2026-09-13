@@ -17,7 +17,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -90,9 +89,17 @@ internal fun mainDestinationForRoute(route: String?): MainDestination? {
     }
 }
 
+/**
+ * Tab switches pop up to Home (the main area's root), not the graph's start
+ * destination: after a post-login `popUpTo(0)` the start destination is
+ * Login/Onboarding and is no longer on the back stack, so popping up to it
+ * pops nothing and every tab switch accumulated ([Home, Learn, Compete,
+ * Home, …]) — Back then walked the whole tab history instead of returning
+ * to Play. Home is always the bottom of a logged-in stack.
+ */
 private fun NavHostController.navigateToMain(destination: MainDestination) {
     navigate(destination.route) {
-        popUpTo(graph.findStartDestination().id) { saveState = true }
+        popUpTo(Screen.Home.route) { saveState = true }
         launchSingleTop = true
         restoreState = true
     }

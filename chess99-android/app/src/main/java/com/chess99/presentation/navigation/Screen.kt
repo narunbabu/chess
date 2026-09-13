@@ -1,5 +1,17 @@
 package com.chess99.presentation.navigation
 
+/**
+ * Cold-start destination (restart semantics). A restart after logout must
+ * never resume the authenticated Home screen: with no retained session the
+ * app lands on Onboarding (genuine first run) or Login (returning user), so
+ * private screens always require signing in again.
+ */
+fun coldStartDestination(isLoggedIn: Boolean, hasSeenOnboarding: Boolean): String = when {
+    isLoggedIn -> Screen.Home.route
+    !hasSeenOnboarding -> Screen.Onboarding.route
+    else -> Screen.Login.route
+}
+
 sealed class Screen(val route: String) {
     // Onboarding (first-run only, pre-auth)
     data object Onboarding : Screen("onboarding")
