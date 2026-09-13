@@ -4,6 +4,11 @@ on:
   push:
     branches: [ master ]
   workflow_dispatch:
+    inputs:
+      check_only:
+        description: "Only verify SSH login, write access and sudo rights (no deploy)"
+        type: boolean
+        default: false
 
 jobs:
   deploy:
@@ -14,7 +19,7 @@ jobs:
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}   # <-- your private key (PEM), no passphrase
+          key: ${{ secrets.SERVER_SSH_KEY }}   # private key whose .pub is in narun's ~/.ssh/authorized_keys; no passphrase
           port: 22
           script_stop: false
           script: |
@@ -22,6 +27,30 @@ jobs:
             # Only runs backend/frontend deployments when files actually changed
 
             set -e  # Exit on error for critical steps
+
+            # ==================== CHECK ONLY (workflow_dispatch) ====================
+            # Proves SERVER_SSH_KEY / SERVER_USER work and that the user can do what
+            # the deploy needs, without touching production. See scripts/deploy-notes.md.
+            if [ "${{ inputs.check_only }}" = "true" ]; then
+              echo "🔑 SSH check only - nothing will be deployed"
+              echo "user=$(whoami) host=$(hostname)"
+              FAILED=0
+              for p in /opt/Chess-Web/.git /var/www/chess99.com; do
+                if [ -w "$p" ]; then echo "✅ writable: $p"; else echo "❌ not writable: $p"; FAILED=1; fi
+              done
+              if [ "$(id -u)" != "0" ]; then
+                for cmd in \
+                  "chown -R www-data:www-data /opt/Chess-Web/chess-backend/storage" \
+                  "crontab -u www-data -l" \
+                  "nginx -t" \
+                  "systemctl restart php8.3-fpm" \
+                  "systemctl restart chess-reverb" \
+                  "systemctl reload nginx"; do
+                  if sudo -n -l $cmd >/dev/null 2>&1; then echo "✅ sudo -n: $cmd"; else echo "❌ sudo needs a password or is denied: $cmd"; FAILED=1; fi
+                done
+              fi
+              exit $FAILED
+            fi
 
             echo "🚀 Starting deployment..."
 
@@ -63,7 +92,7 @@ jobs:
               cd chess-backend
 
               # Allow composer to run as superuser (deployment context)
-              export COMPOSER_ALLOW_SUPERUSER=1
+              export COMPOSER_ALLOW_SUPERUSER=1  # harmless as narun; kept for root
 
               # Install dependencies with optimizations
               echo "📦 Installing Composer dependencies..."
@@ -181,8 +210,8 @@ jobs:
             if [ "$BACKEND_CHANGED" = true ]; then
               echo ""
               echo "🔐 Setting file permissions..."
-              chown -R www-data:www-data /opt/Chess-Web/chess-backend/storage || true
-              chown -R www-data:www-data /opt/Chess-Web/chess-backend/bootstrap/cache || true
+              sudo chown -R www-data:www-data /opt/Chess-Web/chess-backend/storage || true
+              sudo chown -R www-data:www-data /opt/Chess-Web/chess-backend/bootstrap/cache || true
               echo "✅ Permissions updated"
 
               # ==================== LOG ROTATION SETUP ====================
@@ -198,12 +227,12 @@ jobs:
                 CRON_CMD="* * * * * cd /opt/Chess-Web/chess-backend && php artisan schedule:run >> /dev/null 2>&1"
 
                 # Check if cron job already exists
-                if crontab -u www-data -l 2>/dev/null | grep -q "artisan schedule:run"; then
+                if sudo crontab -u www-data -l 2>/dev/null | grep -q "artisan schedule:run"; then
                   echo "ℹ️  Laravel scheduler cron already configured"
                 else
                   echo "📋 Installing Laravel scheduler cron job..."
                   # Add cron job for www-data user
-                  (crontab -u www-data -l 2>/dev/null; echo "$CRON_CMD") | crontab -u www-data - && {
+                  (sudo crontab -u www-data -l 2>/dev/null; echo "$CRON_CMD") | sudo crontab -u www-data - && {
                     echo "✅ Laravel scheduler cron job installed"
                   } || {
                     echo "⚠️  Failed to install cron job - may need manual setup"
@@ -211,7 +240,7 @@ jobs:
                 fi
 
                 # Verify the setup
-                if crontab -u www-data -l 2>/dev/null | grep -q "artisan schedule:run"; then
+                if sudo crontab -u www-data -l 2>/dev/null | grep -q "artisan schedule:run"; then
                   echo "✅ Log rotation automated via Laravel scheduler"
 
                   # Optional: Run rotation now if logs are large
@@ -222,7 +251,7 @@ jobs:
                   fi
                 else
                   echo "⚠️  Scheduler setup incomplete - log rotation may not work automatically"
-                  echo "💡 Manual setup: Run 'crontab -u www-data -e' and add:"
+                  echo "💡 Manual setup: Run 'sudo crontab -u www-data -e' and add:"
                   echo "    $CRON_CMD"
                 fi
               else
@@ -241,19 +270,19 @@ jobs:
 
             if [ -f nginx-api-fix.conf ]; then
               # Backup current config
-              cp /etc/nginx/sites-available/api.chess99.com /etc/nginx/sites-available/api.chess99.com.backup-$(date +%Y%m%d-%H%M%S)
+              sudo cp /etc/nginx/sites-available/api.chess99.com /etc/nginx/sites-available/api.chess99.com.backup-$(date +%Y%m%d-%H%M%S)
 
               # Copy new config
-              cp nginx-api-fix.conf /etc/nginx/sites-available/api.chess99.com
+              sudo cp nginx-api-fix.conf /etc/nginx/sites-available/api.chess99.com
 
               # Test nginx config
-              if nginx -t 2>&1 | grep -q "successful"; then
+              if sudo nginx -t 2>&1 | grep -q "successful"; then
                 echo "✅ Nginx configuration updated successfully"
               else
                 echo "⚠️  Nginx configuration test failed, reverting..."
                 LATEST_BACKUP=$(ls -t /etc/nginx/sites-available/api.chess99.com.backup-* 2>/dev/null | head -1)
                 if [ -n "$LATEST_BACKUP" ]; then
-                  cp "$LATEST_BACKUP" /etc/nginx/sites-available/api.chess99.com
+                  sudo cp "$LATEST_BACKUP" /etc/nginx/sites-available/api.chess99.com
                   echo "↩️  Reverted to previous configuration"
                 fi
               fi
@@ -274,12 +303,12 @@ jobs:
 
               # Restart PHP-FPM only if backend changed
               if [ "$BACKEND_CHANGED" = true ]; then
-                systemctl restart php8.3-fpm && echo "✅ PHP-FPM restarted" || echo "⚠️  PHP-FPM restart failed"
-                systemctl restart laravel-reverb && echo "✅ Reverb restarted" || echo "ℹ️  Reverb service not found"
+                sudo systemctl restart php8.3-fpm && echo "✅ PHP-FPM restarted" || echo "⚠️  PHP-FPM restart failed"
+                sudo systemctl restart chess-reverb && echo "✅ Reverb restarted" || echo "⚠️  chess-reverb restart failed"
               fi
 
               # Reload nginx if anything changed
-              systemctl reload nginx && echo "✅ Nginx reloaded" || echo "⚠️  Nginx reload failed"
+              sudo systemctl reload nginx && echo "✅ Nginx reloaded" || echo "⚠️  Nginx reload failed"
 
               # Re-enable exit-on-error
               set -e
