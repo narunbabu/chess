@@ -370,7 +370,10 @@ class Game extends Model
     public function getInactiveSeconds(): int
     {
         $lastActivity = $this->getLastActivityAt();
-        return $lastActivity ? now()->diffInSeconds($lastActivity) : 0;
+
+        // Carbon 3 diffs are signed by default — force absolute so "seconds
+        // since" stays positive and the inactivity thresholds can fire.
+        return $lastActivity ? (int) $lastActivity->diffInSeconds(now(), true) : 0;
     }
 
     /**
@@ -386,7 +389,8 @@ class Game extends Model
      */
     public function getPausedSeconds(): int
     {
-        return $this->paused_at ? now()->diffInSeconds($this->paused_at) : 0;
+        // Carbon 3 diffs are signed by default — force absolute (see above).
+        return $this->paused_at ? (int) $this->paused_at->diffInSeconds(now(), true) : 0;
     }
 
     /**

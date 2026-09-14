@@ -1087,7 +1087,7 @@ class WebSocketController extends Controller
             }
 
             if ($existing) {
-                $secondsRemaining = max(0, now()->diffInSeconds($existing->expires_at, false));
+                $secondsRemaining = max(0, (int) now()->diffInSeconds($existing->expires_at, false));
 
                 return response()->json([
                     'message' => 'Resume request already pending.',
@@ -1113,7 +1113,7 @@ class WebSocketController extends Controller
                     'message' => 'Resume request cooldown active.',
                     'cooldown' => true,
                     'can_request_again_at' => $retryAt->toIso8601String(),
-                    'can_request_again_in_seconds' => max(0, now()->diffInSeconds($retryAt, false)),
+                    'can_request_again_in_seconds' => max(0, (int) now()->diffInSeconds($retryAt, false)),
                 ], 429); // Too Many Requests
             }
 

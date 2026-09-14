@@ -29,7 +29,15 @@ class MonitorGameInactivity extends Command
         // Get all active or paused games
         $games = Game::whereHas('statusRelation', function ($q) {
                 $q->whereIn('code', ['active', 'paused']);
-            })->get();
+            })
+            // Bot games (computer/synthetic opponent) are excluded from both
+            // branches: pausing them needs mutual resume consent that no bot
+            // can give (the overlay only offers requestResume), and the forfeit
+            // path assumes two real players. games:cleanup-abandoned aborts a
+            // paused bot game after 1h with result '*' — the designed end state.
+            ->whereNull('computer_player_id')
+            ->whereNull('synthetic_player_id')
+            ->get();
 
         $this->info("Found {$games->count()} games to check");
 
@@ -82,7 +90,14 @@ class MonitorGameInactivity extends Command
             if ($inactiveSeconds >= $pauseTimeout) {
                 $this->line("Game {$game->id}: Pausing due to inactivity ({$inactiveSeconds}s)");
 
-                $result = $gameRoomService->pauseGame($game->id, 'inactivity');
+                // System pause: no user id, freeze the server's last known clocks
+                $result = $gameRoomService->pauseGame(
+                    $game->id,
+                    null,
+                    'inactivity',
+                    $game->white_time_remaining_ms,
+                    $game->black_time_remaining_ms
+                );
 
                 if ($result['success']) {
                     Log::info('Game paused due to inactivity', [

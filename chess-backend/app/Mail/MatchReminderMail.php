@@ -49,7 +49,8 @@ class MatchReminderMail extends Mailable
     public function content(): Content
     {
         $deadline = $this->match->deadline->format('M j, Y g:i A');
-        $hoursUntilDeadline = now()->diffInHours($this->match->deadline, false);
+        // Carbon 3 returns a float; the helpers below take whole hours.
+        $hoursUntilDeadline = (int) now()->diffInHours($this->match->deadline, false);
 
         return new Content(
             view: 'emails.championships.match-reminder',
@@ -85,7 +86,7 @@ class MatchReminderMail extends Mailable
         if ($hours <= 0) {
             return 'Past due';
         } elseif ($hours < 1) {
-            $minutes = now()->diffInMinutes($this->match->deadline);
+            $minutes = (int) now()->diffInMinutes($this->match->deadline);
             return "{$minutes} " . str_plural('minute', $minutes);
         } elseif ($hours == 1) {
             return '1 hour';

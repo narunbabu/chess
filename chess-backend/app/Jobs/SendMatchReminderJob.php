@@ -156,7 +156,7 @@ class SendMatchReminderJob implements ShouldQueue
     {
         $championship = $match->championship;
         $deadline = $match->deadline;
-        $hoursUntilDeadline = now()->diffInHours($deadline, false);
+        $hoursUntilDeadline = (int) now()->diffInHours($deadline, false);
         $urgency = $this->getUrgencyLevel($hoursUntilDeadline);
 
         // Send to player 1

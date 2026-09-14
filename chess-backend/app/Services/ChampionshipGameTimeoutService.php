@@ -338,7 +338,7 @@ class ChampionshipGameTimeoutService
             return null;
         }
 
-        $remaining = now()->diffInSeconds($match->game_timeout, false);
+        $remaining = (int) now()->diffInSeconds($match->game_timeout, false);
 
         return $remaining > 0 ? $remaining : 0;
     }
@@ -360,7 +360,8 @@ class ChampionshipGameTimeoutService
             $timeRemaining = $this->getTimeRemaining($match);
             $isTimedOut = $this->isMatchTimedOut($match);
             $needsWarning = $match->scheduled_time &&
-                           $match->scheduled_time->diffInSeconds(now(), false) <= 300 && // Within 5 minutes
+                           // now -> scheduled: the reverse diff is negative for any future time
+                           now()->diffInSeconds($match->scheduled_time, false) <= 300 && // Within 5 minutes
                            $match->scheduled_time->greaterThan(now());
 
             $status[] = [

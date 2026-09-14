@@ -41,7 +41,8 @@ class MatchReminderNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $deadline = $this->match->deadline->format('M j, Y g:i A');
-        $hoursUntilDeadline = now()->diffInHours($this->match->deadline, false);
+        // Carbon 3 returns a float; the helpers below take whole hours.
+        $hoursUntilDeadline = (int) now()->diffInHours($this->match->deadline, false);
 
         $urgencyText = match($this->urgency) {
             'critical' => '⚠️ URGENT - Less than 1 hour remaining!',
@@ -85,7 +86,7 @@ class MatchReminderNotification extends Notification implements ShouldQueue
             'opponent_name' => $this->opponent->name,
             'deadline' => $this->match->deadline,
             'urgency' => $this->urgency,
-            'hours_until_deadline' => now()->diffInHours($this->match->deadline, false),
+            'hours_until_deadline' => (int) now()->diffInHours($this->match->deadline, false),
             'type' => 'match_reminder',
         ];
     }
@@ -95,7 +96,7 @@ class MatchReminderNotification extends Notification implements ShouldQueue
      */
     public function toDatabase(object $notifiable): DatabaseMessage
     {
-        $hoursUntilDeadline = now()->diffInHours($this->match->deadline, false);
+        $hoursUntilDeadline = (int) now()->diffInHours($this->match->deadline, false);
 
         return new DatabaseMessage([
             'title' => 'Championship Match Reminder',
@@ -117,7 +118,7 @@ class MatchReminderNotification extends Notification implements ShouldQueue
         if ($hours <= 0) {
             return 'Past due';
         } elseif ($hours < 1) {
-            $minutes = now()->diffInMinutes($this->match->deadline);
+            $minutes = (int) now()->diffInMinutes($this->match->deadline);
             return "{$minutes} minutes";
         } elseif ($hours == 1) {
             return '1 hour';

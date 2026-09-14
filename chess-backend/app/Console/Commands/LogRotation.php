@@ -119,7 +119,7 @@ class LogRotation extends Command
             // Extract date from filename
             if (preg_match('/laravel-(\d{4}-\d{2}-\d{2})\.log$/', $file, $matches)) {
                 $fileDate = Carbon::parse($matches[1]);
-                $daysOld = $fileDate->diffInDays(now());
+                $daysOld = (int) $fileDate->diffInDays(now());
 
                 if ($daysOld >= $compressDays) {
                     $originalSize = filesize($file);
@@ -173,7 +173,8 @@ class LogRotation extends Command
             // Extract date from filename
             if (preg_match('/laravel-(\d{4}-\d{2}-\d{2})(\.log(\.gz)?)$/', $file, $matches)) {
                 $fileDate = Carbon::parse($matches[1]);
-                $daysOld = $fileDate->diffInDays(now());
+                // Whole days: Carbon 3's fractional days would delete a day early.
+                $daysOld = (int) $fileDate->diffInDays(now());
 
                 if ($daysOld > $cleanupDays) {
                     $sizeFreed = filesize($file);

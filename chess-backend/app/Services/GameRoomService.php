@@ -1618,11 +1618,14 @@ class GameRoomService
 
     /**
      * Pause game due to inactivity
+     *
+     * A null $pausedByUserId means a system pause (e.g. the inactivity
+     * monitor): no user triggered it, so paused_by_user_id stays null.
      */
-    public function pauseGame(int $gameId, int $pausedByUserId, string $reason = 'inactivity', ?int $whiteTimeMs = null, ?int $blackTimeMs = null): array
+    public function pauseGame(int $gameId, ?int $pausedByUserId = null, string $reason = 'inactivity', ?int $whiteTimeMs = null, ?int $blackTimeMs = null): array
     {
         $game = Game::findOrFail($gameId);
-        $pausedByUser = User::findOrFail($pausedByUserId);
+        $pausedByUser = $pausedByUserId !== null ? User::findOrFail($pausedByUserId) : null;
 
         if ($game->status !== 'active') {
             return [
@@ -1685,7 +1688,7 @@ class GameRoomService
         Log::info('Game paused with time tracking', [
             'game_id' => $gameId,
             'paused_by_user_id' => $pausedByUserId,
-            'paused_by_user_name' => $pausedByUser->name,
+            'paused_by_user_name' => $pausedByUser?->name,
             'reason' => $reason,
             'white_time_paused_ms' => $whiteTimeRemaining,
             'black_time_paused_ms' => $blackTimeRemaining,
@@ -1699,7 +1702,7 @@ class GameRoomService
             'status' => 'paused',
             'reason' => $reason,
             'paused_by_user_id' => $pausedByUserId,
-            'paused_by_user_name' => $pausedByUser->name,
+            'paused_by_user_name' => $pausedByUser?->name,
             'white_time_paused_ms' => $whiteTimeRemaining,
             'black_time_paused_ms' => $blackTimeRemaining,
             'turn_at_pause' => $currentTurn,
@@ -1837,13 +1840,16 @@ class GameRoomService
         $clearReason = '';
 
         if ($game->resume_status === 'pending') {
+            // Ages below are measured requested_at -> now(): Carbon 3 diffs are
+            // signed, so now()->diffIn*($past) is negative and every "older than"
+            // check silently failed while "newer than 10 s" always passed.
             // Check if the pending request has expired
             if ($game->resume_request_expires_at && now()->isAfter($game->resume_request_expires_at)) {
                 $shouldClearResumeRequest = true;
                 $clearReason = 'expired';
             }
             // RELAXED: Check if request is very old (more than 20 minutes instead of 10) - likely stale
-            elseif ($game->resume_requested_at && now()->diffInMinutes($game->resume_requested_at) > 20) {
+            elseif ($game->resume_requested_at && $game->resume_requested_at->diffInMinutes(now()) > 20) {
                 $shouldClearResumeRequest = true;
                 $clearReason = 'stale_old';
             }
@@ -1853,7 +1859,7 @@ class GameRoomService
                 $clearReason = 'game_not_paused';
             }
             // NEW: Fix for rapid pause/resume cycles - only clear if request is from SAME user within 10 seconds
-            elseif ($game->resume_requested_at && now()->diffInSeconds($game->resume_requested_at) < 10 &&
+            elseif ($game->resume_requested_at && $game->resume_requested_at->diffInSeconds(now()) < 10 &&
                     $game->status === 'paused' && $game->resume_requested_by === $userId) {
                 $shouldClearResumeRequest = true;
                 $clearReason = 'rapid_pause_resume_cycle';
@@ -1861,20 +1867,20 @@ class GameRoomService
                     'game_id' => $gameId,
                     'user_id' => $userId,
                     'resume_requested_at' => $game->resume_requested_at,
-                    'seconds_since_request' => now()->diffInSeconds($game->resume_requested_at),
+                    'seconds_since_request' => (int) $game->resume_requested_at->diffInSeconds(now()),
                     'resume_status' => $game->resume_status
                 ]);
             }
             // RELAXED: Allow same user to send new request after 1 minute
             elseif ($game->resume_requested_by === $userId &&
                     $game->resume_requested_at &&
-                    now()->diffInMinutes($game->resume_requested_at) >= 1) {
+                    $game->resume_requested_at->diffInMinutes(now()) >= 1) {
                 $shouldClearResumeRequest = true;
                 $clearReason = 'same_user_retry_allowed';
             }
             // NEW: Allow either user to send a new request after 1 minute
             elseif ($game->resume_requested_at &&
-                    now()->diffInMinutes($game->resume_requested_at) >= 1 &&
+                    $game->resume_requested_at->diffInMinutes(now()) >= 1 &&
                     $game->resume_requested_by !== $userId) {
                 $shouldClearResumeRequest = true;
                 $clearReason = 'reasonable_timeout';
@@ -1915,12 +1921,12 @@ class GameRoomService
                 'requested_by' => $game->resume_requested_by,
                 'current_user' => $userId,
                 'expires_at' => $game->resume_request_expires_at,
-                'seconds_since_request' => $game->resume_requested_at ? now()->diffInSeconds($game->resume_requested_at) : 'N/A',
+                'seconds_since_request' => $game->resume_requested_at ? (int) $game->resume_requested_at->diffInSeconds(now()) : 'N/A',
                 'is_expired' => $game->resume_request_expires_at ? now()->isAfter($game->resume_request_expires_at) : 'N/A',
                 'cleanup_conditions' => [
-                    'rapid_cycle_10s' => $game->resume_requested_at && now()->diffInSeconds($game->resume_requested_at) < 10 && $game->resume_requested_by === $userId,
-                    'same_user_1min' => $game->resume_requested_by === $userId && now()->diffInMinutes($game->resume_requested_at) >= 1,
-                    'other_user_1min' => now()->diffInMinutes($game->resume_requested_at) >= 1 && $game->resume_requested_by !== $userId,
+                    'rapid_cycle_10s' => $game->resume_requested_at && $game->resume_requested_at->diffInSeconds(now()) < 10 && $game->resume_requested_by === $userId,
+                    'same_user_1min' => $game->resume_requested_by === $userId && $game->resume_requested_at && $game->resume_requested_at->diffInMinutes(now()) >= 1,
+                    'other_user_1min' => $game->resume_requested_at && $game->resume_requested_at->diffInMinutes(now()) >= 1 && $game->resume_requested_by !== $userId,
                     'expired_check' => $game->resume_request_expires_at ? now()->isAfter($game->resume_request_expires_at) : false
                 ]
             ]);
@@ -1935,7 +1941,8 @@ class GameRoomService
                 $requestingUserName = $game->blackPlayer->name ?? 'Black Player';
             }
 
-            $expiresInSeconds = $game->resume_request_expires_at ? now()->diffInSeconds($game->resume_request_expires_at, false) : 0;
+            // Carbon 3 returns a float; clients render this as "Xm Ys".
+            $expiresInSeconds = $game->resume_request_expires_at ? (int) now()->diffInSeconds($game->resume_request_expires_at, false) : 0;
 
             // If expired, allow cleanup to happen
             if ($expiresInSeconds <= 0) {

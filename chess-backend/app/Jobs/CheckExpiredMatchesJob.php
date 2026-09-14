@@ -155,8 +155,10 @@ class CheckExpiredMatchesJob implements ShouldQueue
         }
 
         // Check who made the last move
-        $timeSinceLastMove = now()->diffInMinutes($lastMove->created_at);
-        $deadlinePassedMinutes = now()->diffInMinutes($match->deadline);
+        // Measure past -> now(): Carbon 3 diffs are signed, and both negated
+        // flipped the comparison below.
+        $timeSinceLastMove = $lastMove->created_at->diffInMinutes(now());
+        $deadlinePassedMinutes = $match->deadline->diffInMinutes(now());
 
         if ($timeSinceLastMove < $deadlinePassedMinutes / 2) {
             // Recent activity - opponent forfeits

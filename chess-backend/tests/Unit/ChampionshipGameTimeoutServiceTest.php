@@ -359,6 +359,40 @@ class ChampionshipGameTimeoutServiceTest extends TestCase
     }
 
     /** @test */
+    public function it_only_warns_for_matches_starting_within_five_minutes()
+    {
+        // scheduled_time->diffInSeconds(now(), false) is negative for every
+        // future time, so needs_warning used to be true for any upcoming match.
+        $soon = ChampionshipMatch::factory()->create([
+            'championship_id' => $this->championship->id,
+            'player1_id' => $this->player1->id,
+            'player2_id' => $this->player2->id,
+            'round_number' => 1,
+            'scheduling_status' => 'confirmed',
+            'scheduled_time' => now()->addMinutes(3),
+            'game_id' => null,
+            'status_id' => MatchStatusEnum::PENDING->getId(),
+        ]);
+
+        $later = ChampionshipMatch::factory()->create([
+            'championship_id' => $this->championship->id,
+            'player1_id' => $this->player1->id,
+            'player2_id' => $this->player2->id,
+            'round_number' => 2,
+            'scheduling_status' => 'confirmed',
+            'scheduled_time' => now()->addHours(2),
+            'game_id' => null,
+            'status_id' => MatchStatusEnum::PENDING->getId(),
+        ]);
+
+        $status = collect($this->service->getChampionshipTimeoutStatus($this->championship))
+            ->keyBy('match_id');
+
+        $this->assertTrue($status[$soon->id]['needs_warning']);
+        $this->assertFalse($status[$later->id]['needs_warning']);
+    }
+
+    /** @test */
     public function it_does_not_timeout_already_completed_matches()
     {
         // Create match that is already completed but has timeout
