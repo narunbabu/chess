@@ -2,6 +2,7 @@ package com.chess99.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.chess99.data.api.RatingWindow
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -37,35 +38,38 @@ class LobbyPreferences @Inject constructor(
 
     fun saveRatingWindow(window: RatingWindow) {
         val normalized = window.normalize()
-        prefs.edit()
-            .putInt(KEY_MIN_RATING, normalized.minRating)
-            .putInt(KEY_MAX_RATING, normalized.maxRating)
-            .apply()
+        prefs.edit {
+            putInt(KEY_MIN_RATING, normalized.minRating)
+            putInt(KEY_MAX_RATING, normalized.maxRating)
+        }
     }
 
     /** Drop the stored range so the mode-aware default applies again. */
     fun clearRatingWindow() {
-        prefs.edit().remove(KEY_MIN_RATING).remove(KEY_MAX_RATING).apply()
+        prefs.edit {
+            remove(KEY_MIN_RATING)
+            remove(KEY_MAX_RATING)
+        }
     }
 
     /** Mode last used to start a game from the Players list ("casual"/"rated"/"learning"). */
     fun getGameMode(): String = prefs.getString(KEY_GAME_MODE, DEFAULT_GAME_MODE) ?: DEFAULT_GAME_MODE
 
     fun saveGameMode(mode: String) {
-        prefs.edit().putString(KEY_GAME_MODE, mode).apply()
+        prefs.edit { putString(KEY_GAME_MODE, mode) }
     }
 
     /** Time control in minutes, and increment in seconds. */
     fun getTimeControlMinutes(): Int = prefs.getInt(KEY_TIME_CONTROL, DEFAULT_TIME_CONTROL)
 
     fun saveTimeControlMinutes(minutes: Int) {
-        prefs.edit().putInt(KEY_TIME_CONTROL, minutes).apply()
+        prefs.edit { putInt(KEY_TIME_CONTROL, minutes) }
     }
 
     fun getIncrementSeconds(): Int = prefs.getInt(KEY_INCREMENT, DEFAULT_INCREMENT)
 
     fun saveIncrementSeconds(seconds: Int) {
-        prefs.edit().putInt(KEY_INCREMENT, seconds).apply()
+        prefs.edit { putInt(KEY_INCREMENT, seconds) }
     }
 
     companion object {

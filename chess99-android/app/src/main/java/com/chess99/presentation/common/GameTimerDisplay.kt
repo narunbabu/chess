@@ -73,10 +73,10 @@ fun GameTimerDisplay(
 @Composable
 fun PlayerInfoBar(
     name: String,
+    modifier: Modifier = Modifier,
     rating: Int? = null,
     capturedPieces: String = "",
     isCurrentTurn: Boolean = false,
-    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier

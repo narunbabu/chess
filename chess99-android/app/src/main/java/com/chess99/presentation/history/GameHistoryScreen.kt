@@ -537,6 +537,7 @@ private fun RatingChangeBadge(change: Int) {
 fun ReplayContent(
     game: GameSummary?,
     replayState: ReplayState,
+    modifier: Modifier = Modifier,
     onNavigateToReview: ((gameId: Int) -> Unit)? = null,
     onFirstMove: () -> Unit,
     onPrevMove: () -> Unit,
@@ -545,7 +546,6 @@ fun ReplayContent(
     onMoveClick: (Int) -> Unit,
     onToggleAutoPlay: () -> Unit,
     onCopyPgn: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
         if (replayState.isLoadingMoves) {

@@ -18,10 +18,10 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun UpgradePromptCard(
+    modifier: Modifier = Modifier,
     title: String = "Upgrade to Premium",
     message: String = "Unlock unlimited games, advanced analysis, and ad-free experience.",
     onUpgrade: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),

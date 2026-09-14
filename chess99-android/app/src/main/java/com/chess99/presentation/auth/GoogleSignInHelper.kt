@@ -1,5 +1,6 @@
 package com.chess99.presentation.auth
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -57,6 +58,9 @@ class GoogleSignInHelper @Inject constructor(
         // GetSignInWithGoogleOption, not GetGoogleIdOption: this method is only
         // ever reached from an explicit "Sign in with Google" button. See the
         // class KDoc for why the One Tap option is the wrong tool here.
+        // Lint 31.9.1 misses the GoogleIdTokenCredential handling below: both
+        // Google token types are checked before GoogleIdTokenCredential.createFrom.
+        @SuppressLint("CredentialManagerSignInWithGoogle")
         val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(serverClientId).build()
 
         val request = GetCredentialRequest.Builder()

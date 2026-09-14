@@ -73,6 +73,7 @@ data class BoardArrow(
 @Composable
 fun ChessBoardView(
     game: ChessGame,
+    modifier: Modifier = Modifier,
     boardOrientation: com.chess99.engine.Color = com.chess99.engine.Color.WHITE,
     isInteractive: Boolean = true,
     lastMoveFrom: Int = -1,
@@ -80,7 +81,6 @@ fun ChessBoardView(
     lastMoveEffects: MoveEffects = MoveEffects.None,
     arrows: List<BoardArrow> = emptyList(),
     onMove: ((from: String, to: String, promotion: Char?) -> Unit)? = null,
-    modifier: Modifier = Modifier,
 ) {
     val haptic = LocalHapticFeedback.current
     val textMeasurer = rememberTextMeasurer()

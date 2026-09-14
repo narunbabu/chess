@@ -90,8 +90,8 @@ fun AnalysisTriggerButton(
 
 @Composable
 fun AnalysisLoadingIndicator(
-    progress: Int = 0,
     modifier: Modifier = Modifier,
+    progress: Int = 0,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),

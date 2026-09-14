@@ -1,5 +1,6 @@
 package com.chess99.presentation.history
 
+import android.annotation.SuppressLint
 import android.content.Context
 import com.chess99.engine.ChessGame
 import com.chess99.engine.Color
@@ -33,6 +34,8 @@ class LocalGameReviewStore @Inject constructor(
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     @Volatile private var memoryReview: LocalGameReviewRecord? = null
 
+    // KTX edit(commit = true) returns Unit, losing the disk-write result callers need.
+    @SuppressLint("UseKtx")
     fun save(review: LocalGameReviewRecord): Boolean {
         // Keep the just-finished game reviewable in this process even on the
         // rare device-storage failure; a failed disk write must not erase it.
