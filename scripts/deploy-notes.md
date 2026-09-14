@@ -31,12 +31,21 @@ SSH in, then run these in order:
 ```bash
 # 1. Pull latest code
 cd /opt/Chess-Web
-# One-time, on the first deploy that includes the bootstrap/cache untracking
-# (2026-09-14): composer rewrites these two generated files, and the pull that
-# deletes them from git refuses to merge while they are modified. Discard them;
-# step 2's `package:discover` regenerates them, now ignored by git.
+# Needed on the first deploy that includes the bootstrap/cache untracking
+# (d48a4b4, 2026-09-14): composer rewrites these two generated files, and the
+# pull that deletes them from git refuses to merge while they are modified.
+# Discard them; step 2's `package:discover` regenerates them, now ignored by git.
+# Run it as written, every time: once the files are untracked the checkout just
+# prints "pathspec did not match" and the pull still runs.
+# The restored copy lists dev-only providers (laravel/pail, laravel/sail,
+# nunomaduro/collision) that `--no-dev` does not install. If the pull fails,
+# every request errors "class not found" until the manifest is rebuilt, which
+# is what the `||` branch does. Do not skip it. It must delete the files first:
+# `package:discover` boots the app, so against the broken manifest it fails the
+# same way (reproduced, docs/updates/2026_09_14_02_05_update.md). If the pull
+# failed, stop, fix the cause, and run step 1 again before step 2.
 git checkout -- chess-backend/bootstrap/cache/packages.php chess-backend/bootstrap/cache/services.php
-git pull origin master
+git pull origin master || (cd chess-backend && rm -f bootstrap/cache/packages.php bootstrap/cache/services.php && php artisan package:discover)
 
 # 2. Backend dependencies
 cd /opt/Chess-Web/chess-backend
@@ -176,6 +185,13 @@ NOPASSWD rule on the VPS for exactly those commands, using
 ```text
 narun ALL=(root) NOPASSWD: /usr/bin/chown -R www-data\:www-data /opt/Chess-Web/chess-backend/storage, /usr/bin/chown -R www-data\:www-data /opt/Chess-Web/chess-backend/bootstrap/cache, /usr/bin/crontab -u www-data -l, /usr/bin/crontab -u www-data -, /usr/sbin/nginx -t, /usr/bin/systemctl restart php8.3-fpm, /usr/bin/systemctl restart chess-reverb, /usr/bin/systemctl reload nginx
 ```
+
+**State on 2026-09-14:** this rule is not installed and is not needed today.
+`sudo -n -l` shows narun already has `(ALL) NOPASSWD: ALL`, and all eight
+commands above pass `sudo -n -l`. The binary paths match the VPS, and the rule
+passes `visudo -c -f -` there. Keep it for narrowing: installing it only makes
+the CI key safer once the broad `NOPASSWD: ALL` grant is removed
+(`docs/updates/2026_09_14_00_45_update.md`).
 
 Do not add wildcards to this rule. In sudoers, `*` also matches spaces, so a
 rule like `cp * /etc/nginx/...` lets whoever holds the CI key copy any file as

@@ -1,10 +1,10 @@
-# Chess99 Android phone test — 8 September 2026
+# Chess99 Android phone test — 13 September 2026
 
 This is a native Android test build, not a Play release or a certification of complete web parity. It connects to the live Chess99 account/game service. Use Casual games for initial testing; actions on signed-in accounts affect the live service.
 
 ## Install
 
-1. Copy `chess99-1.0.0-phone-test-2026-09-08.apk` supplied with the handoff to an Android 8.0+ phone.
+1. Copy `chess99-1.0.0-phone-test-2026-09-13.apk` (built from commit `568e46c`, the code deployed to production 2026-09-13) supplied with the handoff to an Android 8.0+ phone.
 2. Open it in Files and allow installation from that source if Android asks. Turn that permission off again afterwards.
 3. Keep the existing app/data. If Android reports a conflicting signature, stop and report the message; do not uninstall to work around it because that can erase local data.
 
@@ -25,7 +25,7 @@ A USB-connected phone with USB debugging enabled can be installed with `adb inst
 
 - No physical arm64 phone verification has been completed in this session.
 - Native multiplayer live Review coaching and review lifeline/help markers do not yet match web. Broader module parity is not certified.
-- Nearby-opponent failure/empty handling and post-login tab Back-stack behavior need follow-up.
+- Nearby-opponent failure/empty handling, post-login tab Back-stack and restart-after-logout are unit-verified in this build but not yet confirmed on a device.
 - Production Firebase is still a placeholder; push notifications, Crashlytics and Analytics, and the Play release configuration gate are not ready.
 - Google OAuth fingerprints, verified App Links and deployed backend parity require owner/release verification. No backend deployment or Play upload was performed for this build.
 - Custom/offline computer games are not rated. Rated persona games require successful server creation; failed requests cannot silently become local rated games.
