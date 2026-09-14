@@ -105,6 +105,27 @@ private fun NavHostController.navigateToMain(destination: MainDestination) {
     }
 }
 
+/**
+ * Where "leave" goes from a screen: null means an ordinary pop is enough;
+ * otherwise the screen is the back-stack root and popping would do nothing.
+ * That happens after guest entry from Onboarding (`popUpTo(Onboarding)
+ * inclusive` leaves PlayComputer alone on the stack) and after a persona or
+ * deep-link handoff that replaces the root — "Leave game" was a no-op there.
+ */
+internal fun leaveRouteFor(hasPreviousEntry: Boolean, rootExitDestination: () -> String): String? =
+    if (hasPreviousEntry) null else rootExitDestination()
+
+private fun NavHostController.popBackStackOrExitTo(rootExitDestination: () -> String) {
+    val exitRoute = leaveRouteFor(previousBackStackEntry != null, rootExitDestination)
+    if (exitRoute == null) {
+        popBackStack()
+    } else {
+        navigate(exitRoute) {
+            popUpTo(0) { inclusive = true }
+        }
+    }
+}
+
 @Composable
 private fun MainNavigationBar(
     selected: MainDestination,
@@ -134,6 +155,7 @@ fun Chess99NavGraph(
     navController: NavHostController,
     startDestination: String,
     consumePendingDeepLink: () -> String? = { null },
+    rootExitDestination: () -> String = { Screen.Login.route },
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val selectedMainDestination = mainDestinationForRoute(backStackEntry?.destination?.route)
@@ -292,7 +314,7 @@ fun Chess99NavGraph(
         // ── Game screens ────────────────────────────────────────────────────
         composable(Screen.PlayComputer.route) {
             PlayComputerScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.popBackStackOrExitTo(rootExitDestination) },
                 onNavigateToTacticalTrainer = {
                     navController.navigate(Screen.TacticalTrainer.route)
                 },
@@ -318,7 +340,7 @@ fun Chess99NavGraph(
             arguments = listOf(navArgument("gameId") { type = NavType.IntType }),
         ) {
             PlayMultiplayerScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.popBackStackOrExitTo(rootExitDestination) },
             )
         }
 

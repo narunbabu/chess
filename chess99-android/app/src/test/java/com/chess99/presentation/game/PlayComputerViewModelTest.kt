@@ -385,17 +385,49 @@ class PlayComputerViewModelTest {
     }
 
     @Test
-    fun `rated and casual games cannot request a best move`() = runTest {
-        for (mode in listOf(GameMode.RATED, GameMode.CASUAL)) {
-            viewModel.setupGame(playerColor = Color.WHITE, difficulty = 4, mode = mode)
-            viewModel.startGame()
-            val budget = viewModel.uiState.value.undoChancesRemaining
+    fun `rated games cannot request a best move`() = runTest {
+        viewModel.setupGame(playerColor = Color.WHITE, difficulty = 4, mode = GameMode.RATED)
+        viewModel.startGame()
+        val budget = viewModel.uiState.value.undoChancesRemaining
 
-            viewModel.requestBestMove()
+        viewModel.requestBestMove()
 
-            assertNull(viewModel.uiState.value.bestMoveUci)
-            assertEquals(budget, viewModel.uiState.value.undoChancesRemaining)
-        }
+        assertNull(viewModel.uiState.value.bestMoveUci)
+        assertEquals(budget, viewModel.uiState.value.undoChancesRemaining)
+    }
+
+    @Test
+    fun `rated guard holds even while the game is playing`() = runTest {
+        viewModel.setupGame(playerColor = Color.WHITE, difficulty = 4, mode = GameMode.CASUAL)
+        viewModel.startGame()
+        // Force the rated flag on a live game: the ViewModel itself must refuse,
+        // not just the setup/start path.
+        val field = viewModel.javaClass.getDeclaredField("_uiState").apply { isAccessible = true }
+        @Suppress("UNCHECKED_CAST")
+        val flow = field.get(viewModel) as kotlinx.coroutines.flow.MutableStateFlow<PlayComputerUiState>
+        flow.value = flow.value.copy(isRated = true, gameMode = GameMode.RATED)
+
+        viewModel.requestBestMove()
+
+        assertNull(viewModel.uiState.value.bestMoveUci)
+        assertEquals(-1, viewModel.uiState.value.bestMoveFrom)
+    }
+
+    @Test
+    fun `casual games reveal a best move without spending undo chances`() = runTest {
+        viewModel.setupGame(playerColor = Color.WHITE, difficulty = 4, mode = GameMode.CASUAL)
+        viewModel.startGame()
+        val budget = viewModel.uiState.value.undoChancesRemaining
+        assertEquals(GamePhase.PLAYING, viewModel.uiState.value.gamePhase)
+
+        viewModel.requestBestMove()
+
+        val state = viewModel.uiState.value
+        assertNotNull("casual games must offer best-move help", state.bestMoveUci)
+        assertTrue(state.bestMoveFrom >= 0)
+        assertTrue(state.bestMoveTo >= 0)
+        assertFalse(state.bestMoveInProgress)
+        assertEquals("casual best moves are unlimited", budget, state.undoChancesRemaining)
     }
 
     @Test

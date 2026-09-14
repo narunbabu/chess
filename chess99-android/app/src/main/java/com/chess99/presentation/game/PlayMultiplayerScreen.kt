@@ -291,6 +291,10 @@ fun PlayMultiplayerScreen(
                     onAcceptDraw = { viewModel.acceptDraw() },
                     onDeclineDraw = { viewModel.declineDraw() },
                     onRequestUndo = { viewModel.requestUndo() },
+                    bestMovesOn = cctState.hintLevel == 2,
+                    onToggleBest = {
+                        viewModel.setCctHintLevel(if (cctState.hintLevel == 2) 0 else 2)
+                    },
                     onAcceptUndo = { viewModel.acceptUndo() },
                     onDeclineUndo = { viewModel.declineUndo() },
                     onPause = { viewModel.pauseGame() },
@@ -381,6 +385,8 @@ private fun GameBoard(
     onAcceptDraw: () -> Unit,
     onDeclineDraw: () -> Unit,
     onRequestUndo: () -> Unit,
+    bestMovesOn: Boolean,
+    onToggleBest: () -> Unit,
     onAcceptUndo: () -> Unit,
     onDeclineUndo: () -> Unit,
     onPause: () -> Unit,
@@ -483,6 +489,8 @@ private fun GameBoard(
                     undoChancesRemaining = state.undoChancesRemaining,
                     undoRequestPending = state.undoRequestPending,
                     onRequestUndo = onRequestUndo,
+                    bestMovesOn = bestMovesOn,
+                    onToggleBest = onToggleBest,
                 )
             }
 
@@ -539,6 +547,8 @@ private fun GameControlsRow(
     undoChancesRemaining: Int,
     undoRequestPending: Boolean,
     onRequestUndo: () -> Unit,
+    bestMovesOn: Boolean,
+    onToggleBest: () -> Unit,
 ) {
     var showResignConfirm by remember { mutableStateOf(false) }
 
@@ -571,6 +581,30 @@ private fun GameControlsRow(
                 maxLines = 1,
                 softWrap = false,
             )
+        }
+
+        // Best moves (casual only) - web parity with GameContainer.js's Best
+        // action: toggles the top-3 engine arrows on the board. Hidden in rated
+        // games; the ViewModel also refuses the hint level there.
+        if (!isRated) {
+            OutlinedButton(
+                onClick = onToggleBest,
+                colors = if (bestMovesOn) {
+                    ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    )
+                } else {
+                    ButtonDefaults.outlinedButtonColors()
+                },
+                contentPadding = controlPadding,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp),
+            ) {
+                Icon(Icons.Default.Lightbulb, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Best", fontSize = 14.sp, maxLines = 1, softWrap = false)
+            }
         }
 
         // Pause button (casual only)

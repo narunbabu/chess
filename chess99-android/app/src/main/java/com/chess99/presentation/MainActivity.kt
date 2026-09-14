@@ -66,6 +66,14 @@ class MainActivity : ComponentActivity() {
                         navController = nc,
                         startDestination = startDestination,
                         consumePendingDeepLink = pendingDeepLinkStore::consume,
+                        // Re-read on each leave: a guest has seen onboarding by
+                        // then (Login), a signed-in root handoff returns Home.
+                        rootExitDestination = {
+                            coldStartDestination(
+                                isLoggedIn = tokenManager.isLoggedIn(),
+                                hasSeenOnboarding = onboardingPreferences.hasSeenOnboarding(),
+                            )
+                        },
                     )
 
                     // Handle deep link from launch intent

@@ -43,4 +43,26 @@ class MainNavigationTest {
         // Genuine first run.
         assertEquals("onboarding", coldStartDestination(isLoggedIn = false, hasSeenOnboarding = false))
     }
+
+    @Test
+    fun `leaving a screen with a previous entry is an ordinary pop`() {
+        var consulted = false
+        assertNull(leaveRouteFor(hasPreviousEntry = true) { consulted = true; "login" })
+        assertEquals(false, consulted)
+    }
+
+    @Test
+    fun `guest leaving Play Computer as the back-stack root goes to Login`() {
+        // Guest entry from Onboarding marks onboarding seen, then pops it.
+        val exit = leaveRouteFor(hasPreviousEntry = false) {
+            coldStartDestination(isLoggedIn = false, hasSeenOnboarding = true)
+        }
+        assertEquals("login", exit)
+    }
+
+    @Test
+    fun `signed-in root leave returns Home and first-run root leave returns Onboarding`() {
+        assertEquals("home", leaveRouteFor(false) { coldStartDestination(true, true) })
+        assertEquals("onboarding", leaveRouteFor(false) { coldStartDestination(false, false) })
+    }
 }

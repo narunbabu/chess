@@ -1528,6 +1528,7 @@ class PlayMultiplayerViewModel @Inject constructor(
 
             // Convert to board arrows
             val arrows = when {
+                state.isRated -> emptyList()
                 cctStateVal.hintLevel == 1 -> CCTAnalyzer.cctToArrows(cct)
                 cctStateVal.hintLevel == 2 && cctStateVal.bestMoves != null -> {
                     cctStateVal.bestMoves!!.take(3).mapIndexed { i, m ->
@@ -1549,13 +1550,16 @@ class PlayMultiplayerViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(cctArrows = boardArrows)
 
             // Trigger best moves analysis if in Best mode
-            if (cctStateVal.hintLevel == 2) {
+            if (cctStateVal.hintLevel == 2 && !state.isRated) {
                 loadBestMoves(fen, cct)
             }
         }
     }
 
-    fun setCctHintLevel(level: Int) {
+    fun setCctHintLevel(requestedLevel: Int) {
+        // Rated games never get move hints or best moves; the sheet shows counts
+        // only. Guarded here as well so no UI path can switch arrows on.
+        val level = if (_uiState.value.isRated) 0 else requestedLevel
         val current = _cctState.value
         _cctState.value = current.copy(
             hintLevel = level,

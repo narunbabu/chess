@@ -542,7 +542,8 @@ private fun GamePlayContent(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             ) {
-                if (state.learningMode && state.undoChancesRemaining > 0) {
+                // Best: unlimited in Casual, pool-limited in Learning, never in Rated.
+                if (!state.isRated && (!state.learningMode || state.undoChancesRemaining > 0)) {
                     OutlinedButton(
                         onClick = onBestMove,
                         enabled = isPlayerTurn && !state.bestMoveInProgress && state.bestMoveUci == null,

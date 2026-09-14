@@ -409,19 +409,22 @@ class PlayComputerViewModel @Inject constructor(
         }
     }
 
-    // ── Best move (Learning help pool) ──────────────────────────────
+    // ── Best move ───────────────────────────────────────────────────
 
     /**
-     * Reveals, but does not play, Stockfish's best legal move. Learning mode
-     * shares one explicit budget between Best and Undo; rated and casual games
-     * cannot request engine assistance. The chance is charged only after a
-     * current-position, legal result is ready, so retries/failures cost nothing.
+     * Reveals, but does not play, Stockfish's best legal move. Owner policy
+     * (docs/specs/2026-07-18-undo-bestmove-parity/00-MASTER-PLAN.md): casual
+     * games get unlimited reveals, Learning mode shares one budget between Best
+     * and Undo, and rated games never get engine assistance. A Learning chance
+     * is charged only after a current-position, legal result is ready, so
+     * retries/failures cost nothing.
      */
     fun requestBestMove() {
         val state = _uiState.value
-        if (!state.learningMode || state.isRated) return
+        if (state.isRated) return
         if (state.gamePhase != GamePhase.PLAYING || state.computerMoveInProgress) return
-        if (state.bestMoveInProgress || state.undoChancesRemaining <= 0) return
+        if (state.bestMoveInProgress) return
+        if (state.learningMode && state.undoChancesRemaining <= 0) return
         if (state.bestMoveUci != null) return // same-position reveal is already visible
         if (game.turn != state.playerColor) return
 
@@ -461,7 +464,11 @@ class PlayComputerViewModel @Inject constructor(
                     bestMoveFrom = Square.fromAlgebraic(from),
                     bestMoveTo = Square.fromAlgebraic(to),
                     bestMoveUci = uci,
-                    undoChancesRemaining = current.undoChancesRemaining - 1,
+                    undoChancesRemaining = if (current.learningMode) {
+                        current.undoChancesRemaining - 1
+                    } else {
+                        current.undoChancesRemaining
+                    },
                 )
             } catch (e: CancellationException) {
                 throw e
@@ -469,7 +476,11 @@ class PlayComputerViewModel @Inject constructor(
                 if (expectedGeneration == gameGeneration && game.fen() == expectedFen) {
                     _uiState.value = _uiState.value.copy(
                         bestMoveInProgress = false,
-                        error = "A best move isn't available right now. Your help chance was not used.",
+                        error = if (_uiState.value.learningMode) {
+                            "A best move isn't available right now. Your help chance was not used."
+                        } else {
+                            "A best move isn't available right now. Please try again."
+                        },
                     )
                 }
             } finally {
