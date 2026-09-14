@@ -31,6 +31,11 @@ SSH in, then run these in order:
 ```bash
 # 1. Pull latest code
 cd /opt/Chess-Web
+# One-time, on the first deploy that includes the bootstrap/cache untracking
+# (2026-09-14): composer rewrites these two generated files, and the pull that
+# deletes them from git refuses to merge while they are modified. Discard them;
+# step 2's `package:discover` regenerates them, now ignored by git.
+git checkout -- chess-backend/bootstrap/cache/packages.php chess-backend/bootstrap/cache/services.php
 git pull origin master
 
 # 2. Backend dependencies
