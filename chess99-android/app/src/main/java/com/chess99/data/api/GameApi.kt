@@ -1,5 +1,6 @@
 package com.chess99.data.api
 
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -18,8 +19,10 @@ interface GameApi {
     @GET("games/daily-quota")
     suspend fun getDailyQuota(): Response<JsonObject>
 
+    // GameController::unfinishedGames answers with a bare JSON array, which a
+    // Response<JsonObject> converter rejects before any parsing runs.
     @GET("games/unfinished")
-    suspend fun getUnfinishedGames(): Response<JsonObject>
+    suspend fun getUnfinishedGames(): Response<JsonElement>
 
     @POST("games/create-from-unfinished")
     suspend fun createFromUnfinished(@Body body: JsonObject): Response<JsonObject>

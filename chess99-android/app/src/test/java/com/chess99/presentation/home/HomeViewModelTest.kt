@@ -6,6 +6,7 @@ import com.chess99.data.local.TokenManager
 import com.chess99.domain.model.User
 import com.chess99.domain.repository.AuthRepository
 import com.chess99.presentation.navigation.PendingDeepLinkStore
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.mockk.coEvery
@@ -78,15 +79,19 @@ class HomeViewModelTest {
     private fun ok(json: String): Response<JsonObject> =
         Response.success(JsonParser.parseString(json).asJsonObject)
 
-    private fun error(code: Int = 500): Response<JsonObject> =
+    private fun okElement(json: String): Response<JsonElement> =
+        Response.success(JsonParser.parseString(json))
+
+    private fun <T> error(code: Int = 500): Response<T> =
         Response.error(code, "".toResponseBody("application/json".toMediaType()))
 
     private fun stubSuccessfulLoad(
         activeJson: String = """{"data": []}""",
+        unfinishedJson: String = "[]",
         lobbyJson: String = """{"real_players": [], "synthetic_players": []}""",
     ) {
         coEvery { gameApi.getActiveGames() } returns ok(activeJson)
-        coEvery { gameApi.getUnfinishedGames() } returns ok("""{"games": []}""")
+        coEvery { gameApi.getUnfinishedGames() } returns okElement(unfinishedJson)
         coEvery { matchmakingApi.getLobbyPlayers(any(), any()) } returns ok(lobbyJson)
     }
 
@@ -122,6 +127,34 @@ class HomeViewModelTest {
         assertFalse(state.resumeLoadFailed)
         assertFalse(state.isResumeLoading)
         assertFalse(state.hideAmbassadorEntry)
+    }
+
+    @Test
+    fun `unfinished games served as a bare JSON array load without the resume error`() = runTest {
+        // Real GameController::unfinishedGames shape: a top-level array. Typed
+        // as a JsonObject it failed conversion and showed "Couldn't check for
+        // games to resume" on every Home load (seen after leaving a game).
+        stubSuccessfulLoad(
+            activeJson = """{"data": [{
+                "id": 9, "status": "active", "white_player_id": 5,
+                "white_player": {"id": 5, "name": "Arun"},
+                "black_player": {"id": 8, "name": "Ravi"}, "last_move_at": null
+            }]}""",
+            unfinishedJson = """[
+                {"id": 9, "white_player_id": 5, "current_user_id": 5, "opponent_name": "Ravi"},
+                {"id": 12, "white_player_id": 7, "current_user_id": 5, "opponent_name": "Riya",
+                 "paused_at": "2026-09-14T17:51:00.000000Z"}
+            ]""",
+        )
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.resumeLoadFailed)
+        assertFalse(state.isResumeLoading)
+        assertEquals(listOf(9, 12), state.continuePlayingGames.map { it.id })
+        assertEquals(listOf(true, false), state.continuePlayingGames.map { it.playingAsWhite })
     }
 
     @Test

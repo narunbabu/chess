@@ -1,12 +1,18 @@
 package com.chess99.data.api
 
+import com.google.gson.JsonElement
 import com.google.gson.JsonNull
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.google.gson.JsonSyntaxException
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 /**
  * Production crash guard.
@@ -109,6 +115,33 @@ class JsonSafeTest {
         val ids = payload.get("data").arrOrNull()!!.mapNotNull { it.objOrNull().int("id") }
 
         assertEquals(listOf(1, 3), ids)
+    }
+
+    @Test
+    fun `arrOrField reads a bare array or the first wrapping key that holds one`() {
+        val bare = JsonParser.parseString("""[{"id":1},{"id":2}]""")
+        val wrapped = JsonParser.parseString("""{"games":"oops","data":[{"id":3}]}""")
+
+        assertEquals(2, bare.arrOrField("games", "data")!!.size())
+        assertEquals(3, wrapped.arrOrField("games", "data")!!.first().objOrNull().int("id"))
+        assertNull(JsonParser.parseString("""{"other":[]}""").arrOrField("games", "data"))
+        assertNull((null as JsonElement?).arrOrField("games"))
+    }
+
+    @Test
+    fun `the Retrofit Gson converter rejects a bare array typed as JsonObject but accepts it as JsonElement`() {
+        // Root cause of Home's "Couldn't check for games to resume": the
+        // games/unfinished body is `[...]`, so a Response<JsonObject> call threw
+        // during conversion even though the server answered 200.
+        val retrofit = Retrofit.Builder().baseUrl("http://localhost/").build()
+        val factory = GsonConverterFactory.create()
+        fun convert(type: Class<*>) = factory
+            .responseBodyConverter(type, emptyArray(), retrofit)!!
+            .convert("[]".toResponseBody("application/json".toMediaType()))
+
+        val asObject = runCatching { convert(JsonObject::class.java) }.exceptionOrNull()
+        assertTrue("expected JsonSyntaxException, got $asObject", asObject is JsonSyntaxException)
+        assertTrue((convert(JsonElement::class.java) as JsonElement).isJsonArray)
     }
 
     @Test

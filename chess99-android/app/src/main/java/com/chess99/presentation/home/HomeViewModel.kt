@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.MatchmakingApi
 import com.chess99.data.api.RatingWindow
+import com.chess99.data.api.arrOrField
 import com.chess99.data.api.arrOrNull
 import com.chess99.data.api.bool
 import com.chess99.data.api.int
@@ -223,11 +224,9 @@ class HomeViewModel @Inject constructor(
             val response = gameApi.getUnfinishedGames()
             check(response.isSuccessful) { "Unfinished games returned ${response.code()}" }
             val body = checkNotNull(response.body()) { "Unfinished games response was empty" }
-            // GameController::unfinishedGames returns convenience fields
-            // (opponent_name, current_user_id) spread onto each raw game.
-            val gamesArray = body.get("games")?.arrOrNull()
-                ?: body.get("data")?.arrOrNull()
-                ?: emptyList()
+            // GameController::unfinishedGames returns a bare array of raw games
+            // with convenience fields (opponent_name, current_user_id) spread in.
+            val gamesArray = body.arrOrField("games", "data") ?: emptyList()
             gamesArray.mapNotNull { el -> parseUnfinishedGame(el.objOrNull()) }
         }.onFailure { error ->
             Timber.e(error, "Failed to load unfinished games for Home")

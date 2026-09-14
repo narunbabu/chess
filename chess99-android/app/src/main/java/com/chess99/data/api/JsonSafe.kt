@@ -19,6 +19,10 @@ import com.google.gson.JsonObject
  */
 fun JsonElement?.objOrNull(): JsonObject? = if (this != null && isJsonObject) asJsonObject else null
 fun JsonElement?.arrOrNull(): JsonArray? = if (this != null && isJsonArray) asJsonArray else null
+
+/** A list body that is either a bare array or an object wrapping it under the first matching key. */
+fun JsonElement?.arrOrField(vararg keys: String): JsonArray? =
+    arrOrNull() ?: objOrNull()?.let { obj -> keys.firstNotNullOfOrNull { obj.get(it).arrOrNull() } }
 fun JsonObject?.str(key: String): String? = this?.get(key)?.takeIf { it.isJsonPrimitive }?.asString
 fun JsonObject?.int(key: String): Int? = this?.get(key)?.takeIf { it.isJsonPrimitive }?.runCatching { asInt }?.getOrNull()
 fun JsonObject?.dbl(key: String): Double? = this?.get(key)?.takeIf { it.isJsonPrimitive }?.runCatching { asDouble }?.getOrNull()

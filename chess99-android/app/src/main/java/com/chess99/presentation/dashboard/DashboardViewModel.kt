@@ -6,6 +6,7 @@ import com.chess99.data.api.AuthApi
 import com.chess99.data.api.ChampionshipApi
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.ProfileApi
+import com.chess99.data.api.arrOrField
 import com.chess99.data.api.arrOrNull
 import com.chess99.data.api.bool
 import com.chess99.data.api.dbl
@@ -202,9 +203,7 @@ class DashboardViewModel @Inject constructor(
         try {
             val response = gameApi.getUnfinishedGames()
             if (response.isSuccessful) {
-                val body = response.body()
-                val gamesArray = body?.get("games")?.arrOrNull()
-                    ?: body?.get("data")?.arrOrNull()
+                val gamesArray = response.body().arrOrField("games", "data")
                 val games = gamesArray?.mapNotNull { el ->
                     val g = el.objOrNull() ?: return@mapNotNull null
                     UnfinishedGame(
