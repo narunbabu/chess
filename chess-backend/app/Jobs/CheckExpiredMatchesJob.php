@@ -147,28 +147,57 @@ class CheckExpiredMatchesJob implements ShouldQueue
             return 'double_forfeit';
         }
 
-        // Check game activity
-        $lastMove = $game->moves()->latest()->first();
-        if (!$lastMove) {
+        // Check game activity. Moves are a JSON array column on games (there is
+        // no moves relation); each entry carries the mover's user_id.
+        $moves = is_array($game->moves) ? $game->moves : [];
+        if (empty($moves)) {
             // Game created but no moves - check who created it
             return $this->determineForfeitByGameCreator($match, $game);
+        }
+
+        $lastMoverId = $this->getLastMoverId($game, end($moves));
+        $lastMoveAt = $game->last_move_at ?? $game->updated_at;
+        if (!$lastMoverId || !$lastMoveAt) {
+            return 'double_forfeit';
         }
 
         // Check who made the last move
         // Measure past -> now(): Carbon 3 diffs are signed, and both negated
         // flipped the comparison below.
-        $timeSinceLastMove = $lastMove->created_at->diffInMinutes(now());
+        $timeSinceLastMove = $lastMoveAt->diffInMinutes(now());
         $deadlinePassedMinutes = $match->deadline->diffInMinutes(now());
 
         if ($timeSinceLastMove < $deadlinePassedMinutes / 2) {
             // Recent activity - opponent forfeits
-            return $lastMove->user_id === $match->player1_id
-                ? 'player2_forfeit'
-                : 'player1_forfeit';
-        } else {
-            // No recent activity - double forfeit
-            return 'double_forfeit';
+            if ($lastMoverId === (int) $match->player1_id) {
+                return 'player2_forfeit';
+            }
+            if ($lastMoverId === (int) $match->player2_id) {
+                return 'player1_forfeit';
+            }
         }
+
+        // No recent activity (or last mover is not a match player) - double forfeit
+        return 'double_forfeit';
+    }
+
+    /**
+     * Resolve who made the last move: the stored user_id, or - for legacy
+     * entries without one - the side that is not on turn.
+     */
+    private function getLastMoverId($game, $lastMove): ?int
+    {
+        if (is_array($lastMove) && isset($lastMove['user_id']) && is_numeric($lastMove['user_id'])) {
+            return (int) $lastMove['user_id'];
+        }
+
+        $moverId = match ($game->turn) {
+            'white' => $game->black_player_id,
+            'black' => $game->white_player_id,
+            default => null,
+        };
+
+        return $moverId ? (int) $moverId : null;
     }
 
     /**
@@ -347,19 +376,21 @@ class CheckExpiredMatchesJob implements ShouldQueue
                 $query->where('player1_id', $playerId)
                       ->orWhere('player2_id', $playerId);
             })
-            ->whereIn('result_type', [
-                ChampionshipResultType::FORFEIT_PLAYER1->value,
-                ChampionshipResultType::FORFEIT_PLAYER2->value,
-                ChampionshipResultType::DOUBLE_FORFEIT->value,
+            // The column is result_type_id; 'result_type' is only a model mutator
+            // (MySQL rejects it, SQLite silently reads it as a string literal).
+            ->whereIn('result_type_id', [
+                ChampionshipResultType::FORFEIT_PLAYER1->getId(),
+                ChampionshipResultType::FORFEIT_PLAYER2->getId(),
+                ChampionshipResultType::DOUBLE_FORFEIT->getId(),
             ])
             ->where(function ($query) use ($playerId) {
                 $query->where(function ($q) use ($playerId) {
-                    $q->where('result_type', ChampionshipResultType::FORFEIT_PLAYER1->value)
+                    $q->where('result_type_id', ChampionshipResultType::FORFEIT_PLAYER1->getId())
                       ->where('player1_id', $playerId);
                 })->orWhere(function ($q) use ($playerId) {
-                    $q->where('result_type', ChampionshipResultType::FORFEIT_PLAYER2->value)
+                    $q->where('result_type_id', ChampionshipResultType::FORFEIT_PLAYER2->getId())
                       ->where('player2_id', $playerId);
-                })->orWhere('result_type', ChampionshipResultType::DOUBLE_FORFEIT->value);
+                })->orWhere('result_type_id', ChampionshipResultType::DOUBLE_FORFEIT->getId());
             })
             ->count();
     }
