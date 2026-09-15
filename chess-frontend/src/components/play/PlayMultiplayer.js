@@ -272,6 +272,7 @@ const PlayMultiplayer = () => {
   const [opponentInactiveSec, setOpponentInactiveSec] = useState(0);
   const opponentLastMoveTimeRef = useRef(Date.now());
   const inactivityTimerRef = useRef(null);
+  const sendResumeRequestRef = useRef(null); // latest sendResumeRequest, for handleRequestResume
 
   useEffect(() => { reviewEnabledRef.current = reviewEnabled; }, [reviewEnabled]);
   useEffect(() => { moveReviewRecordsRef.current = moveReviewRecords; }, [moveReviewRecords]);
@@ -3766,7 +3767,9 @@ const PlayMultiplayer = () => {
 
     try {
       setIsWaitingForResumeResponse(true);
-        const sendResult = await sendResumeRequest(true); // Manual send, with cooldown
+        // Via ref: this callback is memoized before `user` loads, and a direct
+        // call would reach the first render's sendResumeRequest (user === null).
+        const sendResult = await sendResumeRequestRef.current(true); // Manual send, with cooldown
         if (!sendResult.success) {
           // If sending failed (e.g., cooldown active), don't close dialog prematurely
           console.log('Resume request not sent due to cooldown or error:', sendResult.message);
@@ -4204,6 +4207,7 @@ const PlayMultiplayer = () => {
     setErrorMessage,
     startResumeCountdown,
   ]);
+  sendResumeRequestRef.current = sendResumeRequest;
 
   // Poll for resume requests as fallback when WebSocket might be disconnected
   useEffect(() => {
