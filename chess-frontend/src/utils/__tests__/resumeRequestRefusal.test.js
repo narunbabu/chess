@@ -1,4 +1,4 @@
-import { ownPendingResumeSeconds } from '../resumeRequestRefusal';
+import { ownPendingResumeSeconds, sentResumeStatusSeconds } from '../resumeRequestRefusal';
 
 describe('ownPendingResumeSeconds', () => {
   it('reads the WebSocket endpoint same-user refusal (10-30 s window)', () => {
@@ -40,5 +40,22 @@ describe('ownPendingResumeSeconds', () => {
     expect(ownPendingResumeSeconds({ is_same_user: true, expires_in_seconds: 0 }, 7)).toBe(0);
     expect(ownPendingResumeSeconds({ success: false, message: 'Game is not paused' }, 7)).toBe(0);
     expect(ownPendingResumeSeconds(undefined, 7)).toBe(0);
+  });
+});
+
+describe('sentResumeStatusSeconds', () => {
+  const now = Date.parse('2026-09-15T10:00:00Z');
+
+  it('reads the server countdown for our own pending request', () => {
+    const status = { pending: true, type: 'sent', requested_by_id: 7, expires_at: '2026-09-15T10:00:18.600Z' };
+    expect(sentResumeStatusSeconds(status, now)).toBe(18);
+  });
+
+  it('returns 0 for a received, absent or expired request', () => {
+    expect(sentResumeStatusSeconds({ pending: true, type: 'received', expires_at: '2026-09-15T10:00:18Z' }, now)).toBe(0);
+    expect(sentResumeStatusSeconds({ pending: false, type: null, expires_at: null }, now)).toBe(0);
+    expect(sentResumeStatusSeconds({ pending: true, type: 'sent', expires_at: '2026-09-15T09:59:59Z' }, now)).toBe(0);
+    expect(sentResumeStatusSeconds({ pending: true, type: 'sent', expires_at: 'garbage' }, now)).toBe(0);
+    expect(sentResumeStatusSeconds(undefined, now)).toBe(0);
   });
 });

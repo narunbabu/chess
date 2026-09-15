@@ -43,3 +43,19 @@ export const ownPendingResumeSeconds = (data, currentUserId, nowMs = Date.now())
   }
   return 0;
 };
+
+/**
+ * Seconds left on the current user's own pending request as reported by
+ * `GET resume-status` (`{ pending: true, type: 'sent', expires_at }`), or 0
+ * when there is none or it has already expired. Used on a fresh load, where
+ * the client holds no local record of the request it sent before reloading.
+ *
+ * @param {object|undefined} status  resume-status response body
+ * @param {number} [nowMs]
+ * @returns {number}
+ */
+export const sentResumeStatusSeconds = (status, nowMs = Date.now()) => {
+  if (!status || status.pending !== true || status.type !== 'sent' || !status.expires_at) return 0;
+  const ms = new Date(status.expires_at).getTime() - nowMs;
+  return Number.isFinite(ms) ? Math.max(0, Math.floor(ms / 1000)) : 0;
+};

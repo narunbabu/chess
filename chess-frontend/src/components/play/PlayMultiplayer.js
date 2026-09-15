@@ -62,7 +62,7 @@ import castleSound from '../../assets/sounds/castle.mp3';
 import victorySound from '../../assets/sounds/victory.mp3';
 import defeatSound from '../../assets/sounds/defeat.mp3';
 import { isSoundMuted } from './SoundToggle';
-import { ownPendingResumeSeconds } from '../../utils/resumeRequestRefusal';
+import { ownPendingResumeSeconds, sentResumeStatusSeconds } from '../../utils/resumeRequestRefusal';
 
 // Create audio objects
 const moveSoundEffect = new Audio(moveSound);
@@ -4358,10 +4358,19 @@ const PlayMultiplayer = () => {
             setShouldAutoSendResume(false);
             return true;
           } else if (status.pending && status.type === 'sent') {
-            // Our own pending - just wait
-            console.log('🎯 Skipping auto-send: our own request already pending');
-            setShouldAutoSendResume(false);
-            return true;
+            // Our own request from before this load is still live: show the
+            // sent panel on the server's remaining time instead of the
+            // "Auto-resume may have failed" fallback.
+            const ownSeconds = sentResumeStatusSeconds(status);
+            if (ownSeconds > 0) {
+              console.log('🎯 Skipping auto-send: our own request already pending', { ownSeconds });
+              setResumeRequestData({ type: 'sent' });
+              setIsWaitingForResumeResponse(true);
+              startResumeCountdown(ownSeconds);
+              setShouldAutoSendResume(false);
+              return true;
+            }
+            // Expired between the server check and now: send a fresh one.
           }
         } else {
           console.warn('[Resume] Status check failed, proceeding with send');
@@ -4408,7 +4417,7 @@ const PlayMultiplayer = () => {
 
     // Initiate the auto-send attempt
     attemptResumeRequest();
-  }, [shouldAutoSendResume, wsService, gameId, canUseWebSocketForResume, handleRequestResume]);
+  }, [shouldAutoSendResume, wsService, gameId, canUseWebSocketForResume, handleRequestResume, startResumeCountdown]);
 
   // Proactive check warning when it's my turn and king is in check
   useEffect(() => {
