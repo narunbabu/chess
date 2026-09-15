@@ -1343,8 +1343,11 @@ class GameController extends Controller
             // Only active, waiting, or paused games
             $query->whereIn('code', ['waiting', 'active', 'paused']);
         })
-        ->with(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])
-        ->orderBy('last_move_at', 'desc')
+        ->with(['whitePlayer', 'blackPlayer', 'syntheticPlayer', 'statusRelation', 'endReasonRelation'])
+        // A game with no moves yet has a NULL last_move_at, which sorts last in
+        // DESC on MySQL and SQLite; fall back to created_at so a game started a
+        // minute ago is not listed below days-old ones.
+        ->orderByRaw('COALESCE(last_move_at, created_at) DESC')
         ->orderBy('created_at', 'desc');
 
         $total = $query->count();
