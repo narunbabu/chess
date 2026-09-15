@@ -62,6 +62,7 @@ import castleSound from '../../assets/sounds/castle.mp3';
 import victorySound from '../../assets/sounds/victory.mp3';
 import defeatSound from '../../assets/sounds/defeat.mp3';
 import { isSoundMuted } from './SoundToggle';
+import { ownPendingResumeSeconds } from '../../utils/resumeRequestRefusal';
 
 // Create audio objects
 const moveSoundEffect = new Audio(moveSound);
@@ -3769,6 +3770,11 @@ const PlayMultiplayer = () => {
         if (!sendResult.success) {
           // If sending failed (e.g., cooldown active), don't close dialog prematurely
           console.log('Resume request not sent due to cooldown or error:', sendResult.message);
+          // A request still pending keeps the waiting state; a real failure
+          // must re-enable the button or it stays on "Requesting..." forever.
+          if (!sendResult.pending) {
+            setIsWaitingForResumeResponse(false);
+          }
           return; // Keep dialog open to show error/cooldown message
         }
 
@@ -4107,6 +4113,21 @@ const PlayMultiplayer = () => {
     } catch (error) {
       console.error('[PlayMultiplayer] Failed to send resume request via WS/REST:', error);
 
+      // Same user retrying while their own request is still live (the backend
+      // blocks this from 10 s until the 30 s expiry, e.g. after a reload or
+      // from another device): keep waiting on the server's remaining time.
+      const ownPendingSeconds = ownPendingResumeSeconds(error.fullData, user?.id);
+      if (ownPendingSeconds > 0) {
+        setShowError(false);
+        setErrorMessage('');
+        setShouldAutoSendResume(false);
+        hasAutoRequestedResume.current = true;
+        setResumeRequestData({ type: 'sent' });
+        setIsWaitingForResumeResponse(true);
+        startResumeCountdown(ownPendingSeconds);
+        return { success: false, pending: true, message: error.fullData.message || 'Your resume request is still pending.' };
+      }
+
       const errorMessageText = error.message || 'Failed to send resume request.';
       setErrorMessage(errorMessageText);
       setShowError(true);
@@ -4149,6 +4170,7 @@ const PlayMultiplayer = () => {
         setResumeRequestData({ type: 'sent' });
         setResumeRequestCountdown(10);
         startResumeCountdown(10);
+        return { success: false, pending: true, message: errorMessageText };
       } else {
         // Handle specific HTTP errors with better user messages
         let userMessage = errorMessageText;

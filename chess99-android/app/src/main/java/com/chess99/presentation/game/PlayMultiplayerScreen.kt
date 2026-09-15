@@ -96,10 +96,10 @@ fun PlayMultiplayerScreen(
     // hardware/gesture back via BackHandler above trigger the same dialog).
     if (showNavigationWarning) {
         GameNavigationWarningDialog(
-            gameType = ActiveGameType.MULTIPLAYER,
+            gameType = leaveGameType(state.isRated, state.isSyntheticGame),
             onLeave = {
                 showNavigationWarning = false
-                onNavigateBack()
+                viewModel.leaveGame(onLeft = onNavigateBack)
             },
             onStay = { showNavigationWarning = false },
         )
@@ -495,7 +495,10 @@ private fun GameBoard(
             }
 
             MultiplayerPhase.PAUSED -> {
-                PausedOverlay(onRequestResume = onRequestResume)
+                PausedOverlay(
+                    resumeRequestSecondsLeft = state.resumeRequestSecondsLeft,
+                    onRequestResume = onRequestResume,
+                )
             }
 
             MultiplayerPhase.COMPLETED -> {
@@ -751,7 +754,7 @@ private fun UndoRequestBanner(onAccept: () -> Unit, onDecline: () -> Unit) {
 // ── Paused Overlay ──────────────────────────────────────────────────────
 
 @Composable
-private fun PausedOverlay(onRequestResume: () -> Unit) {
+private fun PausedOverlay(resumeRequestSecondsLeft: Int, onRequestResume: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -773,8 +776,14 @@ private fun PausedOverlay(onRequestResume: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
             Text("Game Paused", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
-            Button(onClick = onRequestResume) {
-                Text("Request Resume")
+            Button(onClick = onRequestResume, enabled = resumeRequestSecondsLeft == 0) {
+                Text(
+                    if (resumeRequestSecondsLeft > 0) {
+                        "Waiting for opponent… ${resumeRequestSecondsLeft}s"
+                    } else {
+                        "Request Resume"
+                    }
+                )
             }
         }
     }

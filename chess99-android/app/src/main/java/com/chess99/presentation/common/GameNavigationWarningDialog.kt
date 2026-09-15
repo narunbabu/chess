@@ -6,8 +6,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontWeight
 
-/** Which active-game screen is showing [GameNavigationWarningDialog], for body copy. */
-enum class ActiveGameType { MULTIPLAYER, VS_COMPUTER }
+/**
+ * Which active game is showing [GameNavigationWarningDialog]. The copy has to
+ * say what Leave actually does server-side (see PlayMultiplayerViewModel.leaveGame):
+ * rated resigns; any casual game (human or bot) is paused via
+ * `pause-navigation` and can be resumed from Home.
+ */
+enum class ActiveGameType { RATED_MULTIPLAYER, CASUAL_MULTIPLAYER, CASUAL_BOT, VS_COMPUTER }
 
 /**
  * Warning dialog when navigating away from an active game (toolbar back arrow
@@ -39,8 +44,11 @@ fun GameNavigationWarningDialog(
         text = {
             Text(
                 text = when (gameType) {
-                    ActiveGameType.MULTIPLAYER ->
-                        "Your game is still going. If you leave now, it counts as a loss."
+                    ActiveGameType.RATED_MULTIPLAYER ->
+                        "This is a rated game. If you leave now, you resign and it counts as a loss."
+                    ActiveGameType.CASUAL_MULTIPLAYER,
+                    ActiveGameType.CASUAL_BOT ->
+                        "Your game will be paused. You can resume it from Home within an hour."
                     ActiveGameType.VS_COMPUTER ->
                         "Your game won't be saved."
                 },

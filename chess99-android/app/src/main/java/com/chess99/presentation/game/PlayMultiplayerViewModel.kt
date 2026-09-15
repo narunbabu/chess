@@ -20,6 +20,7 @@ import com.chess99.engine.EngineInitException
 import com.chess99.engine.Piece
 import com.chess99.engine.Square
 import com.chess99.engine.StockfishEngine
+import com.chess99.presentation.common.ActiveGameType
 import com.chess99.presentation.common.BoardArrow
 import com.chess99.presentation.common.FeatureFlagManager
 import com.chess99.presentation.common.friendlyError
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -68,6 +70,7 @@ class PlayMultiplayerViewModel @Inject constructor(
     private var timerJob: Job? = null
     private var undoRequestExpiryJob: Job? = null
     private var incomingUndoExpiryJob: Job? = null
+    private var resumeRequestCountdownJob: Job? = null
     private var myUserId: Int = 0
     private var hasSeenWebSocketConnection = false
     private var lastAppliedUndoSnapshot: AuthoritativeUndoSnapshot? = null
@@ -110,6 +113,12 @@ class PlayMultiplayerViewModel @Inject constructor(
         )
 
         internal const val UNDO_REQUEST_TIMEOUT_MS = 30_000L
+
+        /** Longest Leave waits for its resign request before navigating anyway. */
+        internal const val LEAVE_REQUEST_TIMEOUT_MS = 5_000L
+
+        /** GameRoomService::requestResume gives a resume request 30 s to be answered. */
+        internal const val RESUME_REQUEST_WINDOW_SECONDS = 30
     }
 
     // ── Load Game ───────────────────────────────────────────────────────
@@ -356,6 +365,7 @@ class PlayMultiplayerViewModel @Inject constructor(
 
             is GameEvent.GameEnded -> {
                 stopTimer()
+                clearResumeRequestCountdown()
                 val myColor = _uiState.value.playerColor
                 val iWon = event.winnerUserId == myUserId
 
@@ -388,6 +398,7 @@ class PlayMultiplayerViewModel @Inject constructor(
             }
 
             is GameEvent.GameResumed -> {
+                clearResumeRequestCountdown()
                 _uiState.value = _uiState.value.copy(
                     gamePhase = MultiplayerPhase.PLAYING,
                     whiteTimeSeconds = event.whiteTime ?: _uiState.value.whiteTimeSeconds,
@@ -659,24 +670,7 @@ class PlayMultiplayerViewModel @Inject constructor(
 
     fun resign() {
         viewModelScope.launch {
-            val state = _uiState.value
-            // A synthetic/bot game must finalize via completeGame — that applies
-            // the bot's Elo (rated games) while the game is still active. The
-            // human resign endpoint would finalize WITHOUT synthetic Elo, and the
-            // follow-up completeGame would then 422 ("game is not active").
-            val ok: Boolean = if (state.isSyntheticGame) {
-                val body = JsonObject().apply {
-                    addProperty("result", if (state.playerColor == Color.WHITE) "0-1" else "1-0")
-                    addProperty("end_reason", "resignation")
-                    addProperty("move_count", state.moveHistory.size)
-                    addProperty("fen", game.fen())
-                }
-                runCatching { gameApi.completeGame(gameId, body).isSuccessful }.getOrDefault(false)
-            } else {
-                gameWebSocketService.resignGame().isSuccess
-            }
-
-            if (ok) {
+            if (submitResignation(_uiState.value)) {
                 stopTimer()
                 _uiState.value = _uiState.value.copy(
                     gamePhase = MultiplayerPhase.COMPLETED,
@@ -696,6 +690,59 @@ class PlayMultiplayerViewModel @Inject constructor(
             }
         }
     }
+
+    private var isLeaving = false
+
+    /**
+     * "Leave game" from the navigation warning, then [onLeft]. Web parity
+     * (PlayMultiplayer.js forfeit/pause-and-navigate): rated leave resigns, so
+     * "counts as a loss" is true server-side — Leave waits for that resign,
+     * at most [LEAVE_REQUEST_TIMEOUT_MS]. Any casual leave (human or bot)
+     * fire-and-forgets [GameApi.pauseNavigation] on a separate coroutine, so
+     * navigation never waits on the pause request. Repeated calls are ignored.
+     */
+    fun leaveGame(onLeft: () -> Unit) {
+        if (isLeaving) return
+        isLeaving = true
+        viewModelScope.launch {
+            val state = _uiState.value
+            if (state.gamePhase == MultiplayerPhase.PLAYING) {
+                when (leaveGameType(state.isRated, state.isSyntheticGame)) {
+                    ActiveGameType.RATED_MULTIPLAYER ->
+                        withTimeoutOrNull(LEAVE_REQUEST_TIMEOUT_MS) { submitResignation(state) }
+                    // Fire-and-forget: launched on viewModelScope, so it is not
+                    // a child of this coroutine and outlives Leave's own scope;
+                    // failures are swallowed because the user is navigating
+                    // away regardless (the server-side 1 h pause window and the
+                    // abandonment cleanup cover a lost request).
+                    ActiveGameType.CASUAL_MULTIPLAYER,
+                    ActiveGameType.CASUAL_BOT -> viewModelScope.launch {
+                        runCatching { gameApi.pauseNavigation(state.gameId) }
+                    }
+                    else -> Unit
+                }
+            }
+            stopTimer()
+            onLeft()
+        }
+    }
+
+    // A synthetic/bot game must finalize via completeGame — that applies
+    // the bot's Elo (rated games) while the game is still active. The
+    // human resign endpoint would finalize WITHOUT synthetic Elo, and the
+    // follow-up completeGame would then 422 ("game is not active").
+    private suspend fun submitResignation(state: MultiplayerUiState): Boolean =
+        if (state.isSyntheticGame) {
+            val body = JsonObject().apply {
+                addProperty("result", if (state.playerColor == Color.WHITE) "0-1" else "1-0")
+                addProperty("end_reason", "resignation")
+                addProperty("move_count", state.moveHistory.size)
+                addProperty("fen", game.fen())
+            }
+            runCatching { gameApi.completeGame(gameId, body).isSuccessful }.getOrDefault(false)
+        } else {
+            gameWebSocketService.resignGame().isSuccess
+        }
 
     fun offerDraw() {
         viewModelScope.launch {
@@ -924,16 +971,69 @@ class PlayMultiplayerViewModel @Inject constructor(
     }
 
     fun requestResumeGame() {
+        if (_uiState.value.resumeRequestSecondsLeft > 0) return
         viewModelScope.launch {
             val result = gameWebSocketService.requestResume()
-            result.onSuccess {
-                _uiState.value = _uiState.value.copy(snackbarMessage = "Resume request sent")
+            result.onSuccess { body ->
+                // The endpoint refuses with HTTP 200 and `success: false`.
+                if (body.booleanOrNull("success") == false) {
+                    handleResumeRefusal(body)
+                } else {
+                    startResumeRequestCountdown(RESUME_REQUEST_WINDOW_SECONDS)
+                    _uiState.value = _uiState.value.copy(snackbarMessage = "Resume request sent")
+                }
             }
             result.onFailure { e ->
                 _uiState.value = _uiState.value.copy(error = friendlyError(e, "resuming the game"))
             }
         }
     }
+
+    /**
+     * The backend blocks a same-user retry from 10 s until the 30 s expiry and
+     * answers `is_same_user: true` with `expires_in_seconds`: our request is
+     * still out there, so wait on it rather than report "sent" or an error.
+     */
+    private fun handleResumeRefusal(body: JsonObject) {
+        val secondsLeft = body.intOrNull("expires_in_seconds") ?: 0
+        val message = when {
+            body.booleanOrNull("is_same_user") == true && secondsLeft > 0 -> {
+                startResumeRequestCountdown(secondsLeft)
+                "Your resume request is still pending. Waiting for your opponent."
+            }
+            body.booleanOrNull("is_same_user") == false && secondsLeft > 0 ->
+                "Your opponent already asked to resume. Accept their request to continue."
+            else -> "Couldn't send the resume request. Please try again."
+        }
+        _uiState.value = _uiState.value.copy(snackbarMessage = message)
+    }
+
+    private fun startResumeRequestCountdown(seconds: Int) {
+        resumeRequestCountdownJob?.cancel()
+        _uiState.value = _uiState.value.copy(resumeRequestSecondsLeft = seconds)
+        resumeRequestCountdownJob = viewModelScope.launch {
+            var left = seconds
+            while (left > 0) {
+                delay(1000)
+                left--
+                _uiState.value = _uiState.value.copy(resumeRequestSecondsLeft = left)
+            }
+        }
+    }
+
+    private fun clearResumeRequestCountdown() {
+        resumeRequestCountdownJob?.cancel()
+        resumeRequestCountdownJob = null
+        if (_uiState.value.resumeRequestSecondsLeft != 0) {
+            _uiState.value = _uiState.value.copy(resumeRequestSecondsLeft = 0)
+        }
+    }
+
+    private fun JsonObject.booleanOrNull(key: String): Boolean? =
+        get(key)?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asBoolean }.getOrNull() }
+
+    private fun JsonObject.intOrNull(key: String): Int? =
+        get(key)?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asInt }.getOrNull() }
 
     fun sendChat(message: String) {
         val state = _uiState.value
@@ -1757,6 +1857,7 @@ class PlayMultiplayerViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
+        resumeRequestCountdownJob?.cancel()
         cancelUndoExpiryJobs()
         companionContinuousJob?.cancel()
         syntheticOpponentJob?.cancel()
@@ -1816,6 +1917,8 @@ data class MultiplayerUiState(
     val soundToPlay: MoveSound? = null,
     val error: String? = null,
     val snackbarMessage: String? = null,
+    /** Seconds left on our own pending resume request; Request Resume waits while > 0. */
+    val resumeRequestSecondsLeft: Int = 0,
     val cctArrows: List<BoardArrow> = emptyList(),
     /** True for a T3 real-synthetic-opponent game — Companion Mode (plays on
      *  the player's own behalf) is hidden for these, since the opponent side
@@ -1842,6 +1945,16 @@ data class MultiplayerUiState(
 }
 
 enum class MultiplayerPhase { CONNECTING, PLAYING, PAUSED, COMPLETED }
+
+/**
+ * What Leave does to a multiplayer game, and so which leave-dialog copy it
+ * gets. Learning games are casual server-side, so they take the casual rows.
+ */
+internal fun leaveGameType(isRated: Boolean, isSyntheticGame: Boolean): ActiveGameType = when {
+    isRated -> ActiveGameType.RATED_MULTIPLAYER
+    isSyntheticGame -> ActiveGameType.CASUAL_BOT
+    else -> ActiveGameType.CASUAL_MULTIPLAYER
+}
 
 /** Web's useGameState.js:71 seeds multiplayer games with 9 takebacks. */
 const val DEFAULT_UNDO_CHANCES = 9
