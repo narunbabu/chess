@@ -5,6 +5,32 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatDateTime, formatCurrency } from '../../utils/championshipHelpers';
 import './Championship.css';
 
+// A participant dropped for repeated forfeits (CheckExpiredMatchesJob) keeps
+// their registration and payment, so `dropped_at` is the only signal that they
+// are out of the tournament. `dropped` is the appended boolean alias; fall back
+// to the timestamp for any payload that only carries the raw column.
+const isDropped = (participant) =>
+  participant?.dropped === true || Boolean(participant?.dropped_at);
+
+const DROP_REASON_LABELS = {
+  forfeit_limit: 'Too many forfeits',
+};
+
+const dropReasonLabel = (participant) =>
+  DROP_REASON_LABELS[participant?.dropped_reason] || 'Removed from the tournament';
+
+// The six roster counters share one shape; the group role names each card so
+// the value is reachable (and assertable) without walking the DOM.
+const StatCard = ({ icon, label, value }) => (
+  <div className="stat-card" role="group" aria-label={label}>
+    <div className="stat-icon" aria-hidden="true">{icon}</div>
+    <div className="stat-content">
+      <div className="stat-value">{value}</div>
+      <div className="stat-label">{label}</div>
+    </div>
+  </div>
+);
+
 const ChampionshipParticipants = ({ championshipId, participants: propsParticipants }) => {
   const { user } = useAuth();
   const { fetchParticipants, loading, error } = useChampionship();
@@ -14,7 +40,7 @@ const ChampionshipParticipants = ({ championshipId, participants: propsParticipa
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name'); // name, rating, registered_at
-  const [filterBy, setFilterBy] = useState('all'); // all, paid, unpaid
+  const [filterBy, setFilterBy] = useState('all'); // all, paid, unpaid, active, dropped
 
   // Removed auto-fetch; now handled in context
   useEffect(() => {
@@ -37,6 +63,15 @@ const ChampionshipParticipants = ({ championshipId, participants: propsParticipa
         return false;
       }
       if (filterBy === 'unpaid' && isPaid) {
+        return false;
+      }
+
+      // Drop filter — a dropped player stays registered and paid, so the
+      // payment filters above never separate them out.
+      if (filterBy === 'active' && isDropped(participant)) {
+        return false;
+      }
+      if (filterBy === 'dropped' && !isDropped(participant)) {
         return false;
       }
 
@@ -107,8 +142,12 @@ const ChampionshipParticipants = ({ championshipId, participants: propsParticipa
   }
 
   const participantsArray = Array.isArray(participants) ? participants : [];
+  const droppedCount = participantsArray.filter(isDropped).length;
+  const currentUserParticipant = participantsArray.find(p => user && p.user_id === user.id);
   const stats = {
     total: participantsArray.length,
+    stillIn: participantsArray.length - droppedCount,
+    dropped: droppedCount,
     paid: participantsArray.filter(p => p.payment_status === 'completed' || p.payment_status === 'paid').length,
     pending: participantsArray.filter(p => p.payment_status === 'pending').length,
     averageRating: participantsArray.length > 0
@@ -148,45 +187,31 @@ const ChampionshipParticipants = ({ championshipId, participants: propsParticipa
             className="filter-select"
           >
             <option value="all">All Participants</option>
+            <option value="active">Still In Only</option>
+            <option value="dropped">Withdrawn Only</option>
             <option value="paid">Paid Only</option>
             <option value="unpaid">Unpaid Only</option>
           </select>
         </div>
       </div>
 
+      {/* The dropped player's own notice - they keep their registration, so
+          nothing else on this page tells them they are out. */}
+      {currentUserParticipant && isDropped(currentUserParticipant) && (
+        <div className="participant-drop-notice" role="status">
+          🚫 You have been withdrawn from this championship ({dropReasonLabel(currentUserParticipant)}).
+          Your remaining matches are forfeited and you will not be paired again.
+        </div>
+      )}
+
       {/* Statistics Cards */}
       <div className="participants-stats">
-        <div className="stat-card">
-          <div className="stat-icon">👥</div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.total}</div>
-            <div className="stat-label">Total</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">💳</div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.paid}</div>
-            <div className="stat-label">Paid</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">⏳</div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.pending}</div>
-            <div className="stat-label">Pending</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">⭐</div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.averageRating}</div>
-            <div className="stat-label">Avg Rating</div>
-          </div>
-        </div>
+        <StatCard icon="👥" label="Total" value={stats.total} />
+        <StatCard icon="♟️" label="Still In" value={stats.stillIn} />
+        <StatCard icon="🚫" label="Withdrawn" value={stats.dropped} />
+        <StatCard icon="💳" label="Paid" value={stats.paid} />
+        <StatCard icon="⏳" label="Pending" value={stats.pending} />
+        <StatCard icon="⭐" label="Avg Rating" value={stats.averageRating} />
       </div>
 
       {/* Participants List */}
@@ -201,7 +226,7 @@ const ChampionshipParticipants = ({ championshipId, participants: propsParticipa
             {filteredAndSortedParticipants.map((participant) => (
               <div
                 key={participant.id}
-                className={`participant-card ${isCurrentUser(participant) ? 'current-user' : ''}`}
+                className={`participant-card ${isCurrentUser(participant) ? 'current-user' : ''} ${isDropped(participant) ? 'dropped' : ''}`}
               >
                 <div className="participant-avatar">
                   <img
@@ -221,6 +246,11 @@ const ChampionshipParticipants = ({ championshipId, participants: propsParticipa
                   <div className="participant-rating">
                     Rating: {participant.user?.rating || 'N/A'}
                   </div>
+                  {isDropped(participant) && (
+                    <div className="drop-badge" title={dropReasonLabel(participant)}>
+                      🚫 Withdrawn — {dropReasonLabel(participant)}
+                    </div>
+                  )}
                 </div>
 
                 <div className="participant-meta">

@@ -36,6 +36,7 @@ import {
   getDefaultReviewEnabled,
   shouldShowBestUseNudge,
 } from '../../utils/moveReviewReport';
+import { budgetedUndoChances, countBestMoveSpend } from '../../utils/multiplayerBestBudget';
 import { getTheme } from '../../config/boardThemes';
 import { getBoardTheme, getPieceStyle } from './BoardCustomizer';
 import { pieces3dLanding } from '../../assets/pieces/pieces3d';
@@ -240,6 +241,7 @@ const PlayMultiplayer = () => {
   const moveReviewRecordsRef = useRef([]);
   const bestButtonUsesRef = useRef(0);
   const undoButtonUsesRef = useRef(0);
+  const undoChancesRef = useRef(0);
   const ratedModeRef = useRef(ratedMode);
   const userIdRef = useRef(user?.id);
   const undoRequestTimerRef = useRef(null);
@@ -278,6 +280,7 @@ const PlayMultiplayer = () => {
   useEffect(() => { moveReviewRecordsRef.current = moveReviewRecords; }, [moveReviewRecords]);
   useEffect(() => { bestButtonUsesRef.current = bestButtonUses; }, [bestButtonUses]);
   useEffect(() => { undoButtonUsesRef.current = undoButtonUses; }, [undoButtonUses]);
+  useEffect(() => { undoChancesRef.current = undoChancesRemaining; }, [undoChancesRemaining]);
   useEffect(() => { ratedModeRef.current = ratedMode; }, [ratedMode]);
   useEffect(() => { userIdRef.current = user?.id; }, [user?.id]);
 
@@ -388,6 +391,21 @@ const PlayMultiplayer = () => {
       return next;
     });
   }, [ratedMode, showBestUseNudge]);
+
+  /**
+   * Budget hook for the Best toggle (same shape as PlayComputer's
+   * consumeLearningHelp): the reveal is paid from the shared takeback pool and
+   * refused once it is empty. CCTPanel charges once per position reveal, so
+   * re-toggling Best at the same position is free.
+   */
+  const consumeMultiplayerBestHelp = useCallback(() => {
+    if (ratedModeRef.current === 'rated') return false;
+    const current = undoChancesRef.current;
+    if (current <= 0) return false;
+    undoChancesRef.current = current - 1;
+    setUndoChancesRemaining(current - 1);
+    return true;
+  }, [setUndoChancesRemaining]);
 
   const recordUndoButtonUse = useCallback(() => {
     if (ratedModeRef.current !== 'casual') return;
@@ -959,16 +977,23 @@ const PlayMultiplayer = () => {
       }
 
       // Initialize undo chances based on authoritative server state when present.
-      const playerUndoRemaining = data.player_color === 'white'
-        ? data.undo_white_remaining
-        : data.player_color === 'black'
-          ? data.undo_black_remaining
-          : null;
-      const undoChances = gameMode === 'rated'
-        ? 0
-        : playerUndoRemaining !== null && playerUndoRemaining !== undefined
-          ? Math.max(0, Number(playerUndoRemaining) || 0)
-          : maxUndoChances;
+      // The Best toggle shares this pool, and the server only counts takebacks
+      // against it — Best spends live in the persisted `best-move` markers and
+      // are subtracted here so a reload neither refunds nor double-charges.
+      const myColorChar = data.player_color === 'white'
+        ? 'w'
+        : data.player_color === 'black' ? 'b' : null;
+      const undoChances = budgetedUndoChances({
+        rated: gameMode === 'rated',
+        serverRemaining: data.player_color === 'white'
+          ? data.undo_white_remaining
+          : data.player_color === 'black'
+            ? data.undo_black_remaining
+            : null,
+        fallback: maxUndoChances,
+        moves: Array.isArray(data.moves) ? data.moves : [],
+        myColor: myColorChar,
+      });
       setUndoChancesRemaining(undoChances);
       setCanUndo(false); // Will be enabled after first complete turn
       console.log(`[Undo] Initialized with ${undoChances} undo chances for ${gameMode} mode`);
@@ -1771,18 +1796,22 @@ const PlayMultiplayer = () => {
         ? event?.undo_black_remaining
         : null;
 
-    // Sync to the server count when present so only the requester loses an undo.
-    setUndoChancesRemaining((prev) => (
-      serverUndoRemaining !== null && serverUndoRemaining !== undefined
-        ? Math.max(0, Number(serverUndoRemaining) || 0)
-        : prev
-    ));
+    // Sync to the server count when present so only the requester loses an
+    // undo. The server count covers the takeback only, so the Best spends
+    // still visible in the kept history are subtracted again to preserve the
+    // shared-pool invariant (budget = server remaining − persisted markers).
+    setUndoChancesRemaining(() => {
+      if (serverUndoRemaining === null || serverUndoRemaining === undefined) return undoChancesRef.current;
+      const keptHistory = gameHistory.slice(0, event.move_count);
+      const bestSpend = countBestMoveSpend(keptHistory, playerColor === 'white' ? 'w' : 'b');
+      return Math.max(0, (Number(serverUndoRemaining) || 0) - bestSpend);
+    });
 
     setGame(restoredGame);
     setGameHistory(prev => prev.slice(0, event.move_count));
 
     console.log('[Undo] ✅ Move undone successfully');
-  }, [recordUndoButtonUse, setUndoChancesRemaining]);
+  }, [gameHistory, recordUndoButtonUse, setUndoChancesRemaining]);
 
   // Handle undo declined by opponent
   const handleUndoDeclined = useCallback((event) => {
@@ -4212,6 +4241,7 @@ const PlayMultiplayer = () => {
   // Poll for resume requests as fallback when WebSocket might be disconnected
   useEffect(() => {
     let pollTimer;
+    let cleanupTimer;
 
     // Check actual WebSocket connection state, not just the React state
     const isActuallyConnected =
@@ -4233,7 +4263,7 @@ const PlayMultiplayer = () => {
       pollTimer = setInterval(async () => {
         try {
           const token = localStorage.getItem('auth_token');
-          const response = await fetch(`${BACKEND_URL}/games/${gameId}/resume-status`, {
+          const response = await fetch(`${BACKEND_URL}/websocket/games/${gameId}/resume-status`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
@@ -4268,7 +4298,7 @@ const PlayMultiplayer = () => {
       }, 3000); // Poll every 3 seconds
 
       // Cleanup after 2 minutes if no request received
-      const cleanupTimer = setTimeout(() => {
+      cleanupTimer = setTimeout(() => {
         if (pollTimer) {
           clearInterval(pollTimer);
           console.log('[PlayMultiplayer] Resume request polling stopped after 2 minutes');
@@ -4279,6 +4309,9 @@ const PlayMultiplayer = () => {
     return () => {
       if (pollTimer) {
         clearInterval(pollTimer);
+      }
+      if (cleanupTimer) {
+        clearTimeout(cleanupTimer);
       }
     };
   }, [gameInfo.status, wsService, gameId, resumeRequestData, startResumeCountdown]);
@@ -4846,6 +4879,11 @@ const PlayMultiplayer = () => {
     // Calculate remaining times for both players
     const whiteTimeRemainingMs = myColor === 'w' ? myMs : oppMs;
     const blackTimeRemainingMs = myColor === 'b' ? myMs : oppMs;
+    const bestWasRevealedForMove = lastBestRevealRef.current?.fen === prevFen;
+    const learningHelpMarkers = [
+      ...(reviewEnabledRef.current ? ['review'] : []),
+      ...(bestWasRevealedForMove ? ['best-move'] : []),
+    ];
 
     const moveData = {
       from: source,
@@ -4871,7 +4909,10 @@ const PlayMultiplayer = () => {
       black_player_score: black_player_score,
       // Send remaining clock times for both players to persist across moves
       white_time_remaining_ms: whiteTimeRemainingMs,
-      black_time_remaining_ms: blackTimeRemainingMs
+      black_time_remaining_ms: blackTimeRemainingMs,
+      // Preserve the coaching affordance used for this ply so Android and
+      // Game Review can render the same per-move lifeline markers.
+      learning_help: learningHelpMarkers,
     };
 
     wsService.current.sendMove(moveData);
@@ -5358,6 +5399,14 @@ const PlayMultiplayer = () => {
         isActive: gameInfo.status === 'active',
         isRated: ratedMode === 'rated',
         onArrowsChange: setCctArrows,
+        // Casual/learning Best shares the takeback pool, exactly like the
+        // learning computer mode's shared helpline budget.
+        bestMoveBudget: {
+          enabled: ratedMode !== 'rated',
+          remaining: undoChancesRemaining,
+          limit: maxUndoChances,
+          onConsume: consumeMultiplayerBestHelp,
+        },
         topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
         review: {
           enabled: reviewEnabled,

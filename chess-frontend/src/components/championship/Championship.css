@@ -2023,6 +2023,39 @@ textarea.form-input {
   background: rgba(129, 182, 76, 0.1);
 }
 
+/* A player dropped for repeated forfeits: still listed (they registered and
+   paid) but visibly out of the tournament. */
+.participant-card.dropped {
+  border-color: #b45309;
+  opacity: 0.72;
+}
+
+.participant-card.dropped .participant-name {
+  text-decoration: line-through;
+}
+
+.drop-badge {
+  margin-top: 6px;
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.participant-drop-notice {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid #b45309;
+  background: rgba(180, 83, 9, 0.12);
+  color: #fbbf24;
+  font-size: 0.875rem;
+}
+
 .participant-avatar {
   position: relative;
   width: 60px;
