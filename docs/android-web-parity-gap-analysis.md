@@ -67,7 +67,7 @@ Web `GameContainer.js:330-400` renders, for casual **and** learning games:
 - **Best** with remaining budget, title *"Show Best (N helplines left)"* (`:369-378`)
 - More menu
 
-Android `PlayMultiplayerScreen.kt` renders only **Draw / Pause / Resign**
+Android `PlayMultiplayerScreen.kt` renders **Draw / Review / Undo / Pause / Resign**
 (`:523-558`). Undo appears solely as an *incoming* request banner (`:445`) —
 there is no control to request one.
 
@@ -75,8 +75,8 @@ there is no control to request one.
 |---|---|---|---|
 | Undo / takeback request button | yes, with budget | none (receive-only) | **MISSING** |
 | Best-move lifeline w/ budget | yes | CCT sheet has a "Best" chip (`CCTControls.kt:161`) but no budget, not presented as a lifeline | **PARTIAL** |
-| Review (post-move alternatives) | yes | none | **MISSING** |
-| Lifeline budget accounting | `bestMoveBudget`, `undoChancesRemaining` | none in multiplayer | **MISSING** |
+| Review (post-move alternatives) | yes | live toggle with async top-5 alternatives | **DONE** |
+| Lifeline budget accounting | `bestMoveBudget`, `undoChancesRemaining` | Review markers are persisted; multiplayer Best budget remains a separate follow-up | **PARTIAL** |
 
 ## Module 5 — Play vs Computer
 
@@ -97,25 +97,60 @@ Better state than multiplayer — but with a broken promise.
 
 | Capability | Web | Android | Status |
 |---|---|---|---|
-| Per-move lifeline markers | `GameReview.js` — 28 references, badges per move, totals | **0 references** in `history/GameReviewScreen.kt` | **MISSING** |
-| Lifelines-used summary | `GameEndCard.js:1073` | none | **MISSING** |
+| Per-move lifeline markers | `GameReview.js` — 28 references, badges per move, totals | `GameReviewScreen.kt` badges from JSON/compact history | **DONE** |
+| Lifelines-used summary | `GameEndCard.js:1073` | `LifelineSummary` in `GameReviewScreen.kt` | **DONE** |
 
 ---
 
-## Not yet audited at feature level
+## Feature-level audit scope
 
-Listed so the coverage of this document is not over-read the way the route test
-was. These modules have Android screens and passing routes, but have **not**
-been compared control-by-control against web:
+The following source audit compares the Android screen/view-model/API behavior
+with the corresponding web components. It is a feature-level review of the
+available code paths, not a claim of browser, emulator, physical-device, or
+authenticated multi-client acceptance. Statuses mean **DONE** (feature is
+substantially equivalent), **MOSTLY PARITY** (one bounded omission), **PARTIAL**
+(core flow exists but important web capability is absent), and **GAP** (a
+correctness issue or major flow is missing).
 
-Dashboard · Championships · Daily Challenges · Tactical Trainer · Puzzles ·
-Tutorial/Learn · Leaderboard · Referrals · Ambassador · Organizations ·
-Parent dashboard · Profile/Progress · Subscription · Public game viewer · Chat
+### Audit matrix
 
-## Implementation status (2026-08-24)
+| Module | Android coverage compared with web | Status / evidence |
+|---|---|---|
+| Dashboard | Rating/stats, quick actions, games, tournaments, unfinished games, daily quota, pull-to-refresh. Web additionally has nearby-player/rating filtering, progress/detail modals, and richer notification/admin/org areas; Android notifications have no loader/API path. | **PARTIAL** — `DashboardScreen.kt`, `DashboardViewModel.kt`, `Dashboard.js` |
+| Championships | List/detail, search/status/format filters, registration, create, invitations, standings, matches, pairing/schedule/start and review. Android lacks upcoming/registered/archived filters, paid registration/Razorpay/contact consent, and several admin lifecycle/archive controls. | **PARTIAL** — `ChampionshipListScreen.kt`, `ChampionshipDetailScreen.kt`, `ChampionshipListViewModel.kt`, `ChampionshipList.jsx`, `ChampionshipDetails.jsx` |
+| Daily Challenges | Tracks, tier locks, summary/streak, solve entry and leaderboard. Solving now persists the completion/XP through `daily-challenge/submit`, completed challenges stay open for review, and the leaderboard is the daily one. Web still has richer attempt history and result presentation. | **PARTIAL** (was GAP; closed 2026-09-16) — `DailyChallengesViewModel.kt`, `PuzzleViewModel.kt`, `DailyChallengesPage.js`, `DailyChallengePage.js` |
+| Tactical Trainer | Five stages, unlocks, local/server/offline progress, hints, solution viewer, wrong-move scoring and badges. Android omits web CCT phases/threshold scoring, Fast/Guided mode, stage video, and puzzle-list navigation. | **PARTIAL** — `TacticalTrainerViewModel.kt`, `TacticalPuzzleContent.kt`, `TacticalTrainer.js`, `TacticalPuzzleBoard.js` |
+| Puzzles | Android has an actual solver with online daily and bundled fallback puzzles, hints and in-session counters; web Puzzles is a hub to Tactical Trainer, Daily Challenges, Lessons and ebook. Daily completion is not persisted from Android, and ebook is not wired into the Android nav graph. | **PARTIAL** — `PuzzleScreen.kt`, `PuzzleViewModel.kt`, `Puzzles.js` |
+| Learn | Modules, stats, daily/achievement summaries and staged lesson board exist. Android lacks web tier/access presentation, theory quizzes/visual aids, practice-game controls and server-backed hint/reset behavior. Lesson validation and completion are now server-side against the real lesson/stage rows (2026-09-16). | **PARTIAL** (was GAP) — `TutorialLessonScreen.kt`, `LearnScreen.kt`, `LearnViewModel.kt`, `LessonPlayer.jsx`, `EnhancedInteractiveLesson.jsx` |
+| Leaderboard | Four game categories, periods, refresh, medals, current rank and native text sharing. Android has no tactical category and no web-style image-card/download/social sharing controls. | **PARTIAL** — `LeaderboardViewModel.kt`, `LeaderboardScreen.kt`, `LeaderboardPage.js` |
+| Referrals | Stats, primary link, copy, code generation, referred users, earnings and payout history. Android lacks direct WhatsApp/email sharing and a visible generated-code list with commission-rate/inactive/usage detail. | **PARTIAL** — `ReferralViewModel.kt`, `ReferralDashboardScreen.kt`, `ReferralDashboard.js` |
+| Ambassador | Adult gate, application/status, stats, link copy/share, audience templates and payout history. Android cannot submit payout requests, show milestones/commission detail, or display/download QR/poster assets and template actions. | **PARTIAL** — `AmbassadorDashboardScreen.kt`, `BecomeAmbassadorScreen.kt`, `AmbassadorDashboard.js`, `BecomeAmbassador.js` |
+| Organizations | Search/list, create, selected members and invite with member/admin role. Android lacks received accept/reject, sent cancellation, removal, chat-access toggle, website field and richer admin controls. | **PARTIAL** — `OrganizationsViewModel.kt`, `OrganizationsScreen.kt`, `OrganizationDashboard.js` |
+| Parent | Link/invite, accept/decline, pending cancel, report-card metrics, replay, weekly email and child management are present. PGN download from the child replay is missing. | **MOSTLY PARITY** — `MyKidsScreen.kt`, `MyKidsViewModel.kt`, `MyKidsPage.js` |
+| Profile / Progress | Core profile, appearance, friends, stats, progress and rating history exist. Android omits hierarchical location, tournament/WhatsApp consent, organization affiliation/request/leave, tutorial achievement/XP detail, account-security/settings navigation, crop workflow and invite/share controls. | **PARTIAL** — `ProfileScreen.kt`, `ProfileViewModel.kt`, `ProgressScreen.kt`, `Profile.js` |
+| Subscription | Android shows current subscription and cancel action. It has no plan catalog, upgrade/change-plan checkout, or real Play Billing restore; the view model documents Billing as planned for 1.1. | **PARTIAL / INTENTIONAL** — `SubscriptionScreen.kt`, `PaymentViewModel.kt`, `SubscriptionManagement.jsx`, `SubscriptionContext.js` |
+| Public game viewer | Android has replay controls, result and players and now loads the unauthenticated `public/games/{id}`, so logged-out deep links work (2026-09-16; the endpoint itself was 404ing for every game and was fixed with it). Since 2026-09-17 it also orients the board from `publicShow`'s new `player_color` (with a flip toggle), shows date/moves/end reason/opening/time control, shares the web `/games/{id}/replay` URL, and has a Play CTA; not device-checked. | **DONE (unit-verified)** (was PARTIAL) — `PublicGameViewerScreen.kt`, `GameApi.kt`, `GameController::publicShow`, `PublicGameViewer.js` |
+| Chat | Multiplayer Android chat has history/live messages, policy-aware presets/free text, filtered notice, report/block and unread state. Android has no equivalent of web computer-game synthetic chat/unread behavior. | **PARTIAL** — `PlayMultiplayerViewModel.kt`, `PlayMultiplayerScreen.kt`, `ChatPanel.js`, `GameChat.js`, `PlayComputer.js` |
+
+### Prioritized follow-ups
+
+- ~~**P0 correctness:** fix Learn lesson validation/completion, route Daily Challenge
+  solving through a track-aware persisted submit/review flow, and make Public
+  Game Viewer use the public API for logged-out links.~~ **Done 2026-09-16 —
+  see "P0 correctness follow-ups" below.**
+- **P1 parity:** add the daily leaderboard endpoint and persisted attempt/XP state;
+  bring Tactical CCT/guide/video/navigation affordances and Leaderboard tactical
+  category to Android; add Parent PGN export.
+- **P2 completeness:** close the remaining Dashboard, Championship, Referral,
+  Ambassador, Organization, Profile, Subscription and computer-chat omissions as
+  the corresponding backend/payment/device acceptance work becomes available.
+
+## Implementation status (2026-09-15)
 
 Modules 1-3 are **implemented and verified on an emulator against production**.
-Modules 4-6 are not started.
+Module 4's live Review toggle, per-move lifeline markers (Module 6) and the
+multiplayer Best-move budget accounting are implemented. The remaining Module 4
+follow-ups are device acceptance and the synthetic-opponent takeback hang.
 
 - [x] **Module 1 - Elo range filter.** `RatingWindow` is now a data class with
       `normalize()` / `contains()` ported from the web util, covered by 9 new JVM
@@ -136,7 +171,7 @@ Learning game. The server takes learning as `game_mode=casual` +
 reads the raw `game_mode` and therefore never says "Learning". Fix belongs with
 Module 4, which needs the learning state on the game screen anyway.
 
-## Module 4 status (2026-08-24)
+## Module 4 status (2026-09-15)
 
 **Correction to the Module 4 table above.** `bestMoveBudget` is supplied only by
 `PlayComputer.js:3277` - web's *multiplayer* Best is **not** budgeted either, so
@@ -178,15 +213,88 @@ already five commits behind production - see STATUS.md.
 
 ### Still open in Module 4
 
-- [ ] Review toggle (best-move alternatives after each move) - web
-      `GameContainer.js:346`, no Android equivalent.
+- [x] Review toggle (best-move alternatives after each move) - Android
+      `PlayMultiplayerScreen.kt` and `PlayMultiplayerViewModel.kt`; casual/learning only.
+- [x] Best-move budget accounting (2026-09-16) - the casual/learning
+      multiplayer Best toggle draws from the same `undoChancesRemaining` pool
+      as takebacks on both clients; a charged reveal is persisted as a
+      `best-move` marker in the move's `learning_help` (the lifeline-summary
+      marker set), and the budget is rebuilt on reload/takeback-resync as
+      `server remaining − persisted markers`. Web:
+      `src/utils/multiplayerBestBudget.js` (+12 Jest tests), wiring in
+      `PlayMultiplayer.js`; Android: `bestMoveSpend()` + a charged
+      `setCctHintLevel` in `PlayMultiplayerViewModel.kt` (+9 JVM tests,
+      `PlayMultiplayerBestBudgetTest`). Unit-level only — device acceptance
+      still open. Evidence: docs/updates/2026_09_16_08_17_update.md.
+
+## P0 correctness follow-ups (2026-09-16)
+
+All three landed and are covered by unit/feature tests. Unit-level only — none
+of this is device- or browser-accepted yet.
+
+- [x] **Public game viewer loads through the public endpoint.**
+      `PublicGameViewerViewModel.loadGame` calls the new
+      `GameApi.getPublicGame` (`public/games/{id}`, outside `auth:sanctum`)
+      instead of `gameApi.getGame`, so a shared link opened while logged out no
+      longer 401s. The previously declared path `games/public/{id}` matched no
+      route; the registered one is `routes/api.php:68`. Covered by
+      `PublicGameViewerLoadTest` (3 JVM tests).
+
+      **Found while testing — the endpoint 404'd for every game.**
+      `GameController::publicShow` gated on `$game->status !== 'completed' &&
+      !== 'ended'`, but `status` is an accessor over the `game_statuses`
+      lookup whose only finished code is `finished`; `completed` is a
+      *write-side* alias (`GameStatus::fromLegacy`). The guard therefore matched
+      nothing and the whole public-replay feature — web `GameReplayPage.js:78`
+      as well as Android — answered 404. Now compares with
+      `GameStatusEnum::FINISHED`. New `tests/Feature/PublicGameViewerTest.php`
+      (6 tests) covers the unauthenticated read, the canonical and legacy
+      written statuses, the 401 on `games/{id}` that makes the public route
+      necessary, and the aborted/in-progress/unknown 404s. The first run of that
+      test reproduced the 404 before the fix.
+
+- [x] **Learn lesson validation and completion are server-side.** Moves post to
+      `tutorial/lessons/{id}/validate-move` with the real lesson id and the
+      stage's `interactive_lesson_stages.id` (the placeholder `lessonId = 0` is
+      gone), the lesson is started on load — `completeLesson` 404s without a
+      progress row — and finishing posts `tutorial/lessons/{id}/complete` with
+      web's score/seconds/attempts payload, with the failure surfaced and
+      retryable. Theory slides have no server stage and stay local read-alongs.
+      Covered by `TutorialLessonCompletionTest` (4 JVM tests).
+
+- [x] **Daily Challenge submit/review is persisted, on its own leaderboard.**
+      Solving today's challenge posts `tutorial/daily-challenge/submit`
+      (`challenge_id`, `track`, the SAN line, seconds) and shows the server's
+      verdict/XP; an already-completed challenge stays open for review and is
+      not resubmitted; a failed submit says so rather than claiming a save. The
+      hub's leaderboard reads `tutorial/daily-challenge/leaderboard` (today's
+      fastest solves for the selected track) instead of the all-time rating
+      endpoint — `TacticalApi` is no longer injected there at all — and the
+      selected track is carried into the solver through a `?track=` nav arg.
+      Covered by `DailyChallengeSolveTest` (7) and `DailyChallengesViewModelTest`
+      (3).
+
+      **Two solver defects fixed while testing.** (1) The daily solution is a
+      list of the *player's* moves — the web compares the Nth move played with
+      `solution[N]` and never auto-plays a reply (`DailyChallengePage.js:126`) —
+      but Android ran it through the generic puzzle solver, which plays entry 1
+      as the opponent's answer; a multi-move line would have submitted a short
+      solution, and the SAN→UCI pre-conversion dropped such a challenge outright.
+      The daily branch now matches SAN directly (`+`/`#` stripped, case
+      insensitive, the same comparison `submitDailyChallenge` makes). (2) The
+      submitted SAN was generated on the board *after* the move was made, so
+      `Move.san()` disambiguated against the opponent's legal moves and could
+      invent a file/rank prefix the server would reject; it is now read off a
+      pre-move board. Written `challenge_data.hints` are also preferred over the
+      synthesized from-square hint, and a failed bundled-asset read no longer
+      takes the daily challenge down with it.
 
 ## Proposed implementation order
 
 1. ~~**Lobby ELO range filter** (Module 1)~~ - done
 2. ~~**Mode + time control when starting from Players tab** (Module 2)~~ - done
 3. ~~**Learning chip in Quick Play** (Module 3)~~ - done
-4. ~~**Undo lifeline + Learning header label in multiplayer** (Module 4)~~ - done; Review toggle and synthetic-opponent takeback remain (see Module 4 status)
+4. ~~**Undo lifeline + Learning header label in multiplayer** (Module 4)~~ - done; Review toggle and Best-move budget accounting are now also complete; synthetic-opponent takeback remains (see Module 4 status)
 5. **Best-move entry point in Play vs Computer** (Module 5) - reuse `CCTBottomSheet`
-6. **Lifeline markers in Game Review** (Module 6) - display-only once moves carry the markers
+6. ~~**Lifeline markers in Game Review** (Module 6)~~ - done; Android reads JSON/compact markers and shows per-move badges plus totals
 7. Feature-level audit of the unaudited modules above
