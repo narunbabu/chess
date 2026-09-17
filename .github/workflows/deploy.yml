@@ -14,6 +14,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Check out health-check script
+        if: ${{ !inputs.check_only }}
+        uses: actions/checkout@v4
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -333,3 +337,10 @@ jobs:
 
             # Ensure script always exits with success (unless critical failure occurred)
             exit 0
+
+      - name: Post-deploy health check
+        if: ${{ success() && !inputs.check_only }}
+        shell: pwsh
+        run: |
+          ./chess99-android/scripts/check_backend_health.ps1
+          exit $LASTEXITCODE

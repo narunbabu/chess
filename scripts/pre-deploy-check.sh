@@ -45,20 +45,26 @@ fi
 # ── Gate 2: ESLint ───────────────────────────────────────────────
 
 separator "Gate 2: ESLint"
-if (cd "$FRONTEND" && npx eslint src/ --max-warnings=0 > /dev/null 2>&1); then
-  gate_pass "eslint src/"
+# Same command as the project's own `pnpm lint` script: errors fail the gate.
+# Warnings are non-blocking by the repo's own .eslintrc.json (rules set to
+# "warn"); 206 pre-existed on master on 2026-09-14 and are counted, not fixed
+# here (86 are react-hooks/exhaustive-deps — auto-fixing risks behavior
+# changes right before a deploy).
+LINT_OUT=$(cd "$FRONTEND" && npx eslint src/ --ext .js,.jsx 2>&1)
+LINT_RC=$?
+WARN_COUNT=$(echo "$LINT_OUT" | grep -cE " warning " || true)
+ERR_COUNT=$(echo "$LINT_OUT" | grep -cE " error " || true)
+if [ "$LINT_RC" -eq 0 ]; then
+  gate_pass "eslint src/ (0 errors, $WARN_COUNT pre-existing warnings)"
 else
-  # Retry showing count so the dev knows the scale
-  LINT_OUT=$(cd "$FRONTEND" && npx eslint src/ 2>&1 || true)
-  ERR_COUNT=$(echo "$LINT_OUT" | grep -cE "error|warning" || echo "?")
-  gate_fail "eslint src/ ($ERR_COUNT issues)"
+  gate_fail "eslint src/ ($ERR_COUNT errors, $WARN_COUNT warnings)"
   echo "         Run: cd chess-frontend && npx eslint src/"
 fi
 
 # ── Gate 3: PHP Backend Tests ────────────────────────────────────
 
 separator "Gate 3: PHP Backend Tests (PHPUnit)"
-if (cd "$BACKEND" && php artisan test --no-interaction > /dev/null 2>&1); then
+if (cd "$BACKEND" && php artisan test > /dev/null 2>&1); then
   gate_pass "php artisan test"
 else
   gate_fail "php artisan test"

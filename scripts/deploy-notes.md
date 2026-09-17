@@ -47,6 +47,11 @@ cd /opt/Chess-Web
 git checkout -- chess-backend/bootstrap/cache/packages.php chess-backend/bootstrap/cache/services.php
 git pull origin master || (cd chess-backend && rm -f bootstrap/cache/packages.php bootstrap/cache/services.php && php artisan package:discover)
 
+# One-command wrapper for the above, from the laptop (same commands plus the
+# recovery fallback, premature-run/failed-merge guards, and the post-checks
+# "cache status empty" + "/up 200"; exits nonzero otherwise):
+#   ssh -i ~/.ssh/narun_vps_ed25519 narun@69.62.73.225 'bash -s' < scripts/vps-deploy-step1.sh
+
 # 2. Backend dependencies
 cd /opt/Chess-Web/chess-backend
 composer install --no-dev --optimize-autoloader
@@ -74,19 +79,39 @@ sudo rsync -a --delete build/ /var/www/chess99.com/
 sudo systemctl restart chess-reverb
 sudo systemctl reload php8.3-fpm
 sudo systemctl reload nginx
+
+# One-command wrapper for steps 2-7, from the laptop (same commands plus
+# set -e fail-fast, sudo -n (no tty over 'bash -s'), a pnpm PATH preflight
+# incl. nvm (non-interactive ssh may miss it), the www-data chown from
+# deploy.yml's PERMISSIONS section, and the post-deploy checks "both URLs
+# 200 + chess-reverb/php8.3-fpm/nginx active"; exits nonzero otherwise).
+# Run only after step 1 (vps-deploy-step1.sh) said "step 1 complete":
+#   ssh -i ~/.ssh/narun_vps_ed25519 narun@69.62.73.225 'bash -s' < scripts/vps-deploy-steps2-7.sh
+# No frontend files changed in the push? Skip step 6 with:
+#   ssh -i ~/.ssh/narun_vps_ed25519 narun@69.62.73.225 'CHESS99_SKIP_FRONTEND=1 bash -s' < scripts/vps-deploy-steps2-7.sh
 ```
 
 ---
 
 ## Post-Deploy Health Checks
 
-Run immediately after deploy:
+Run immediately after deploy, including after the steps 2-7 wrapper. From
+the local repository root (PowerShell; no PowerShell install needed on the VPS):
+
+```powershell
+powershell.exe -NoProfile -File .\chess99-android\scripts\check_backend_health.ps1
+if ($LASTEXITCODE -ne 0) { throw 'Post-deploy health check failed; deployment is not healthy.' }
+```
+
+This required gate checks `/up` = 200, `/api/v1/health` = 200 with JSON
+`status: healthy`, unauthenticated `/api/v1/synthetic-players` = 401, and
+`chess99.com` = 200. It exits 1 on any failure. Do not mark deployment healthy
+unless it exits 0. CI runs the same script with PowerShell 7 on the GitHub
+runner after successful SSH deployment; `check_only=true` skips this step.
+
+Then check services and logs on the VPS:
 
 ```bash
-# HTTP checks
-curl -s -o /dev/null -w "chess99.com: HTTP %{http_code}\n" https://chess99.com/
-curl -s -o /dev/null -w "api.chess99.com: HTTP %{http_code}\n" https://api.chess99.com/
-
 # Services
 systemctl is-active chess-reverb
 systemctl is-active php8.3-fpm
@@ -97,7 +122,7 @@ tail -20 /var/log/nginx/chess99-error.log
 tail -20 /opt/Chess-Web/chess-backend/storage/logs/laravel-$(date +%Y-%m-%d).log
 ```
 
-Expected: both URLs return HTTP 200, all three services active, no new errors in logs.
+Expected: health script exits 0, all three services active, no new errors in logs.
 
 ---
 
@@ -183,15 +208,34 @@ NOPASSWD rule on the VPS for exactly those commands, using
 `sudo visudo -f /etc/sudoers.d/chess99-deploy`:
 
 ```text
-narun ALL=(root) NOPASSWD: /usr/bin/chown -R www-data\:www-data /opt/Chess-Web/chess-backend/storage, /usr/bin/chown -R www-data\:www-data /opt/Chess-Web/chess-backend/bootstrap/cache, /usr/bin/crontab -u www-data -l, /usr/bin/crontab -u www-data -, /usr/sbin/nginx -t, /usr/bin/systemctl restart php8.3-fpm, /usr/bin/systemctl restart chess-reverb, /usr/bin/systemctl reload nginx
+narun ALL=(root) NOPASSWD: /usr/bin/chown -R www-data\:www-data /opt/Chess-Web/chess-backend/storage, /usr/bin/chown -R www-data\:www-data /opt/Chess-Web/chess-backend/bootstrap/cache, /usr/bin/chown -R www-data\:www-data /opt/Chess-Web/chess-backend/storage /opt/Chess-Web/chess-backend/bootstrap/cache, /usr/bin/crontab -u www-data -l, /usr/bin/crontab -u www-data -, /usr/sbin/nginx -t, /usr/bin/systemctl restart php8.3-fpm, /usr/bin/systemctl restart chess-reverb, /usr/bin/systemctl reload php8.3-fpm, /usr/bin/systemctl reload nginx, /usr/bin/rsync -a --delete build/ /var/www/chess99.com/
 ```
 
 **State on 2026-09-14:** this rule is not installed and is not needed today.
-`sudo -n -l` shows narun already has `(ALL) NOPASSWD: ALL`, and all eight
+`sudo -n -l` shows narun already has `(ALL) NOPASSWD: ALL`, and all the
 commands above pass `sudo -n -l`. The binary paths match the VPS, and the rule
-passes `visudo -c -f -` there. Keep it for narrowing: installing it only makes
-the CI key safer once the broad `NOPASSWD: ALL` grant is removed
-(`docs/updates/2026_09_14_00_45_update.md`).
+passes `visudo -cf -` there (re-validated by the script below at run time). The
+three entries beyond the original eight (`chown` with both paths in one
+command, `systemctl reload php8.3-fpm`, `rsync -a --delete build/
+/var/www/chess99.com/`) are the exact `sudo -n` forms
+`scripts/vps-deploy-steps2-7.sh` runs; without them, narrowing would abort the
+manual deploy wrapper mid-flight.
+
+**Narrowing (owner-only, after the CI key is rotated and proven).** The
+one-command version is `scripts/narrow-narun-sudoers.sh`: run it with
+`--dry-run` first. It refuses to run until GitHub shows a successful
+`Deploy to Production` run newer than 2026-09-01 (i.e. the rotated
+`SERVER_SSH_KEY` works — normally the green `check_only=true` dispatch), then
+on the VPS it installs the rule as `/etc/sudoers.d/chess99-deploy` (0440
+root:root, `visudo`-validated before and after), backs up and comments exactly
+the broad grant — located 2026-09-14 at `/etc/sudoers:54`
+(`narun ALL=(ALL) NOPASSWD:ALL`, the only passwordless narun line;
+`sudoers.d` holds only `ubuntu` and `deployuser` grants) — verifies every
+command above still passes `sudo -n -l`, that `sudo -n true` now fails, and
+rolls everything back if any check fails. Afterwards `sudo` asks for narun's
+password for everything else (narun stays in the `sudo` group), and the
+workflow's timestamped `sudo cp` nginx backup stays a warned manual step, as
+below (`docs/updates/2026_09_14_11_00_update.md`).
 
 Do not add wildcards to this rule. In sudoers, `*` also matches spaces, so a
 rule like `cp * /etc/nginx/...` lets whoever holds the CI key copy any file as
