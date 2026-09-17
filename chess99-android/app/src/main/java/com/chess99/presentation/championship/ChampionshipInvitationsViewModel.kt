@@ -1,15 +1,18 @@
 package com.chess99.presentation.championship
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.ChampionshipApi
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 data class ChampionshipInvitation(
     val id: Int,
@@ -29,6 +32,8 @@ data class ChampionshipInvitationsUiState(
 @HiltViewModel
 class ChampionshipInvitationsViewModel @Inject constructor(
     private val championshipApi: ChampionshipApi,
+    // Injected so the snackbar copy below can come from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChampionshipInvitationsUiState())
@@ -88,7 +93,7 @@ class ChampionshipInvitationsViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     _uiState.value = _uiState.value.copy(
                         invitations = _uiState.value.invitations.filter { it.id != invitationId },
-                        snackbarMessage = "Invitation accepted!",
+                        snackbarMessage = context.getString(R.string.champ_invite_accepted),
                     )
                 }
             } catch (e: Exception) {
@@ -100,7 +105,7 @@ class ChampionshipInvitationsViewModel @Inject constructor(
     fun declineInvitation(invitationId: Int) {
         _uiState.value = _uiState.value.copy(
             invitations = _uiState.value.invitations.filter { it.id != invitationId },
-            snackbarMessage = "Invitation declined.",
+            snackbarMessage = context.getString(R.string.champ_invite_declined),
         )
     }
 

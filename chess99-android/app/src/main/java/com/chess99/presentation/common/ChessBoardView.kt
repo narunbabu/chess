@@ -535,15 +535,27 @@ fun AccessibleChessMoveControls(
                 .fillMaxWidth()
                 .sizeIn(minHeight = 48.dp),
         ) {
-            Text(if (expanded) "Close accessible move input" else "Accessible move input")
+            Text(
+                stringResource(
+                    if (expanded) {
+                        R.string.board_accessible_input_close
+                    } else {
+                        R.string.board_accessible_input_open
+                    },
+                ),
+            )
         }
 
         if (expanded) {
             Text(
                 text = if (selectedFrom == -1) {
-                    "Choose one of your pieces"
+                    stringResource(R.string.board_choose_piece)
                 } else {
-                    "${pieceSpokenName(game.get(selectedFrom))} on ${Square.toAlgebraic(selectedFrom)} selected. Choose a legal destination."
+                    stringResource(
+                        R.string.board_piece_selected,
+                        pieceSpokenName(game.get(selectedFrom)),
+                        Square.toAlgebraic(selectedFrom),
+                    )
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(vertical = 4.dp),
@@ -557,7 +569,13 @@ fun AccessibleChessMoveControls(
                         onClick = { selectedFrom = square },
                         modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
                     ) {
-                        Text("${pieceSpokenName(game.get(square))} ${Square.toAlgebraic(square)}")
+                        Text(
+                            stringResource(
+                                R.string.board_piece_at_square,
+                                pieceSpokenName(game.get(square)),
+                                Square.toAlgebraic(square),
+                            ),
+                        )
                     }
                 }
             }
@@ -591,7 +609,7 @@ fun AccessibleChessMoveControls(
                             },
                             modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
                         ) {
-                            Text("Move to ${Square.toAlgebraic(toSquare)}")
+                            Text(stringResource(R.string.board_move_to, Square.toAlgebraic(toSquare)))
                         }
                     }
                 }
@@ -634,19 +652,24 @@ private fun PromotionChoiceDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Choose promotion piece") },
-        text = { Text("Promote the pawn to a queen, rook, bishop or knight.") },
+        title = { Text(stringResource(R.string.board_promotion_title)) },
+        text = { Text(stringResource(R.string.board_promotion_body)) },
         confirmButton = {
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                listOf('q' to "Queen", 'r' to "Rook", 'b' to "Bishop", 'n' to "Knight")
+                listOf(
+                    'q' to R.string.piece_queen,
+                    'r' to R.string.piece_rook,
+                    'b' to R.string.piece_bishop,
+                    'n' to R.string.piece_knight,
+                )
                     .forEach { (piece, label) ->
                         TextButton(
                             onClick = { onChoose(piece) },
                             modifier = Modifier.sizeIn(minHeight = 48.dp),
-                        ) { Text(label) }
+                        ) { Text(stringResource(label)) }
                     }
             }
         },
@@ -654,23 +677,32 @@ private fun PromotionChoiceDialog(
             TextButton(
                 onClick = onDismiss,
                 modifier = Modifier.sizeIn(minHeight = 48.dp),
-            ) { Text("Cancel") }
+            ) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
 
+@Composable
 private fun pieceSpokenName(piece: Int): String {
-    val color = if (Piece.color(piece) == com.chess99.engine.Color.WHITE) "White" else "Black"
-    val name = when (Piece.type(piece)) {
-        Piece.PAWN -> "pawn"
-        Piece.KNIGHT -> "knight"
-        Piece.BISHOP -> "bishop"
-        Piece.ROOK -> "rook"
-        Piece.QUEEN -> "queen"
-        Piece.KING -> "king"
-        else -> "piece"
-    }
-    return "$color $name"
+    val color = stringResource(
+        if (Piece.color(piece) == com.chess99.engine.Color.WHITE) {
+            R.string.color_white_name
+        } else {
+            R.string.color_black_name
+        },
+    )
+    val name = stringResource(
+        when (Piece.type(piece)) {
+            Piece.PAWN -> R.string.piece_spoken_pawn
+            Piece.KNIGHT -> R.string.piece_spoken_knight
+            Piece.BISHOP -> R.string.piece_spoken_bishop
+            Piece.ROOK -> R.string.piece_spoken_rook
+            Piece.QUEEN -> R.string.piece_spoken_queen
+            Piece.KING -> R.string.piece_spoken_king
+            else -> R.string.piece_spoken_unknown
+        },
+    )
+    return stringResource(R.string.board_piece_spoken_name, color, name)
 }
 
 // ── Drawing Helpers ──────────────────────────────────────────────────

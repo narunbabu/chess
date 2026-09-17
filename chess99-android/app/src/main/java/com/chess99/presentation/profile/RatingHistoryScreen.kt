@@ -1,5 +1,6 @@
 package com.chess99.presentation.profile
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -40,17 +42,19 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.ProfileApi
 import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.text.SimpleDateFormat
+import java.util.Locale
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Locale
-import javax.inject.Inject
 
 data class RatingGameEntry(
     val id: Int,
@@ -76,6 +80,8 @@ data class RatingStats(
 @HiltViewModel
 class RatingHistoryViewModel @Inject constructor(
     private val profileApi: ProfileApi,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     data class State(
@@ -94,7 +100,7 @@ class RatingHistoryViewModel @Inject constructor(
             try {
                 val response = profileApi.getRatingHistory()
                 if (!response.isSuccessful) {
-                    _state.update { it.copy(isLoading = false, error = "Failed to load") }
+                    _state.update { it.copy(isLoading = false, error = context.getString(R.string.rating_history_load_failed)) }
                     return@launch
                 }
 
@@ -106,9 +112,12 @@ class RatingHistoryViewModel @Inject constructor(
                 val entries = historyArray?.mapNotNull { element ->
                     val obj = element.asJsonObject
                     val opponent = if (obj.get("game_type")?.asString == "computer") {
-                        "Computer Lv ${obj.get("computer_level")?.asInt ?: "?"}"
+                        context.getString(
+                    R.string.rating_history_computer_level,
+                    (obj.get("computer_level")?.asInt ?: "?").toString(),
+                )
                     } else {
-                        obj.getAsJsonObject("opponent")?.get("name")?.asString ?: "Unknown"
+                        obj.getAsJsonObject("opponent")?.get("name")?.asString ?: context.getString(R.string.player_unknown)
                     }
                     RatingGameEntry(
                         id = obj.get("id")?.asInt ?: return@mapNotNull null,
@@ -139,7 +148,7 @@ class RatingHistoryViewModel @Inject constructor(
 
                 _state.update { it.copy(isLoading = false, history = entries, stats = stats) }
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = friendlyError(e, "your rating history")) }
+                _state.update { it.copy(isLoading = false, error = friendlyError(context, e, R.string.error_subject_your_rating_history)) }
             }
         }
     }
@@ -163,10 +172,10 @@ fun RatingHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Rating History") },
+                title = { Text(stringResource(R.string.rating_history_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -181,7 +190,7 @@ fun RatingHistoryScreen(
 
             state.error != null -> {
                 Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    Text(state.error ?: "Error", color = MaterialTheme.colorScheme.error)
+                    Text(state.error ?: stringResource(R.string.error_title), color = MaterialTheme.colorScheme.error)
                 }
             }
 
@@ -205,7 +214,7 @@ fun RatingHistoryScreen(
                     item {
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "Your Progress",
+                            stringResource(R.string.rating_history_your_progress),
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
                         )
@@ -221,7 +230,7 @@ fun RatingHistoryScreen(
                     if (state.history.isEmpty()) {
                         item {
                             Text(
-                                text = "No rating history yet. Play some games!",
+                                text = stringResource(R.string.rating_history_empty),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -233,7 +242,7 @@ fun RatingHistoryScreen(
                         item {
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                "Recent Games",
+                                stringResource(R.string.rating_history_recent_games),
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 16.sp,
                             )
@@ -256,24 +265,24 @@ private fun StatsCards(stats: RatingStats) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            StatCard("Current", "${stats.currentRating}", Modifier.weight(1f))
-            StatCard("Peak", "${stats.highestRating}", Modifier.weight(1f))
+            StatCard(stringResource(R.string.rating_stat_current), "${stats.currentRating}", Modifier.weight(1f))
+            StatCard(stringResource(R.string.rating_stat_peak), "${stats.highestRating}", Modifier.weight(1f))
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             StatCard(
-                "Record",
+                stringResource(R.string.rating_stat_record),
                 "${stats.wins}W ${stats.draws}D ${stats.losses}L",
                 Modifier.weight(1f),
             )
             val changePrefix = if (stats.averageChange >= 0) "+" else ""
-            StatCard("Avg Change", "$changePrefix${stats.averageChange}", Modifier.weight(1f))
+            StatCard(stringResource(R.string.rating_stat_avg_change), "$changePrefix${stats.averageChange}", Modifier.weight(1f))
         }
         if (stats.currentStreakCount > 0) {
             StatCard(
-                "Streak",
+                stringResource(R.string.rating_stat_streak),
                 "${stats.currentStreakCount} ${stats.currentStreakType}${if (stats.currentStreakCount > 1) "s" else ""}",
                 Modifier.fillMaxWidth(),
             )

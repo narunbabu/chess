@@ -6,9 +6,11 @@ import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.chess99.R
 
 /**
  * Network error / connection lost dialog for game screens.
@@ -31,20 +33,20 @@ fun NetworkErrorDialog(
         },
         title = {
             Text(
-                text = "Connection Lost",
+                text = stringResource(R.string.network_error_title),
                 fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Column {
                 Text(
-                    text = "Lost connection to the game server.\nThis may be due to a network issue.",
+                    text = stringResource(R.string.network_error_body),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Your game state is preserved. Try reconnecting.",
+                    text = stringResource(R.string.network_error_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -53,12 +55,12 @@ fun NetworkErrorDialog(
         },
         confirmButton = {
             Button(onClick = onRetry) {
-                Text("Retry Connection")
+                Text(stringResource(R.string.network_error_retry))
             }
         },
         dismissButton = {
             OutlinedButton(onClick = onGoBack) {
-                Text("Leave Game")
+                Text(stringResource(R.string.network_error_leave))
             }
         },
     )

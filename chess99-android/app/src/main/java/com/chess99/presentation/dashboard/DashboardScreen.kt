@@ -14,13 +14,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import java.util.Locale
+import com.chess99.R
 
 /**
  * Full dashboard screen that serves as the primary landing surface.
@@ -134,7 +135,7 @@ fun DashboardScreen(
                             IconButton(onClick = { viewModel.clearError() }) {
                                 Icon(
                                     Icons.Default.Close,
-                                    contentDescription = "Dismiss",
+                                    contentDescription = stringResource(R.string.a11y_dismiss),
                                     tint = MaterialTheme.colorScheme.onErrorContainer,
                                 )
                             }
@@ -203,7 +204,7 @@ fun DashboardScreen(
             if (uiState.activeGames.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Active Games",
+                        text = stringResource(R.string.dashboard_active_games),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -223,8 +224,8 @@ fun DashboardScreen(
             if (uiState.recentGames.isNotEmpty()) {
                 item {
                     SectionHeader(
-                        title = "Recent Games",
-                        actionLabel = "See All",
+                        title = stringResource(R.string.dashboard_recent_games),
+                        actionLabel = stringResource(R.string.dashboard_see_all),
                         onAction = onNavigateToGameHistory,
                     )
                 }
@@ -244,8 +245,8 @@ fun DashboardScreen(
             if (uiState.activeTournaments.isNotEmpty()) {
                 item {
                     SectionHeader(
-                        title = "Active Tournaments",
-                        actionLabel = "View All",
+                        title = stringResource(R.string.dashboard_active_tournaments),
+                        actionLabel = stringResource(R.string.dashboard_view_all),
                         onAction = onNavigateToChampionships,
                     )
                 }
@@ -304,7 +305,7 @@ private fun DashboardErrorCard(
             )
             Spacer(modifier = Modifier.height(16.dp))
             Button(onClick = onRetry) {
-                Text("Retry")
+                Text(stringResource(R.string.action_retry))
             }
         }
     }
@@ -322,7 +323,7 @@ private fun WelcomeHeader(
         if (avatarUrl != null) {
             AsyncImage(
                 model = avatarUrl,
-                contentDescription = "Avatar",
+                contentDescription = stringResource(R.string.a11y_avatar),
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape),
@@ -349,12 +350,12 @@ private fun WelcomeHeader(
 
         Column {
             Text(
-                text = "Welcome back,",
+                text = stringResource(R.string.dashboard_welcome_back),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = userName.ifEmpty { "Player" },
+                text = userName.ifEmpty { stringResource(R.string.dashboard_default_player_name) },
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
             )
@@ -376,7 +377,7 @@ private fun RatingCard(
                 .padding(20.dp),
         ) {
             Text(
-                text = "Rating",
+                text = stringResource(R.string.dashboard_rating),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -396,7 +397,7 @@ private fun RatingCard(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "Peak",
+                        text = stringResource(R.string.dashboard_peak),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -425,7 +426,7 @@ private fun RatingCard(
                     color = MaterialTheme.colorScheme.tertiaryContainer,
                 ) {
                     Text(
-                        text = "All-time high!",
+                        text = stringResource(R.string.dashboard_all_time_high),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -444,19 +445,19 @@ private fun QuickStatsRow(stats: DashboardStats) {
     ) {
         StatMiniCard(
             modifier = Modifier.weight(1f),
-            label = "Games",
+            label = stringResource(R.string.dashboard_stat_games),
             value = stats.gamesPlayed.toString(),
             icon = Icons.Default.SportsEsports,
         )
         StatMiniCard(
             modifier = Modifier.weight(1f),
-            label = "Win Rate",
-            value = "${String.format(Locale.getDefault(), "%.0f", stats.winRate)}%",
+            label = stringResource(R.string.dashboard_stat_win_rate),
+            value = stringResource(R.string.dashboard_win_rate_value, stats.winRate),
             icon = Icons.Default.EmojiEvents,
         )
         StatMiniCard(
             modifier = Modifier.weight(1f),
-            label = "Streak",
+            label = stringResource(R.string.dashboard_stat_streak),
             value = when {
                 stats.currentStreak > 0 -> "+${stats.currentStreak}"
                 stats.currentStreak < 0 -> "${stats.currentStreak}"
@@ -512,21 +513,21 @@ private fun WinLossDrawRow(stats: DashboardStats) {
     ) {
         StatMiniCard(
             modifier = Modifier.weight(1f),
-            label = "Wins",
+            label = stringResource(R.string.dashboard_stat_wins),
             value = stats.wins.toString(),
             icon = Icons.Default.CheckCircle,
             valueColor = MaterialTheme.colorScheme.primary,
         )
         StatMiniCard(
             modifier = Modifier.weight(1f),
-            label = "Losses",
+            label = stringResource(R.string.dashboard_stat_losses),
             value = stats.losses.toString(),
             icon = Icons.Default.Close,
             valueColor = MaterialTheme.colorScheme.error,
         )
         StatMiniCard(
             modifier = Modifier.weight(1f),
-            label = "Draws",
+            label = stringResource(R.string.dashboard_stat_draws),
             value = stats.draws.toString(),
             icon = Icons.Default.Handshake,
             valueColor = MaterialTheme.colorScheme.tertiary,
@@ -574,7 +575,11 @@ private fun DailyQuotaStrip(quota: DailyQuota) {
                     )
                 }
                 Text(
-                    text = "${quota.remaining} of ${quota.dailyLimit} games left today",
+                    text = stringResource(
+                        R.string.dashboard_quota_remaining,
+                        quota.remaining,
+                        quota.dailyLimit,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -592,7 +597,7 @@ private fun DailyQuotaStrip(quota: DailyQuota) {
             if (quota.remaining <= 0) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "You've used all your free games for today. Come back tomorrow, or upgrade for unlimited play!",
+                    text = stringResource(R.string.dashboard_quota_exhausted),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -635,21 +640,25 @@ private fun ActiveGameCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "vs ${game.opponentName}",
+                    text = stringResource(R.string.dashboard_vs_opponent, game.opponentName),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "${game.status.replaceFirstChar { it.uppercase() }} - Playing as ${game.playerColor}",
+                    text = stringResource(
+                        R.string.dashboard_active_game_status,
+                        game.status.replaceFirstChar { it.uppercase() },
+                        game.playerColor,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             FilledTonalButton(onClick = onResume) {
-                Text("Resume")
+                Text(stringResource(R.string.action_resume))
             }
         }
     }
@@ -664,7 +673,7 @@ private fun QuickActionsSection(
 ) {
     Column {
         Text(
-            text = "Quick Actions",
+            text = stringResource(R.string.dashboard_quick_actions),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
@@ -677,25 +686,25 @@ private fun QuickActionsSection(
             QuickActionButton(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.Computer,
-                label = "Computer",
+                label = stringResource(R.string.dashboard_action_computer),
                 onClick = onPlayComputer,
             )
             QuickActionButton(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.Wifi,
-                label = "Online",
+                label = stringResource(R.string.dashboard_action_online),
                 onClick = onPlayOnline,
             )
             QuickActionButton(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.School,
-                label = "Learn",
+                label = stringResource(R.string.dashboard_action_learn),
                 onClick = onLearn,
             )
             QuickActionButton(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.EmojiEvents,
-                label = "Tournaments",
+                label = stringResource(R.string.dashboard_action_tournaments),
                 onClick = onTournaments,
             )
         }
@@ -773,11 +782,13 @@ private fun RecentGameCard(
         isLoss -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    val resultLabel = when {
-        isWin -> "Win"
-        isLoss -> "Loss"
-        else -> "Draw"
-    }
+    val resultLabel = stringResource(
+        when {
+            isWin -> R.string.dashboard_result_win
+            isLoss -> R.string.dashboard_result_loss
+            else -> R.string.dashboard_result_draw
+        }
+    )
 
     OutlinedCard(
         onClick = onClick,
@@ -809,14 +820,18 @@ private fun RecentGameCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "vs ${game.opponent}",
+                    text = stringResource(R.string.dashboard_vs_opponent, game.opponent),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "${game.timeControl} - $resultLabel",
+                    text = stringResource(
+                        R.string.dashboard_game_summary,
+                        game.timeControl,
+                        resultLabel,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -874,10 +889,16 @@ private fun TournamentCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = buildString {
-                        append(tournament.format.replaceFirstChar { it.uppercase() })
+                    text = tournament.format.replaceFirstChar { it.uppercase() }.let { format ->
                         if (tournament.totalRounds > 0) {
-                            append(" - Round ${tournament.currentRound}/${tournament.totalRounds}")
+                            stringResource(
+                                R.string.dashboard_tournament_round,
+                                format,
+                                tournament.currentRound,
+                                tournament.totalRounds,
+                            )
+                        } else {
+                            format
                         }
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -890,7 +911,10 @@ private fun TournamentCard(
                 color = MaterialTheme.colorScheme.secondaryContainer,
             ) {
                 Text(
-                    text = "${tournament.playerCount} players",
+                    text = stringResource(
+                        R.string.dashboard_tournament_players,
+                        tournament.playerCount,
+                    ),
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -917,7 +941,7 @@ private fun NotificationsSection(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Notifications",
+                    text = stringResource(R.string.dashboard_notifications),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -931,7 +955,9 @@ private fun NotificationsSection(
             IconButton(onClick = { expanded = !expanded }) {
                 Icon(
                     if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    contentDescription = stringResource(
+                        if (expanded) R.string.a11y_collapse else R.string.a11y_expand
+                    ),
                 )
             }
         }
@@ -1009,7 +1035,9 @@ private fun NotificationItem(
             ) {
                 Icon(
                     if (notification.isRead) Icons.Default.Close else Icons.Default.MarkEmailRead,
-                    contentDescription = if (notification.isRead) "Dismiss" else "Mark read",
+                    contentDescription = stringResource(
+                        if (notification.isRead) R.string.a11y_dismiss else R.string.a11y_mark_read
+                    ),
                     modifier = Modifier.size(16.dp),
                 )
             }

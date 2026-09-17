@@ -1,16 +1,19 @@
 package com.chess99.presentation.auth
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.AuthApi
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 enum class ForgotPasswordStatus { IDLE, LOADING, SUCCESS, OAUTH }
 
@@ -22,6 +25,8 @@ data class ForgotPasswordUiState(
 @HiltViewModel
 class ForgotPasswordViewModel @Inject constructor(
     private val authApi: AuthApi,
+    // Injected so the validation copy below can come from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ForgotPasswordUiState())
@@ -45,7 +50,7 @@ class ForgotPasswordViewModel @Inject constructor(
                     if (code == 422) {
                         _uiState.value = ForgotPasswordUiState(
                             status = ForgotPasswordStatus.IDLE,
-                            error = "Please enter a valid email address.",
+                            error = context.getString(R.string.auth_invalid_email),
                         )
                     } else {
                         // Never leak user existence — show success even on server error

@@ -251,14 +251,14 @@ private fun OnboardingButtons(
                 .fillMaxWidth()
                 .height(50.dp),
         ) {
-            Text("Get started", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.onboarding_get_started), fontWeight = FontWeight.Bold)
         }
 
         Spacer(Modifier.height(8.dp))
 
         // Text button — all pages (spec T1).
         TextButton(onClick = onLogin) {
-            Text("I already have an account", color = Color.White)
+            Text(stringResource(R.string.onboarding_have_account), color = Color.White)
         }
 
         // Secondary outlined — page 3 only (spec T1).
@@ -274,7 +274,7 @@ private fun OnboardingButtons(
                     .fillMaxWidth()
                     .height(50.dp),
             ) {
-                Text("Try as guest")
+                Text(stringResource(R.string.onboarding_try_as_guest))
             }
         }
     }

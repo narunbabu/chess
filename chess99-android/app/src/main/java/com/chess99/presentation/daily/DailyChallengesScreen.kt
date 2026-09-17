@@ -7,17 +7,19 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 /**
  * Daily Challenges hub — mirrors the web /daily-challenges page: selectable tracks
@@ -28,7 +30,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun DailyChallengesScreen(
     onNavigateBack: () -> Unit,
-    onSolve: () -> Unit,
+    onSolve: (selectedTrack: String?) -> Unit,
     viewModel: DailyChallengesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -36,10 +38,13 @@ fun DailyChallengesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Daily Challenges", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.daily_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
             )
@@ -63,7 +68,7 @@ fun DailyChallengesScreen(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        "${state.streak}-day streak",
+                        stringResource(R.string.daily_streak, state.streak),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                     )
@@ -87,7 +92,7 @@ fun DailyChallengesScreen(
                                 {
                                     Icon(
                                         Icons.Default.Lock,
-                                        contentDescription = "Locked",
+                                        contentDescription = stringResource(R.string.a11y_locked),
                                         modifier = Modifier.size(16.dp),
                                     )
                                 }
@@ -115,15 +120,17 @@ fun DailyChallengesScreen(
                         )
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            "This track is part of ${
-                                state.requiredTier?.replaceFirstChar { it.uppercase() } ?: "a premium"
-                            }",
+                            stringResource(
+                                R.string.daily_track_locked_title,
+                                state.requiredTier?.replaceFirstChar { it.uppercase() }
+                                    ?: stringResource(R.string.daily_track_locked_default_tier),
+                            ),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "This daily challenge track is available on premium plans.",
+                            stringResource(R.string.daily_track_locked_body),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
@@ -134,7 +141,8 @@ fun DailyChallengesScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                state.challenge?.title ?: "Today's Challenge",
+                                state.challenge?.title
+                                    ?: stringResource(R.string.daily_todays_challenge),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.weight(1f),
@@ -142,32 +150,49 @@ fun DailyChallengesScreen(
                             if (state.challenge?.isCompleted == true) {
                                 Icon(
                                     Icons.Default.CheckCircle,
-                                    contentDescription = "Completed",
+                                    contentDescription = stringResource(R.string.a11y_completed),
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
                             }
                         }
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            state.challenge?.description ?: "Solve today's puzzle to keep your streak alive.",
+                            state.challenge?.description
+                                ?: stringResource(R.string.daily_default_description),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         Spacer(Modifier.height(8.dp))
                         state.challenge?.let { c ->
                             AssistChip(
                                 onClick = {},
-                                label = { Text("${c.difficulty.replaceFirstChar { it.uppercase() }} • +${c.xpReward} XP") },
+                                label = {
+                                    Text(
+                                        stringResource(
+                                            R.string.daily_difficulty_xp,
+                                            c.difficulty.replaceFirstChar { it.uppercase() },
+                                            c.xpReward,
+                                        )
+                                    )
+                                },
                             )
                         }
                         Spacer(Modifier.height(16.dp))
+                        // Completed challenges stay open for review — the
+                        // solver reloads them (submit is skipped server-side
+                        // for already-completed rows).
                         Button(
-                            onClick = onSolve,
+                            onClick = { onSolve(state.selectedTrack) },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = state.challenge?.isCompleted != true,
+                            enabled = state.challenge != null,
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text(if (state.challenge?.isCompleted == true) "Completed Today" else "Solve Today's Challenge")
+                            Text(
+                                stringResource(
+                                    if (state.challenge?.isCompleted == true) R.string.daily_review
+                                    else R.string.daily_solve
+                                )
+                            )
                         }
                     }
                 }
@@ -175,12 +200,21 @@ fun DailyChallengesScreen(
 
             // Daily leaderboard
             if (state.leaders.isNotEmpty()) {
-                Text("Leaderboard", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.daily_leaderboard),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         state.leaders.forEach { l ->
                             ListItem(
-                                leadingContent = { Text("#${l.rank}", fontWeight = FontWeight.Bold) },
+                                leadingContent = {
+                                    Text(
+                                        stringResource(R.string.leaderboard_rank, l.rank),
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                },
                                 headlineContent = { Text(l.name) },
                                 trailingContent = { Text(l.score) },
                             )

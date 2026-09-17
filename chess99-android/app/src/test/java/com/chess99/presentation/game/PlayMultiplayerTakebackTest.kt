@@ -1,6 +1,8 @@
 package com.chess99.presentation.game
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
+import com.chess99.R
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.MatchmakingApi
 import com.chess99.data.api.WebSocketApi
@@ -42,6 +44,7 @@ class PlayMultiplayerTakebackTest {
     private val socketEvents = MutableSharedFlow<GameEvent>(extraBufferCapacity = 8)
 
     private lateinit var socketService: GameWebSocketService
+    private lateinit var context: Context
     private lateinit var viewModel: PlayMultiplayerViewModel
 
     @Before
@@ -49,6 +52,11 @@ class PlayMultiplayerTakebackTest {
         Dispatchers.setMain(dispatcher)
 
         socketService = mockk(relaxed = true)
+        context = mockk(relaxed = true)
+        every { context.getString(R.string.mp_connection_restored_takeback) } returns
+            "Connection restored — ask for a takeback again if you still need it."
+        every { context.getString(R.string.mp_takeback_expired) } returns
+            "No response — takeback request expired."
         every { socketService.events } returns socketEvents
         coEvery { socketService.initialize(42) } returns true
         coEvery { socketService.requestUndo() } returns Result.success(JsonObject())
@@ -105,6 +113,7 @@ class PlayMultiplayerTakebackTest {
             featureFlagManager = flags,
             stockfishEngine = mockk<StockfishEngine>(relaxed = true),
             shareManager = mockk<ShareManager>(relaxed = true),
+            context = context,
         )
         scheduler.runCurrent()
     }
@@ -200,6 +209,18 @@ class PlayMultiplayerTakebackTest {
             "Connection restored — ask for a takeback again if you still need it.",
             viewModel.uiState.value.snackbarMessage,
         )
+    }
+
+    @Test
+    fun `casual multiplayer starts with live review enabled and can be toggled off`() {
+        assertTrue(viewModel.uiState.value.reviewEnabled)
+
+        viewModel.setReviewEnabled(false)
+        assertFalse(viewModel.uiState.value.reviewEnabled)
+        assertEquals(null, viewModel.uiState.value.latestReview)
+
+        viewModel.setReviewEnabled(true)
+        assertTrue(viewModel.uiState.value.reviewEnabled)
     }
 
     private fun authoritativeAccepted() = GameEvent.UndoAccepted(

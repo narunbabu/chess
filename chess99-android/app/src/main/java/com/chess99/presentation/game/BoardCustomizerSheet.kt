@@ -1,5 +1,6 @@
 package com.chess99.presentation.game
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,8 +18,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.chess99.R
 
 /**
  * Board theme customizer bottom sheet.
@@ -38,7 +41,7 @@ fun BoardCustomizerSheet(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             Text(
-                "Board Theme",
+                stringResource(R.string.board_customizer_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
@@ -119,13 +122,13 @@ private fun BoardThemePreview(
 
         Box(contentAlignment = Alignment.Center) {
             Text(
-                text = theme.name,
+                text = stringResource(theme.name),
                 style = MaterialTheme.typography.labelSmall,
             )
             if (isSelected) {
                 Icon(
                     Icons.Default.Check,
-                    contentDescription = "Selected",
+                    contentDescription = stringResource(R.string.a11y_selected),
                     modifier = Modifier.size(12.dp),
                     tint = MaterialTheme.colorScheme.primary,
                 )
@@ -133,7 +136,7 @@ private fun BoardThemePreview(
             if (isLocked) {
                 Icon(
                     Icons.Default.Lock,
-                    contentDescription = "Premium",
+                    contentDescription = stringResource(R.string.a11y_premium),
                     modifier = Modifier.size(12.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -146,20 +149,20 @@ private fun BoardThemePreview(
 
 data class BoardTheme(
     val id: String,
-    val name: String,
+    @StringRes val name: Int,
     val lightSquare: Color,
     val darkSquare: Color,
     val isPremiumOnly: Boolean = false,
 )
 
 val boardThemes = listOf(
-    BoardTheme("classic", "Classic", Color(0xFFF0D9B5), Color(0xFFB58863)),
-    BoardTheme("green", "Green", Color(0xFFEEEED2), Color(0xFF769656)),
-    BoardTheme("blue", "Blue", Color(0xFFDEE3E6), Color(0xFF8CA2AD)),
-    BoardTheme("brown", "Brown", Color(0xFFF0D9B5), Color(0xFF946F51)),
-    BoardTheme("purple", "Purple", Color(0xFFE8DAF7), Color(0xFF9B72CF), isPremiumOnly = true),
-    BoardTheme("red", "Red", Color(0xFFF2D7D5), Color(0xFFCA5353), isPremiumOnly = true),
-    BoardTheme("dark", "Dark", Color(0xFF606060), Color(0xFF404040), isPremiumOnly = true),
-    BoardTheme("ice", "Ice", Color(0xFFE0F0FF), Color(0xFF88AACC), isPremiumOnly = true),
-    BoardTheme("wood", "Wood", Color(0xFFDEB887), Color(0xFF8B6914), isPremiumOnly = true),
+    BoardTheme("classic", R.string.board_theme_classic, Color(0xFFF0D9B5), Color(0xFFB58863)),
+    BoardTheme("green", R.string.board_theme_green, Color(0xFFEEEED2), Color(0xFF769656)),
+    BoardTheme("blue", R.string.board_theme_blue, Color(0xFFDEE3E6), Color(0xFF8CA2AD)),
+    BoardTheme("brown", R.string.board_theme_brown, Color(0xFFF0D9B5), Color(0xFF946F51)),
+    BoardTheme("purple", R.string.board_theme_purple, Color(0xFFE8DAF7), Color(0xFF9B72CF), isPremiumOnly = true),
+    BoardTheme("red", R.string.board_theme_red, Color(0xFFF2D7D5), Color(0xFFCA5353), isPremiumOnly = true),
+    BoardTheme("dark", R.string.board_theme_dark, Color(0xFF606060), Color(0xFF404040), isPremiumOnly = true),
+    BoardTheme("ice", R.string.board_theme_ice, Color(0xFFE0F0FF), Color(0xFF88AACC), isPremiumOnly = true),
+    BoardTheme("wood", R.string.board_theme_wood, Color(0xFFDEB887), Color(0xFF8B6914), isPremiumOnly = true),
 )

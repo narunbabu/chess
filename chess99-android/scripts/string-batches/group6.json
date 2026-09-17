@@ -1,0 +1,139 @@
+[
+  {
+    "section": "Push notifications",
+    "file": "data/push/NotificationHelper.kt",
+    "strings": {
+      "notif_channel_game": "Game Notifications",
+      "notif_channel_game_desc": "Notifications for game moves, invitations, and results",
+      "notif_channel_tournament": "Tournament Notifications",
+      "notif_channel_tournament_desc": "Notifications for tournament updates, round pairings, and results",
+      "notif_channel_social": "Social Notifications",
+      "notif_channel_social_desc": "Notifications for friend requests and social events",
+      "notif_channel_system": "System Notifications",
+      "notif_channel_system_desc": "System maintenance and informational messages",
+      "notif_your_turn_title": "Your turn!",
+      "notif_opponent_moved_title": "Opponent moved",
+      "notif_your_turn_body": "%1$s made a move. It's your turn to play.",
+      "notif_opponent_moved_body": "You made a move against %1$s.",
+      "notif_challenge_title": "Game Challenge",
+      "notif_challenge_body": "%1$s has challenged you to a game!"
+    },
+    "edits": [
+      ["                \"Game Notifications\",", "                context.getString(R.string.notif_channel_game),"],
+      ["                description = \"Notifications for game moves, invitations, and results\"", "                description = context.getString(R.string.notif_channel_game_desc)"],
+      ["                \"Tournament Notifications\",", "                context.getString(R.string.notif_channel_tournament),"],
+      ["                description = \"Notifications for tournament updates, round pairings, and results\"", "                description = context.getString(R.string.notif_channel_tournament_desc)"],
+      ["                \"Social Notifications\",", "                context.getString(R.string.notif_channel_social),"],
+      ["                description = \"Notifications for friend requests and social events\"", "                description = context.getString(R.string.notif_channel_social_desc)"],
+      ["                \"System Notifications\",", "                context.getString(R.string.notif_channel_system),"],
+      ["                description = \"System maintenance and informational messages\"", "                description = context.getString(R.string.notif_channel_system_desc)"],
+      ["        val title = if (isYourTurn) \"Your turn!\" else \"Opponent moved\"\n        val body = if (isYourTurn) {\n            \"$opponentName made a move. It's your turn to play.\"\n        } else {\n            \"You made a move against $opponentName.\"\n        }", "        val title = context.getString(\n            if (isYourTurn) R.string.notif_your_turn_title else R.string.notif_opponent_moved_title,\n        )\n        val body = context.getString(\n            if (isYourTurn) R.string.notif_your_turn_body else R.string.notif_opponent_moved_body,\n            opponentName,\n        )"],
+      ["            .setContentTitle(\"Game Challenge\")\n            .setContentText(\"$fromPlayer has challenged you to a game!\")", "            .setContentTitle(context.getString(R.string.notif_challenge_title))\n            .setContentText(context.getString(R.string.notif_challenge_body, fromPlayer))"],
+      ["                \"Accept\",\n                acceptIntent,", "                context.getString(R.string.action_accept),\n                acceptIntent,"],
+      ["                \"Decline\",\n                declineIntent,", "                context.getString(R.string.action_decline),\n                declineIntent,"]
+    ]
+  },
+  {
+    "section": "Detailed statistics sheet",
+    "file": "presentation/common/DetailedStatsSheet.kt",
+    "strings": {
+      "stats_detailed_title": "Detailed Statistics",
+      "stats_section_games": "Games",
+      "stats_total_games": "Total Games",
+      "stats_wins": "Wins",
+      "stats_losses": "Losses",
+      "stats_draws": "Draws",
+      "stats_win_rate": "Win Rate",
+      "stats_percent": "%1$s%%",
+      "stats_section_streaks": "Streaks",
+      "stats_current_streak": "Current Streak",
+      "stats_best_streak": "Best Streak",
+      "stats_section_rating": "Rating",
+      "stats_rating_current": "Current",
+      "stats_rating_peak": "Peak"
+    },
+    "edits": [
+      ["\"Detailed Statistics\",", "stringResource(R.string.stats_detailed_title),"],
+      ["StatsSection(\"Games\") {", "StatsSection(stringResource(R.string.stats_section_games)) {"],
+      ["StatsRow(\"Total Games\", stats[\"total_games\"]?.toString() ?: \"0\")", "StatsRow(stringResource(R.string.stats_total_games), stats[\"total_games\"]?.toString() ?: \"0\")"],
+      ["StatsRow(\"Wins\", stats[\"wins\"]?.toString() ?: \"0\")", "StatsRow(stringResource(R.string.stats_wins), stats[\"wins\"]?.toString() ?: \"0\")"],
+      ["StatsRow(\"Losses\", stats[\"losses\"]?.toString() ?: \"0\")", "StatsRow(stringResource(R.string.stats_losses), stats[\"losses\"]?.toString() ?: \"0\")"],
+      ["StatsRow(\"Draws\", stats[\"draws\"]?.toString() ?: \"0\")", "StatsRow(stringResource(R.string.stats_draws), stats[\"draws\"]?.toString() ?: \"0\")"],
+      ["StatsRow(\"Win Rate\", \"${stats[\"win_rate\"] ?: \"0\"}%\")", "StatsRow(\n                    stringResource(R.string.stats_win_rate),\n                    stringResource(R.string.stats_percent, stats[\"win_rate\"]?.toString() ?: \"0\"),\n                )"],
+      ["StatsSection(\"Streaks\") {", "StatsSection(stringResource(R.string.stats_section_streaks)) {"],
+      ["StatsRow(\"Current Streak\", stats[\"current_streak\"]?.toString() ?: \"0\")", "StatsRow(stringResource(R.string.stats_current_streak), stats[\"current_streak\"]?.toString() ?: \"0\")"],
+      ["StatsRow(\"Best Streak\", stats[\"best_streak\"]?.toString() ?: \"0\")", "StatsRow(stringResource(R.string.stats_best_streak), stats[\"best_streak\"]?.toString() ?: \"0\")"],
+      ["StatsSection(\"Rating\") {", "StatsSection(stringResource(R.string.stats_section_rating)) {"],
+      ["StatsRow(\"Current\", stats[\"rating\"]?.toString() ?: \"1200\")", "StatsRow(stringResource(R.string.stats_rating_current), stats[\"rating\"]?.toString() ?: \"1200\")"],
+      ["StatsRow(\"Peak\", stats[\"peak_rating\"]?.toString() ?: \"1200\")", "StatsRow(stringResource(R.string.stats_rating_peak), stats[\"peak_rating\"]?.toString() ?: \"1200\")"]
+    ]
+  },
+  {
+    "section": "Chat safety",
+    "file": "presentation/game/ChatSafety.kt",
+    "strings": {
+      "chat_disabled_account": "Chat is disabled for this account.",
+      "chat_disabled_organization": "Chat is disabled by your organization.",
+      "chat_disabled_blocked": "Chat is blocked between these players.",
+      "chat_disabled_generic": "Chat is unavailable."
+    },
+    "edits": [
+      ["    fun disabledReason(reason: String?): String = when (reason) {\n        \"account_disabled\" -> \"Chat is disabled for this account.\"\n        \"organization_disabled\" -> \"Chat is disabled by your organization.\"\n        \"blocked\" -> \"Chat is blocked between these players.\"\n        else -> \"Chat is unavailable.\"\n    }", "    /** Resource id rather than text: the caller is a composable and resolves it. */\n    @StringRes\n    fun disabledReason(reason: String?): Int = when (reason) {\n        \"account_disabled\" -> R.string.chat_disabled_account\n        \"organization_disabled\" -> R.string.chat_disabled_organization\n        \"blocked\" -> R.string.chat_disabled_blocked\n        else -> R.string.chat_disabled_generic\n    }"],
+      ["package com.chess99.presentation.game\n", "package com.chess99.presentation.game\n\nimport androidx.annotation.StringRes\nimport com.chess99.R\n"]
+    ]
+  },
+  {
+    "section": "Share sheet copy",
+    "file": "presentation/social/ShareManager.kt",
+    "strings": {
+      "share_result_win": "%1$s won",
+      "share_result_draw": "Draw",
+      "share_result_draw_sentence": "It was a draw",
+      "share_text_header": "Chess99 Game Result",
+      "share_text_players": "%1$s vs %2$s",
+      "share_text_result": "Result: %1$s",
+      "share_text_rating": "Rating: %1$s",
+      "share_text_moves": "Moves: %1$d | Time: %2$s",
+      "share_subject_game_result": "Chess99 - Game Result",
+      "share_chooser_game_result": "Share game result",
+      "share_clip_label": "Chess99 Game Link",
+      "share_link_copied": "Game link copied!",
+      "share_invite_body": "Join me on Chess99 - the best way to play chess online!",
+      "share_invite_subject": "Join Chess99!",
+      "share_chooser_invite": "Invite a friend",
+      "share_screenshot_text": "Check out my game on Chess99!\n%1$s",
+      "share_chooser_screenshot": "Share game screenshot",
+      "share_screenshot_failed": "Failed to share screenshot",
+      "share_chooser_your_game": "Share your game",
+      "share_failed": "Couldn't share right now. Please try again.",
+      "share_caption": "%1$s on Chess99! %2$s vs %3$s\n%4$s",
+      "share_subject_pgn": "Chess99 Game #%1$d",
+      "share_subject_pgn_text": "Chess99 Game #%1$d PGN",
+      "share_chooser_pgn": "Share PGN"
+    },
+    "edits": [
+      ["    private fun formatShareText(game: ShareableGame): String {\n        val resultText = when (game.result) {\n            \"white\" -> \"${game.whitePlayer} won\"\n            \"black\" -> \"${game.blackPlayer} won\"\n            \"draw\" -> \"Draw\"\n            else -> game.result\n        }", "    private fun formatShareText(context: Context, game: ShareableGame): String {\n        val resultText = when (game.result) {\n            \"white\" -> context.getString(R.string.share_result_win, game.whitePlayer)\n            \"black\" -> context.getString(R.string.share_result_win, game.blackPlayer)\n            \"draw\" -> context.getString(R.string.share_result_draw)\n            else -> game.result\n        }"],
+      ["            appendLine(\"Chess99 Game Result\")\n            appendLine(\"${game.whitePlayer} vs ${game.blackPlayer}\")\n            appendLine(\"Result: $resultText\")\n            appendLine(\"Rating: $ratingText\")\n            appendLine(\"Moves: ${game.totalMoves} | Time: ${game.timeControl.replace(\"|\", \"+\")}\")", "            appendLine(context.getString(R.string.share_text_header))\n            appendLine(context.getString(R.string.share_text_players, game.whitePlayer, game.blackPlayer))\n            appendLine(context.getString(R.string.share_text_result, resultText))\n            appendLine(context.getString(R.string.share_text_rating, ratingText))\n            appendLine(\n                context.getString(\n                    R.string.share_text_moves,\n                    game.totalMoves,\n                    game.timeControl.replace(\"|\", \"+\"),\n                ),\n            )"],
+      ["        val shareText = formatShareText(game)", "        val shareText = formatShareText(context, game)"],
+      ["        val caption = shareCaption(game)", "        val caption = shareCaption(context, game)"],
+      ["    fun shareToTwitter(context: Context, game: ShareableGame) {\n        val resultText = when (game.result) {\n            \"white\" -> \"${game.whitePlayer} won\"\n            \"black\" -> \"${game.blackPlayer} won\"\n            \"draw\" -> \"Draw\"\n            else -> game.result\n        }", "    fun shareToTwitter(context: Context, game: ShareableGame) {\n        val resultText = when (game.result) {\n            \"white\" -> context.getString(R.string.share_result_win, game.whitePlayer)\n            \"black\" -> context.getString(R.string.share_result_win, game.blackPlayer)\n            \"draw\" -> context.getString(R.string.share_result_draw)\n            else -> game.result\n        }"],
+      ["            putExtra(Intent.EXTRA_SUBJECT, \"Chess99 - Game Result\")", "            putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.share_subject_game_result))"],
+      ["        val chooser = Intent.createChooser(intent, \"Share game result\")", "        val chooser = Intent.createChooser(intent, context.getString(R.string.share_chooser_game_result))"],
+      ["        val clip = ClipData.newPlainText(\"Chess99 Game Link\", link)", "        val clip = ClipData.newPlainText(context.getString(R.string.share_clip_label), link)"],
+      ["        Toast.makeText(context, \"Game link copied!\", Toast.LENGTH_SHORT).show()", "        Toast.makeText(context, R.string.share_link_copied, Toast.LENGTH_SHORT).show()"],
+      ["            appendLine(\"Join me on Chess99 - the best way to play chess online!\")", "            appendLine(context.getString(R.string.share_invite_body))"],
+      ["            putExtra(Intent.EXTRA_SUBJECT, \"Join Chess99!\")", "            putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.share_invite_subject))"],
+      ["        val chooser = Intent.createChooser(intent, \"Invite a friend\")", "        val chooser = Intent.createChooser(intent, context.getString(R.string.share_chooser_invite))"],
+      ["                putExtra(Intent.EXTRA_TEXT, \"Check out my game on Chess99!\\n$BASE_URL/game/$gameId\")", "                putExtra(\n                    Intent.EXTRA_TEXT,\n                    context.getString(R.string.share_screenshot_text, \"$BASE_URL/game/$gameId\"),\n                )"],
+      ["            val chooser = Intent.createChooser(intent, \"Share game screenshot\")", "            val chooser = Intent.createChooser(intent, context.getString(R.string.share_chooser_screenshot))"],
+      ["            Toast.makeText(context, \"Failed to share screenshot\", Toast.LENGTH_SHORT).show()", "            Toast.makeText(context, R.string.share_screenshot_failed, Toast.LENGTH_SHORT).show()"],
+      ["            val chooser = Intent.createChooser(intent, \"Share your game\")", "            val chooser = Intent.createChooser(intent, context.getString(R.string.share_chooser_your_game))"],
+      ["                Toast.makeText(context, \"Couldn't share right now. Please try again.\", Toast.LENGTH_SHORT).show()", "                Toast.makeText(context, R.string.share_failed, Toast.LENGTH_SHORT).show()"],
+      ["    private fun shareCaption(game: ShareableGame): String {\n        val resultText = when (game.result) {\n            \"white\" -> \"${game.whitePlayer} won\"\n            \"black\" -> \"${game.blackPlayer} won\"\n            \"draw\" -> \"It was a draw\"\n            else -> game.result\n        }\n        return \"$resultText on Chess99! ${game.whitePlayer} vs ${game.blackPlayer}\\n$BASE_URL\"\n    }", "    private fun shareCaption(context: Context, game: ShareableGame): String {\n        val resultText = when (game.result) {\n            \"white\" -> context.getString(R.string.share_result_win, game.whitePlayer)\n            \"black\" -> context.getString(R.string.share_result_win, game.blackPlayer)\n            \"draw\" -> context.getString(R.string.share_result_draw_sentence)\n            else -> game.result\n        }\n        return context.getString(\n            R.string.share_caption,\n            resultText,\n            game.whitePlayer,\n            game.blackPlayer,\n            BASE_URL,\n        )\n    }"],
+      ["                putExtra(Intent.EXTRA_SUBJECT, \"Chess99 Game #$gameId\")", "                putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.share_subject_pgn, gameId))"],
+      ["                putExtra(Intent.EXTRA_SUBJECT, \"Chess99 Game #$gameId PGN\")", "                putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.share_subject_pgn_text, gameId))"],
+      ["            val chooser = Intent.createChooser(intent, \"Share PGN\")", "            val chooser = Intent.createChooser(intent, context.getString(R.string.share_chooser_pgn))"],
+      ["            val chooser = Intent.createChooser(fallbackIntent, \"Share PGN\")", "            val chooser = Intent.createChooser(fallbackIntent, context.getString(R.string.share_chooser_pgn))"]
+    ]
+  }
+]

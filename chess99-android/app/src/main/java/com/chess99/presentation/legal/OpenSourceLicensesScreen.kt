@@ -20,10 +20,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import com.chess99.R
 
 private const val STOCKFISH_SOURCE_URL =
     "https://github.com/official-stockfish/Stockfish/tree/c3483fa9a7d7c0ffa9fcc32b467ca844cfb63790"
@@ -41,10 +43,10 @@ fun OpenSourceLicensesScreen(onNavigateBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Open-source licences", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.licences_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
             )
@@ -58,15 +60,13 @@ fun OpenSourceLicensesScreen(onNavigateBack: () -> Unit) {
         ) {
             item {
                 Text(
-                    text = "Stockfish 11",
+                    text = stringResource(R.string.licences_stockfish_heading),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "Chess99 includes unmodified Stockfish 11 executables. " +
-                        "Stockfish is free software licensed under GNU GPL version 3. " +
-                        "The exact corresponding source is available at the link below.",
+                    text = stringResource(R.string.licences_stockfish_body),
                     modifier = Modifier.padding(top = 8.dp),
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -78,7 +78,7 @@ fun OpenSourceLicensesScreen(onNavigateBack: () -> Unit) {
                     },
                     modifier = Modifier.padding(vertical = 8.dp),
                 ) {
-                    Text("View exact Stockfish source")
+                    Text(stringResource(R.string.licences_view_source))
                 }
                 Text(
                     text = licenceText,

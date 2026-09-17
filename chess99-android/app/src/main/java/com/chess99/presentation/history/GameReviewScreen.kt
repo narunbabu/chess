@@ -17,12 +17,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 import com.chess99.domain.model.*
 import com.chess99.presentation.common.MoveEffects
 
@@ -54,12 +56,12 @@ fun GameReviewScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Game Review",
+                            text = stringResource(R.string.review_title),
                             style = MaterialTheme.typography.titleMedium,
                         )
                         if (game != null) {
                             Text(
-                                text = "vs ${game.opponentName}",
+                                text = stringResource(R.string.review_vs_opponent, game.opponentName),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -68,7 +70,10 @@ fun GameReviewScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
                 actions = {
@@ -79,20 +84,29 @@ fun GameReviewScreen(
                             if (pgn.isNotBlank()) {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
                                         as ClipboardManager
-                                val clip = ClipData.newPlainText("PGN", pgn)
+                                val clip = ClipData.newPlainText(
+                                    context.getString(R.string.history_pgn_clip_label),
+                                    pgn,
+                                )
                                 clipboard.setPrimaryClip(clip)
                             }
                         },
                         enabled = replayState != null && replayState.moves.isNotEmpty(),
                     ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy PGN")
+                        Icon(
+                            Icons.Default.ContentCopy,
+                            contentDescription = stringResource(R.string.a11y_copy_pgn),
+                        )
                     }
                     // Export/Share PGN as file
                     IconButton(
                         onClick = { viewModel.exportPgn(context) },
                         enabled = replayState != null && replayState.moves.isNotEmpty(),
                     ) {
-                        Icon(Icons.Default.IosShare, contentDescription = "Export PGN")
+                        Icon(
+                            Icons.Default.IosShare,
+                            contentDescription = stringResource(R.string.a11y_export_pgn),
+                        )
                     }
                 },
             )
@@ -119,14 +133,14 @@ fun GameReviewScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = state.error ?: "Unknown error",
+                            text = state.error ?: stringResource(R.string.review_unknown_error),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center,
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = onNavigateBack) {
-                            Text("Go Back")
+                            Text(stringResource(R.string.review_go_back))
                         }
                     }
                 }
@@ -139,7 +153,7 @@ fun GameReviewScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "Game not found",
+                        text = stringResource(R.string.review_game_not_found),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -154,6 +168,8 @@ fun GameReviewScreen(
                 ) {
                     // Game info header
                     GameReviewHeader(game = game)
+
+                    LifelineSummary(moves = replayState?.moves.orEmpty())
 
                     // Board with eval bar + current move info
                     if (replayState != null) {
@@ -206,7 +222,10 @@ fun GameReviewScreen(
                                 if (pgn.isNotBlank()) {
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
                                             as ClipboardManager
-                                    val clip = ClipData.newPlainText("PGN", pgn)
+                                    val clip = ClipData.newPlainText(
+                                    context.getString(R.string.history_pgn_clip_label),
+                                    pgn,
+                                )
                                     clipboard.setPrimaryClip(clip)
                                 }
                             },
@@ -220,7 +239,7 @@ fun GameReviewScreen(
                                 modifier = Modifier.size(18.dp),
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Copy PGN")
+                            Text(stringResource(R.string.history_copy_pgn))
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -244,7 +263,8 @@ fun GameReviewScreen(
                             }
                             AnalysisStatus.ERROR -> {
                                 AnalysisError(
-                                    error = analysisReport.error ?: "Unknown error",
+                                    error = analysisReport.error
+                                        ?: stringResource(R.string.review_unknown_error),
                                     onRetry = {
                                         val gid = state.expandedGameId ?: return@AnalysisError
                                         viewModel.triggerAnalysis(gid)
@@ -339,7 +359,7 @@ private fun CurrentMoveInfo(
     if (moveIndex < 0) {
         // At starting position
         Text(
-            text = "Starting position",
+            text = stringResource(R.string.review_starting_position),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -365,7 +385,7 @@ private fun CurrentMoveInfo(
     ) {
         // Move number + SAN
         Text(
-            text = "${move.moveNumber}. ${move.san}",
+            text = stringResource(R.string.review_move_san, move.moveNumber, move.san),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             fontFamily = FontFamily.Monospace,
@@ -382,9 +402,9 @@ private fun CurrentMoveInfo(
             // Eval change
             val deltaCp = analyzedMove.cpLoss
             val deltaText = if (deltaCp > 0) {
-                "-${"%.1f".format(deltaCp / 100.0)}"
+                stringResource(R.string.review_eval_loss, deltaCp / 100.0)
             } else {
-                "+${"%.1f".format(-deltaCp / 100.0)}"
+                stringResource(R.string.review_eval_gain, -deltaCp / 100.0)
             }
             val deltaColor = when {
                 deltaCp <= 10 -> Color(0xFF81B64C)
@@ -443,7 +463,7 @@ private fun ClassificationBadge(classification: MoveClassification) {
             )
             Spacer(modifier = Modifier.width(2.dp))
             Text(
-                text = classification.label,
+                text = stringResource(classification.labelRes),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Medium,
                 color = color,
@@ -470,7 +490,7 @@ private fun AnalysisMoveList(
             .verticalScroll(rememberScrollState()),
     ) {
         Text(
-            "Moves",
+            stringResource(R.string.game_moves),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
         )
@@ -483,7 +503,7 @@ private fun AnalysisMoveList(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "${pairIndex + 1}.",
+                    text = stringResource(R.string.game_move_number, pairIndex + 1),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.width(32.dp),
@@ -495,6 +515,7 @@ private fun AnalysisMoveList(
                     san = pair[0].san,
                     isSelected = replayState.currentMoveIndex == whiteIdx,
                     analysis = analysisReport?.moveAnalyses?.getOrNull(whiteIdx),
+                    lifelines = pair[0].lifelines,
                     onClick = { onMoveClick(whiteIdx) },
                     modifier = Modifier.weight(1f),
                 )
@@ -508,6 +529,7 @@ private fun AnalysisMoveList(
                         san = pair[1].san,
                         isSelected = replayState.currentMoveIndex == blackIdx,
                         analysis = analysisReport?.moveAnalyses?.getOrNull(blackIdx),
+                        lifelines = pair[1].lifelines,
                         onClick = { onMoveClick(blackIdx) },
                         modifier = Modifier.weight(1f),
                     )
@@ -524,6 +546,7 @@ private fun AnalysisMoveChip(
     san: String,
     isSelected: Boolean,
     analysis: AnalyzedMove?,
+    lifelines: List<String> = emptyList(),
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -569,6 +592,22 @@ private fun AnalysisMoveChip(
                 },
             )
 
+            lifelines.forEach { marker ->
+                Spacer(modifier = Modifier.width(3.dp))
+                Surface(
+                    shape = MaterialTheme.shapes.extraSmall,
+                    color = Color(0x2E3FB98F),
+                ) {
+                    Text(
+                        stringResource(LifelineMarkers.labelRes(marker)),
+                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp),
+                        color = Color(0xFF2E8B6D),
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+
             // Eval delta (if analysis available and notable)
             if (analysis != null && analysis.cpLoss > 30) {
                 Spacer(modifier = Modifier.width(3.dp))
@@ -578,13 +617,53 @@ private fun AnalysisMoveChip(
                     else -> Color(0xFFC33A3A)
                 }
                 Text(
-                    text = "-${"%.1f".format(analysis.cpLoss / 100.0)}",
+                    text = stringResource(R.string.review_eval_loss, analysis.cpLoss / 100.0),
                     fontSize = 8.sp,
                     fontWeight = FontWeight.Bold,
                     color = lossColor,
                     fontFamily = FontFamily.Monospace,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun LifelineSummary(moves: List<ReplayMove>) {
+    val markers = moves.flatMap { it.lifelines }
+    if (markers.isEmpty()) return
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f),
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.review_lifelines),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                stringResource(
+                    R.string.review_lifelines_summary,
+                    markers.size,
+                    markers.groupBy { stringResource(LifelineMarkers.labelRes(it)) }
+                        .entries
+                        .joinToString { entry ->
+                            "${entry.value.size} ${entry.key}"
+                        },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -624,11 +703,13 @@ private fun GameReviewHeader(game: GameSummary) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = when (game.result) {
-                        GameResult.WON -> "Victory"
-                        GameResult.LOST -> "Defeat"
-                        GameResult.DRAW -> "Draw"
-                    },
+                    text = stringResource(
+                        when (game.result) {
+                            GameResult.WON -> R.string.history_result_won
+                            GameResult.LOST -> R.string.history_result_lost
+                            GameResult.DRAW -> R.string.history_result_draw
+                        }
+                    ),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                 )
@@ -656,8 +737,16 @@ private fun GameReviewHeader(game: GameSummary) {
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 DetailItem(
-                    label = "Opponent",
-                    value = game.opponentName + if (game.opponentRating > 0) " (${game.opponentRating})" else "",
+                    label = stringResource(R.string.review_detail_opponent),
+                    value = if (game.opponentRating > 0) {
+                        stringResource(
+                            R.string.review_opponent_rated,
+                            game.opponentName,
+                            game.opponentRating,
+                        )
+                    } else {
+                        game.opponentName
+                    },
                 )
             }
 
@@ -667,18 +756,27 @@ private fun GameReviewHeader(game: GameSummary) {
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 DetailItem(
-                    label = "Color",
-                    value = if (game.playerColor == "white") "♔ White" else "♚ Black",
+                    label = stringResource(R.string.review_detail_color),
+                    value = stringResource(
+                        if (game.playerColor == "white") R.string.color_white
+                        else R.string.color_black
+                    ),
                 )
                 if (game.timeControl.isNotBlank()) {
-                    DetailItem(label = "Time", value = game.timeControl)
+                    DetailItem(
+                        label = stringResource(R.string.review_detail_time),
+                        value = game.timeControl,
+                    )
                 }
                 DetailItem(
-                    label = "Mode",
+                    label = stringResource(R.string.review_detail_mode),
                     value = game.gameMode.replaceFirstChar { it.uppercaseChar() },
                 )
                 if (game.totalMoves > 0) {
-                    DetailItem(label = "Moves", value = "${game.totalMoves}")
+                    DetailItem(
+                        label = stringResource(R.string.review_detail_moves),
+                        value = "${game.totalMoves}",
+                    )
                 }
             }
 
@@ -712,17 +810,20 @@ private fun DetailItem(label: String, value: String) {
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
+@Composable
 private fun formatEndReason(reason: String): String {
-    return when (reason.lowercase()) {
-        "checkmate" -> "Ended by checkmate"
-        "resignation", "resign" -> "Ended by resignation"
-        "timeout", "time" -> "Ended on time"
-        "stalemate" -> "Ended in stalemate"
-        "draw", "agreed_draw" -> "Draw by agreement"
-        "insufficient_material" -> "Draw by insufficient material"
-        "threefold_repetition", "repetition" -> "Draw by threefold repetition"
-        "fifty_move_rule", "50_move" -> "Draw by 50-move rule"
-        "abandonment", "abandoned" -> "Game abandoned"
-        else -> reason.replace("_", " ").replaceFirstChar { it.uppercaseChar() }
+    val res = when (reason.lowercase()) {
+        "checkmate" -> R.string.review_end_checkmate
+        "resignation", "resign" -> R.string.review_end_resignation
+        "timeout", "time" -> R.string.review_end_timeout
+        "stalemate" -> R.string.review_end_stalemate
+        "draw", "agreed_draw" -> R.string.review_end_agreed_draw
+        "insufficient_material" -> R.string.review_end_insufficient_material
+        "threefold_repetition", "repetition" -> R.string.review_end_repetition
+        "fifty_move_rule", "50_move" -> R.string.review_end_fifty_move
+        "abandonment", "abandoned" -> R.string.review_end_abandoned
+        else -> null
     }
+    return res?.let { stringResource(it) }
+        ?: reason.replace("_", " ").replaceFirstChar { it.uppercaseChar() }
 }

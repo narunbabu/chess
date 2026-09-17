@@ -1,17 +1,20 @@
 package com.chess99.presentation.profile
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.OrganizationApi
 import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 data class OrganizationItem(
     val id: Int,
@@ -45,6 +48,8 @@ data class OrganizationsUiState(
 @HiltViewModel
 class OrganizationsViewModel @Inject constructor(
     private val organizationApi: OrganizationApi,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OrganizationsUiState())
@@ -71,7 +76,7 @@ class OrganizationsViewModel @Inject constructor(
                             add(
                                 OrganizationItem(
                                     id = o.get("id")?.asInt ?: 0,
-                                    name = o.get("name")?.asString ?: "Unknown",
+                                    name = o.get("name")?.asString ?: context.getString(R.string.player_unknown),
                                     type = o.get("type")?.asString ?: "organization",
                                     memberCount = o.get("users_count")?.asInt
                                         ?: o.get("member_count")?.asInt ?: 0,
@@ -81,11 +86,11 @@ class OrganizationsViewModel @Inject constructor(
                     }
                     _uiState.value = _uiState.value.copy(isLoading = false, organizations = items)
                 } else {
-                    _uiState.value = _uiState.value.copy(isLoading = false, error = "Failed to load organizations")
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = context.getString(R.string.org_load_failed))
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to search organizations")
-                _uiState.value = _uiState.value.copy(isLoading = false, error = friendlyError(e, "organizations"))
+                _uiState.value = _uiState.value.copy(isLoading = false, error = friendlyError(context, e, R.string.error_subject_organizations))
             }
         }
     }
@@ -105,20 +110,20 @@ class OrganizationsViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     _uiState.value = _uiState.value.copy(
                         isCreating = false,
-                        snackbarMessage = "Organization created.",
+                        snackbarMessage = context.getString(R.string.org_created),
                     )
                     search(_uiState.value.query)
                 } else {
                     val msg = when (response.code()) {
-                        422 -> "Please check the name and email."
-                        403 -> "You don't have permission to create organizations."
-                        else -> "Failed to create organization."
+                        422 -> context.getString(R.string.org_create_invalid)
+                        403 -> context.getString(R.string.org_create_forbidden)
+                        else -> context.getString(R.string.org_create_failed)
                     }
                     _uiState.value = _uiState.value.copy(isCreating = false, snackbarMessage = msg)
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Create organization error")
-                _uiState.value = _uiState.value.copy(isCreating = false, snackbarMessage = friendlyError(e, "creating the organization"))
+                _uiState.value = _uiState.value.copy(isCreating = false, snackbarMessage = friendlyError(context, e, R.string.error_subject_creating_the_organization))
             }
         }
     }
@@ -147,7 +152,7 @@ class OrganizationsViewModel @Inject constructor(
                         add(
                             OrgMember(
                                 id = o.get("id")?.asInt ?: 0,
-                                name = o.get("name")?.asString ?: "Member",
+                                name = o.get("name")?.asString ?: context.getString(R.string.org_member_fallback),
                                 email = o.get("email")?.asString ?: "",
                                 role = role,
                             ),
@@ -176,18 +181,18 @@ class OrganizationsViewModel @Inject constructor(
                 }
                 val response = organizationApi.invite(org.id, body)
                 val msg = if (response.isSuccessful) {
-                    "Invitation sent to ${email.trim()}."
+                    context.getString(R.string.org_invite_sent, email.trim())
                 } else {
                     when (response.code()) {
-                        403 -> "Only organization admins can invite members."
-                        422 -> "Please enter a valid email."
-                        else -> "Failed to send invitation."
+                        403 -> context.getString(R.string.org_invite_forbidden)
+                        422 -> context.getString(R.string.org_invite_invalid)
+                        else -> context.getString(R.string.org_invite_failed)
                     }
                 }
                 _uiState.value = _uiState.value.copy(isInviting = false, snackbarMessage = msg)
             } catch (e: Exception) {
                 Timber.e(e, "Invite member error")
-                _uiState.value = _uiState.value.copy(isInviting = false, snackbarMessage = friendlyError(e, "sending the invite"))
+                _uiState.value = _uiState.value.copy(isInviting = false, snackbarMessage = friendlyError(context, e, R.string.error_subject_sending_the_invite))
             }
         }
     }

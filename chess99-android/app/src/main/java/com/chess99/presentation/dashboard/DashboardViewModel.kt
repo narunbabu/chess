@@ -1,7 +1,9 @@
 package com.chess99.presentation.dashboard
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.AuthApi
 import com.chess99.data.api.ChampionshipApi
 import com.chess99.data.api.GameApi
@@ -15,13 +17,14 @@ import com.chess99.data.api.objOrNull
 import com.chess99.data.api.str
 import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * ViewModel for the Dashboard screen.
@@ -40,6 +43,8 @@ class DashboardViewModel @Inject constructor(
     private val profileApi: ProfileApi,
     private val gameApi: GameApi,
     private val championshipApi: ChampionshipApi,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     // Unfinished games state
@@ -87,7 +92,7 @@ class DashboardViewModel @Inject constructor(
                 )
             } else {
                 _uiState.value = _uiState.value.copy(
-                    error = "Couldn't load your dashboard. Please try again.",
+                    error = context.getString(R.string.dashboard_load_failed),
                 )
             }
         } catch (e: Exception) {
@@ -95,7 +100,7 @@ class DashboardViewModel @Inject constructor(
             // User info is essential — without it the screen is useless, so
             // surface a top-level error card with Retry.
             _uiState.value = _uiState.value.copy(
-                error = friendlyError(e, "your dashboard"),
+                error = friendlyError(context, e, R.string.error_subject_your_dashboard),
             )
         }
     }
@@ -123,13 +128,13 @@ class DashboardViewModel @Inject constructor(
                 )
             } else {
                 _uiState.value = _uiState.value.copy(
-                    statsError = "Couldn't load your stats.",
+                    statsError = context.getString(R.string.dashboard_stats_failed),
                 )
             }
         } catch (e: Exception) {
             Timber.e(e, "Failed to load stats")
             _uiState.value = _uiState.value.copy(
-                statsError = friendlyError(e, "your stats"),
+                statsError = friendlyError(context, e, R.string.error_subject_your_stats),
             )
         }
     }
@@ -148,7 +153,7 @@ class DashboardViewModel @Inject constructor(
                         id = g.int("id") ?: 0,
                         opponent = g.str("opponent_name")
                             ?: g.str("opponent")
-                            ?: "Unknown",
+                            ?: context.getString(R.string.player_unknown),
                         result = g.str("result")
                             ?: g.str("status")
                             ?: "unknown",
@@ -208,7 +213,7 @@ class DashboardViewModel @Inject constructor(
                     val g = el.objOrNull() ?: return@mapNotNull null
                     UnfinishedGame(
                         gameId = g.int("id") ?: 0,
-                        opponentName = g.str("opponent_name") ?: "Unknown",
+                        opponentName = g.str("opponent_name") ?: context.getString(R.string.player_unknown),
                         timeControl = g.str("time_control") ?: "10|0",
                     )
                 } ?: emptyList()
@@ -235,8 +240,8 @@ class DashboardViewModel @Inject constructor(
                         else g.get("white_player").objOrNull()
                     ActiveGame(
                         id = g.int("id") ?: 0,
-                        opponentName = opponent.str("name") ?: "Opponent",
-                        playerColor = if (playerIsWhite) "White" else "Black",
+                        opponentName = opponent.str("name") ?: context.getString(R.string.player_opponent),
+                        playerColor = context.getString(if (playerIsWhite) R.string.player_white else R.string.player_black),
                         status = g.str("status") ?: "active",
                         lastMoveAt = g.str("last_move_at"),
                     )
@@ -321,7 +326,7 @@ class DashboardViewModel @Inject constructor(
                 // guards against anything unexpected escaping joinAll().
                 Timber.e(e, "Failed to refresh dashboard")
                 _uiState.value = _uiState.value.copy(
-                    error = friendlyError(e, "your dashboard"),
+                    error = friendlyError(context, e, R.string.error_subject_your_dashboard),
                 )
             } finally {
                 _uiState.value = _uiState.value.copy(isRefreshing = false)

@@ -1,5 +1,6 @@
 package com.chess99.presentation.home
 
+import android.content.Context
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.MatchmakingApi
 import com.chess99.data.local.TokenManager
@@ -101,6 +102,7 @@ class HomeViewModelTest {
         tokenManager,
         authRepository,
         pendingDeepLinkStore,
+        mockk<Context>(relaxed = true),
     )
 
     @Test
@@ -155,6 +157,27 @@ class HomeViewModelTest {
         assertFalse(state.isResumeLoading)
         assertEquals(listOf(9, 12), state.continuePlayingGames.map { it.id })
         assertEquals(listOf(true, false), state.continuePlayingGames.map { it.playingAsWhite })
+    }
+
+    @Test
+    fun `bot game card shows the synthetic opponent's name`() = runTest {
+        // A bot game has no User on the bot's side (black_player is null), so
+        // the card read "vs Opponent" (device check 2026-09-14 18:59).
+        stubSuccessfulLoad(
+            activeJson = """{"data": [{
+                "id": 465, "status": "active", "white_player_id": 5, "black_player_id": null,
+                "white_player": {"id": 5, "name": "Arun"}, "black_player": null,
+                "synthetic_player": {"id": 45, "name": "Riya First Moves"}, "last_move_at": null
+            }]}""",
+        )
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("Riya First Moves"),
+            viewModel.uiState.value.continuePlayingGames.map { it.opponentName },
+        )
     }
 
     @Test

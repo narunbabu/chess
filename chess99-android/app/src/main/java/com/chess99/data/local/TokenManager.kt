@@ -1,40 +1,43 @@
 package com.chess99.data.local
 
 import android.content.Context
-import android.content.SharedPreferences
-import androidx.core.content.edit
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
+import com.chess99.data.local.crypto.SecurePreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * The signed-in session: auth token, user identity, age classification.
+ *
+ * Backed by [SecurePreferences] — an ordinary private preferences file with
+ * AES-256-GCM encrypted values under an Android Keystore key. It used to be
+ * `EncryptedSharedPreferences` from `androidx.security:security-crypto`, which
+ * is deprecated; anything that store still holds is imported once, on first
+ * construction, by [LegacyEncryptedPreferences] (the only remaining caller of
+ * that library).
+ */
 @Singleton
 class TokenManager @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
+    private val prefs: SecurePreferences by lazy {
+        SecurePreferences.create(context, PREFS_NAME, KEY_ALIAS).also(::migrateLegacy)
+    }
 
-    private val prefs: SharedPreferences = EncryptedSharedPreferences.create(
-        context,
-        "chess99_secure_prefs",
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    private fun migrateLegacy(target: SecurePreferences) {
+        target.putAll(LegacyEncryptedPreferences.drain(context))
+    }
 
     fun saveToken(token: String) {
-        prefs.edit { putString(KEY_TOKEN, token) }
+        prefs.putString(KEY_TOKEN, token)
     }
 
     fun getToken(): String? {
-        return prefs.getString(KEY_TOKEN, null)
+        return prefs.getString(KEY_TOKEN)
     }
 
     fun saveUserId(userId: Int) {
-        prefs.edit { putInt(KEY_USER_ID, userId) }
+        prefs.putInt(KEY_USER_ID, userId)
     }
 
     fun getUserId(): Int {
@@ -42,23 +45,23 @@ class TokenManager @Inject constructor(
     }
 
     fun saveUserName(name: String) {
-        prefs.edit { putString(KEY_USER_NAME, name) }
+        prefs.putString(KEY_USER_NAME, name)
     }
 
     fun getUserName(): String? {
-        return prefs.getString(KEY_USER_NAME, null)
+        return prefs.getString(KEY_USER_NAME)
     }
 
     fun saveUserEmail(email: String) {
-        prefs.edit { putString(KEY_USER_EMAIL, email) }
+        prefs.putString(KEY_USER_EMAIL, email)
     }
 
     fun getUserEmail(): String? {
-        return prefs.getString(KEY_USER_EMAIL, null)
+        return prefs.getString(KEY_USER_EMAIL)
     }
 
     fun saveIsMinor(isMinor: Boolean) {
-        prefs.edit { putBoolean(KEY_IS_MINOR, isMinor) }
+        prefs.putBoolean(KEY_IS_MINOR, isMinor)
     }
 
     /**
@@ -74,10 +77,13 @@ class TokenManager @Inject constructor(
     }
 
     fun clearAll() {
-        prefs.edit { clear() }
+        prefs.clear()
     }
 
     companion object {
+        private const val PREFS_NAME = "chess99_secure_prefs_v2"
+        private const val KEY_ALIAS = "chess99_secure_prefs_key"
+
         private const val KEY_TOKEN = "auth_token"
         private const val KEY_USER_ID = "user_id"
         private const val KEY_USER_NAME = "user_name"

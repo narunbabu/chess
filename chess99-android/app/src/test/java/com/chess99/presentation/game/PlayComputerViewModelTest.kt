@@ -1,20 +1,24 @@
 package com.chess99.presentation.game
 
+import android.content.Context
+import com.chess99.R
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.MatchmakingApi
 import com.chess99.domain.model.SyntheticPlayer
 import com.chess99.engine.ChessGame
 import com.chess99.engine.Color
+import com.chess99.engine.EngineFailureCopy
 import com.chess99.engine.SimulatedOpponent
 import com.chess99.engine.StockfishEngine
 import com.chess99.engine.StockfishResult
-import com.chess99.presentation.social.ShareManager
 import com.chess99.presentation.history.LocalGameReviewRecord
 import com.chess99.presentation.history.LocalGameReviewStore
+import com.chess99.presentation.social.ShareManager
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
@@ -83,12 +87,19 @@ class PlayComputerViewModelTest {
             StockfishResult(ranked.first().uci, ranked, thinkTimeMs = 12)
         }
 
+        val context = mockk<Context>(relaxed = true)
+        every { context.getString(EngineFailureCopy.MESSAGE) } returns
+            "The chess engine couldn't start on this device."
+        every { context.getString(R.string.pc_opponent_computer) } returns "Computer"
+        every { context.getString(R.string.player_you) } returns "You"
+
         viewModel = PlayComputerViewModel(
             engine,
             matchmakingApi,
             gameApi,
             shareManager,
             localGameReviewStore,
+            context,
         )
     }
 
@@ -618,7 +629,7 @@ class PlayComputerViewModelTest {
 
         val state = viewModel.uiState.value
         assertTrue(state.engineInitFailed)
-        assertEquals(com.chess99.engine.EngineFailureCopy.MESSAGE, state.error)
+        assertEquals("The chess engine couldn't start on this device.", state.error)
         assertFalse("the raw linker error must never reach a child",
             state.error!!.contains("libstockfish"))
         assertEquals(GamePhase.SETUP, state.gamePhase)

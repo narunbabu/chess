@@ -1,6 +1,8 @@
 package com.chess99.engine
 
+import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -96,14 +98,29 @@ class StockfishEngineMappingTest {
         assertTrue(StockfishEngine.DEFAULT_DEPTH in StockfishEngine.MIN_DEPTH..StockfishEngine.MAX_DEPTH)
     }
 
+    /**
+     * [EngineFailureCopy] holds resource ids, and a JVM unit test cannot resolve
+     * those, so the guardrail reads the copy straight out of `values/strings.xml`
+     * instead. Working directory for a Gradle JVM test is the module dir.
+     */
+    private fun stringResource(name: String): String {
+        val xml = File("src/main/res/values/strings.xml").readText()
+        val match = Regex("""<string name="$name">(.*?)</string>""", RegexOption.DOT_MATCHES_ALL)
+            .find(xml)
+        assertNotNull("strings.xml is missing <string name=\"$name\">", match)
+        return match!!.groupValues[1].replace("\\'", "'")
+    }
+
     @Test
     fun `engine failure copy stays kid-safe and actionable`() {
-        assertTrue(EngineFailureCopy.MESSAGE.isNotBlank())
-        assertTrue(EngineFailureCopy.ACTION_LABEL.isNotBlank())
+        val message = stringResource("engine_unavailable_message")
+        val actionLabel = stringResource("engine_unavailable_action")
+        assertTrue(message.isNotBlank())
+        assertTrue(actionLabel.isNotBlank())
         listOf("exception", "null", "error code", ".so", "stack").forEach { jargon ->
             assertTrue(
                 "engine failure copy must not leak '$jargon'",
-                !EngineFailureCopy.MESSAGE.lowercase().contains(jargon),
+                !message.lowercase().contains(jargon),
             )
         }
     }

@@ -1,17 +1,20 @@
 package com.chess99.presentation.auth
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.AuthApi
 import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 enum class ResetPasswordStatus { IDLE, LOADING, SUCCESS }
 
@@ -23,6 +26,8 @@ data class ResetPasswordUiState(
 @HiltViewModel
 class ResetPasswordViewModel @Inject constructor(
     private val authApi: AuthApi,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ResetPasswordUiState())
@@ -30,11 +35,11 @@ class ResetPasswordViewModel @Inject constructor(
 
     fun resetPassword(token: String, email: String, password: String, passwordConfirmation: String) {
         if (password != passwordConfirmation) {
-            _uiState.value = ResetPasswordUiState(error = "Passwords do not match.")
+            _uiState.value = ResetPasswordUiState(error = context.getString(R.string.auth_passwords_mismatch))
             return
         }
         if (password.length < 8) {
-            _uiState.value = ResetPasswordUiState(error = "Password must be at least 8 characters.")
+            _uiState.value = ResetPasswordUiState(error = context.getString(R.string.auth_password_too_short))
             return
         }
 
@@ -58,13 +63,13 @@ class ResetPasswordViewModel @Inject constructor(
                         }
                     } catch (_: Exception) { null }
                     _uiState.value = ResetPasswordUiState(
-                        error = msg ?: "Something went wrong. Please try again.",
+                        error = msg ?: context.getString(R.string.auth_generic_failure),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Reset password error")
                 _uiState.value = ResetPasswordUiState(
-                    error = friendlyError(e, "your request"),
+                    error = friendlyError(context, e, R.string.error_subject_your_request),
                 )
             }
         }

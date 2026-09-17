@@ -1,0 +1,76 @@
+[
+{
+  "section": "Leaderboard (ViewModel-side copy, resolved through the injected @ApplicationContext)",
+  "file": "presentation/social/LeaderboardViewModel.kt",
+  "strings": {
+    "leaderboard_category_most_games": "Most Games",
+    "leaderboard_category_most_wins": "Most Wins",
+    "leaderboard_category_highest_points": "Highest Points",
+    "leaderboard_category_by_rating": "By Rating",
+    "leaderboard_value_games": "Games",
+    "leaderboard_value_wins": "Wins",
+    "leaderboard_value_points": "Points",
+    "leaderboard_value_rating": "Rating",
+    "leaderboard_period_today": "Today",
+    "leaderboard_period_7_days": "7 Days",
+    "leaderboard_period_30_days": "30 Days",
+    "leaderboard_period_all_time": "All Time",
+    "leaderboard_share_suffix": "%1$s\n\nhttps://chess99.com/leaderboard",
+    "leaderboard_invite_text": "Join me on Chess99 — play chess online with players worldwide! Climb the leaderboard and prove your skills.\n\nhttps://chess99.com/leaderboard",
+    "leaderboard_invite_chooser": "Invite friends",
+    "unknown_player": "Unknown"
+  },
+  "edits": [
+    ["        val templates = SHARE_TEMPLATES[category] ?: return\n        val template = templates.random()\n        val text = template\n            .replace(\"{name}\", entry.name)\n            .replace(\"{value}\", formatValue(entry.value, category))\n\n        val shareText = \"$text\\n\\nhttps://chess99.com/leaderboard\"",
+     "        val templates = context.resources.getStringArray(shareTemplatesRes(category))\n        if (templates.isEmpty()) return\n        val text = templates.random()\n            .replace(\"{name}\", entry.name)\n            .replace(\"{value}\", formatValue(entry.value, category))\n\n        val shareText = context.getString(R.string.leaderboard_share_suffix, text)"],
+    ["        val chooser = Intent.createChooser(intent, \"Share via\").apply {", "        val chooser = Intent.createChooser(intent, context.getString(R.string.share_via)).apply {"],
+    ["        val text = \"Join me on Chess99 — play chess online with players worldwide! \" +\n            \"Climb the leaderboard and prove your skills.\\n\\nhttps://chess99.com/leaderboard\"",
+     "        val text = context.getString(R.string.leaderboard_invite_text)"],
+    ["        val chooser = Intent.createChooser(intent, \"Invite friends\").apply {", "        val chooser = Intent.createChooser(\n            intent,\n            context.getString(R.string.leaderboard_invite_chooser),\n        ).apply {"],
+    ["                name = e.get(\"name\")?.asString ?: \"Unknown\",", "                name = e.get(\"name\")?.asString ?: context.getString(R.string.unknown_player),"],
+    ["        private val SHARE_TEMPLATES = mapOf(\n            LeaderboardCategory.MOST_GAMES to listOf(\n                \"{value} games strong! Can you match {name}'s dedication on Chess99?\",\n                \"{name} has played {value} games on Chess99! That's commitment. Join the battle!\",\n                \"Legend alert: {name} with {value} games on Chess99. Think you can keep up?\",\n            ),\n            LeaderboardCategory.MOST_WINS to listOf(\n                \"Checkmate! {name} has {value} victories on Chess99. Challenge them!\",\n                \"{value} wins! {name} is dominating Chess99. Dare to take them on?\",\n                \"Victory machine: {name} with {value} wins on Chess99. Can you stop them?\",\n            ),\n            LeaderboardCategory.HIGHEST_POINTS to listOf(\n                \"{name} scored {value} points on Chess99! Can you beat that?\",\n                \"{value} points! {name} is a scoring machine on Chess99.\",\n                \"Point monster: {name} racked up {value} points. Join Chess99 and compete!\",\n            ),\n            LeaderboardCategory.BY_RATING to listOf(\n                \"Rated {value}! {name} is a force on Chess99. Dare to challenge?\",\n                \"{name} hit a {value} rating on Chess99! Think you can climb higher?\",\n                \"Rating royalty: {name} at {value} on Chess99. The board awaits your challenge!\",\n            ),\n        )\n",
+     "        /** Share copy lives in `res/values/strings.xml` as one array per category. */\n        @ArrayRes\n        private fun shareTemplatesRes(category: LeaderboardCategory): Int = when (category) {\n            LeaderboardCategory.MOST_GAMES -> R.array.leaderboard_share_most_games\n            LeaderboardCategory.MOST_WINS -> R.array.leaderboard_share_most_wins\n            LeaderboardCategory.HIGHEST_POINTS -> R.array.leaderboard_share_highest_points\n            LeaderboardCategory.BY_RATING -> R.array.leaderboard_share_by_rating\n        }\n"],
+    ["enum class LeaderboardCategory(val displayName: String, val valueLabel: String) {\n    MOST_GAMES(\"Most Games\", \"Games\"),\n    MOST_WINS(\"Most Wins\", \"Wins\"),\n    HIGHEST_POINTS(\"Highest Points\", \"Points\"),\n    BY_RATING(\"By Rating\", \"Rating\"),\n}",
+     "enum class LeaderboardCategory(\n    @StringRes val displayNameRes: Int,\n    @StringRes val valueLabelRes: Int,\n) {\n    MOST_GAMES(R.string.leaderboard_category_most_games, R.string.leaderboard_value_games),\n    MOST_WINS(R.string.leaderboard_category_most_wins, R.string.leaderboard_value_wins),\n    HIGHEST_POINTS(R.string.leaderboard_category_highest_points, R.string.leaderboard_value_points),\n    BY_RATING(R.string.leaderboard_category_by_rating, R.string.leaderboard_value_rating),\n}"],
+    ["enum class LeaderboardPeriod(val displayName: String, val apiValue: String) {\n    TODAY(\"Today\", \"today\"),\n    SEVEN_DAYS(\"7 Days\", \"7d\"),\n    THIRTY_DAYS(\"30 Days\", \"30d\"),\n    ALL_TIME(\"All Time\", \"all\"),\n}",
+     "enum class LeaderboardPeriod(@StringRes val displayNameRes: Int, val apiValue: String) {\n    TODAY(R.string.leaderboard_period_today, \"today\"),\n    SEVEN_DAYS(R.string.leaderboard_period_7_days, \"7d\"),\n    THIRTY_DAYS(R.string.leaderboard_period_30_days, \"30d\"),\n    ALL_TIME(R.string.leaderboard_period_all_time, \"all\"),\n}"],
+    ["import android.content.Intent\n", "import android.content.Intent\nimport androidx.annotation.ArrayRes\nimport androidx.annotation.StringRes\n"]
+  ]
+},
+{
+  "section": "Leaderboard screen",
+  "file": "presentation/social/LeaderboardScreen.kt",
+  "strings": {
+    "leaderboard_title": "Leaderboard",
+    "leaderboard_empty_today": "No games today. Be the first!",
+    "leaderboard_empty_week": "No games this week yet.",
+    "leaderboard_empty_month": "No games this month yet.",
+    "leaderboard_empty_all": "No leaderboard data available.",
+    "leaderboard_rank": "#%1$d",
+    "leaderboard_rated": "%1$d rated",
+    "leaderboard_invite_title": "Challenge your friends!",
+    "leaderboard_invite_body": "Invite friends to Chess99 and see who climbs the leaderboard faster.",
+    "leaderboard_invite": "Invite"
+  },
+  "edits": [
+    ["title = { Text(\"Leaderboard\") },", "title = { Text(stringResource(R.string.leaderboard_title)) },"],
+    ["Icon(Icons.AutoMirrored.Filled.ArrowBack, \"Back\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))"],
+    ["                        text = { Text(category.displayName, fontSize = 13.sp) },", "                        text = { Text(stringResource(category.displayNameRes), fontSize = 13.sp) },"],
+    ["                        label = { Text(period.displayName, fontSize = 12.sp) },", "                        label = { Text(stringResource(period.displayNameRes), fontSize = 12.sp) },"],
+    ["                                text = state.error ?: \"Unknown error\",", "                                text = state.error ?: stringResource(R.string.review_unknown_error),"],
+    ["                                Text(\"Retry\")", "                                Text(stringResource(R.string.action_retry))"],
+    ["                                text = when (state.selectedPeriod) {\n                                    LeaderboardPeriod.TODAY -> \"No games today. Be the first!\"\n                                    LeaderboardPeriod.SEVEN_DAYS -> \"No games this week yet.\"\n                                    LeaderboardPeriod.THIRTY_DAYS -> \"No games this month yet.\"\n                                    LeaderboardPeriod.ALL_TIME -> \"No leaderboard data available.\"\n                                },",
+     "                                text = stringResource(\n                                    when (state.selectedPeriod) {\n                                        LeaderboardPeriod.TODAY -> R.string.leaderboard_empty_today\n                                        LeaderboardPeriod.SEVEN_DAYS -> R.string.leaderboard_empty_week\n                                        LeaderboardPeriod.THIRTY_DAYS -> R.string.leaderboard_empty_month\n                                        LeaderboardPeriod.ALL_TIME -> R.string.leaderboard_empty_all\n                                    }\n                                ),"],
+    ["            text = category.valueLabel,\n            style = MaterialTheme.typography.bodySmall,", "            text = stringResource(category.valueLabelRes),\n            style = MaterialTheme.typography.bodySmall,"],
+    ["                text = \"${entry.rating} rated\",\n                style = MaterialTheme.typography.bodySmall,\n                color = MaterialTheme.colorScheme.onSurfaceVariant,\n                fontSize = 10.sp,\n            )\n        }\n\n        // Podium bar",
+     "                text = stringResource(R.string.leaderboard_rated, entry.rating),\n                style = MaterialTheme.typography.bodySmall,\n                color = MaterialTheme.colorScheme.onSurfaceVariant,\n                fontSize = 10.sp,\n            )\n        }\n\n        // Podium bar"],
+    ["                text = \"#${entry.rank}\",", "                text = stringResource(R.string.leaderboard_rank, entry.rank),"],
+    ["                        text = \"${entry.rating} rated\",\n                        style = MaterialTheme.typography.bodySmall,", "                        text = stringResource(R.string.leaderboard_rated, entry.rating),\n                        style = MaterialTheme.typography.bodySmall,"],
+    ["                    text = category.valueLabel,\n                    style = MaterialTheme.typography.bodySmall,", "                    text = stringResource(category.valueLabelRes),\n                    style = MaterialTheme.typography.bodySmall,"],
+    ["                    contentDescription = \"Share\",", "                    contentDescription = stringResource(R.string.action_share),"],
+    ["                    text = \"Challenge your friends!\",", "                    text = stringResource(R.string.leaderboard_invite_title),"],
+    ["                    text = \"Invite friends to Chess99 and see who climbs the leaderboard faster.\",", "                    text = stringResource(R.string.leaderboard_invite_body),"],
+    ["                Text(\"Invite\")", "                Text(stringResource(R.string.leaderboard_invite))"]
+  ]
+}
+]

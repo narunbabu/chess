@@ -1,13 +1,15 @@
 package com.chess99.presentation.learn.tactical
 
+import androidx.annotation.StringRes
+import com.chess99.R
 import com.chess99.engine.Color
 
 data class TacticalStage(
     val id: Int,
-    val title: String,
+    @StringRes val title: Int,
     val eloRange: String,
-    val description: String,
-    val themes: List<String>,
+    @StringRes val description: Int,
+    val themes: List<Int>,
     val puzzleCount: Int,
     val unlocked: Boolean,
     val colorHex: Long,
@@ -80,10 +82,16 @@ object TacticalStages {
     val stages = listOf(
         TacticalStage(
             id = 0,
-            title = "Beginner Tactics",
+            title = R.string.tactical_stage_0_title,
             eloRange = "800 → 1400",
-            description = "Master the fundamentals: forks, pins, back-rank mates, and skewers.",
-            themes = listOf("Fork", "Pin", "Back rank mate", "Skewer", "Hanging pieces"),
+            description = R.string.tactical_stage_0_description,
+            themes = listOf(
+                R.string.tactical_theme_fork,
+                R.string.tactical_theme_pin,
+                R.string.tactical_theme_back_rank_mate,
+                R.string.tactical_theme_skewer,
+                R.string.tactical_theme_hanging_pieces,
+            ),
             puzzleCount = 500,
             unlocked = true,
             colorHex = 0xFF4ADE80,
@@ -93,10 +101,15 @@ object TacticalStages {
         ),
         TacticalStage(
             id = 1,
-            title = "Tactical Sharpness",
+            title = R.string.tactical_stage_1_title,
             eloRange = "1400 → 1650",
-            description = "Stop missing multi-move tactics. Master double attacks, discovered checks, and removing the defender.",
-            themes = listOf("Double attacks", "Pins", "Discovered attacks", "Removing the defender"),
+            description = R.string.tactical_stage_1_description,
+            themes = listOf(
+                R.string.tactical_theme_double_attacks,
+                R.string.tactical_theme_pins,
+                R.string.tactical_theme_discovered_attacks,
+                R.string.tactical_theme_removing_the_defender,
+            ),
             puzzleCount = 500,
             unlocked = false,
             colorHex = 0xFF81B64C,
@@ -106,10 +119,15 @@ object TacticalStages {
         ),
         TacticalStage(
             id = 2,
-            title = "Calculation Depth",
+            title = R.string.tactical_stage_2_title,
             eloRange = "1650 → 1900",
-            description = "Calculate forcing lines clearly. Zwischenzug, deflection, sacrifices, and in-between moves.",
-            themes = listOf("Zwischenzug", "Deflection", "Sacrifices", "Forcing variations"),
+            description = R.string.tactical_stage_2_description,
+            themes = listOf(
+                R.string.tactical_theme_zwischenzug,
+                R.string.tactical_theme_deflection,
+                R.string.tactical_theme_sacrifices,
+                R.string.tactical_theme_forcing_variations,
+            ),
             puzzleCount = 500,
             unlocked = false,
             colorHex = 0xFF5B8DD9,
@@ -119,10 +137,15 @@ object TacticalStages {
         ),
         TacticalStage(
             id = 3,
-            title = "Positional Tactics",
+            title = R.string.tactical_stage_3_title,
             eloRange = "1900 → 2100",
-            description = "See tactics arising from position — quiet moves, overloaded pieces, and zugzwang.",
-            themes = listOf("Quiet moves", "Overloaded pieces", "Trapped pieces", "Zugzwang"),
+            description = R.string.tactical_stage_3_description,
+            themes = listOf(
+                R.string.tactical_theme_quiet_moves,
+                R.string.tactical_theme_overloaded_pieces,
+                R.string.tactical_theme_trapped_pieces,
+                R.string.tactical_theme_zugzwang,
+            ),
             puzzleCount = 500,
             unlocked = false,
             colorHex = 0xFFC9882A,
@@ -132,10 +155,15 @@ object TacticalStages {
         ),
         TacticalStage(
             id = 4,
-            title = "Master Calculation",
+            title = R.string.tactical_stage_4_title,
             eloRange = "2100 → 2200+",
-            description = "Long forcing lines, defensive resources, and endgame precision at master level.",
-            themes = listOf("Long forcing lines", "Defensive resources", "Endgame tactics", "Quiet killers"),
+            description = R.string.tactical_stage_4_description,
+            themes = listOf(
+                R.string.tactical_theme_long_forcing_lines,
+                R.string.tactical_theme_defensive_resources,
+                R.string.tactical_theme_endgame_tactics,
+                R.string.tactical_theme_quiet_killers,
+            ),
             puzzleCount = 500,
             unlocked = false,
             colorHex = 0xFFC93A3A,

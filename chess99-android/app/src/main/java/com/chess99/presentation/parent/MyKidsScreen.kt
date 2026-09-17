@@ -15,11 +15,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 private val ChessGreen = Color(0xFF81B64C)
 private val AccentAmber = Color(0xFFE8A93E)
@@ -70,10 +72,10 @@ fun MyKidsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("My Kids") },
+                title = { Text(stringResource(R.string.kids_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -98,8 +100,7 @@ fun MyKidsScreen(
                 ) {
                     item {
                         Text(
-                            "Track your child's chess progress — ratings, puzzles, lessons and recent " +
-                                "games — and get a weekly report card by email.",
+                            stringResource(R.string.kids_intro),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -121,18 +122,24 @@ fun MyKidsScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("${req.displayName} wants to be your guardian.", fontWeight = FontWeight.Medium)
                                         Text(
-                                            "They'll be able to see your progress reports.",
+                                            stringResource(
+                                                R.string.kids_guardian_request,
+                                                req.displayName,
+                                            ),
+                                            fontWeight = FontWeight.Medium,
+                                        )
+                                        Text(
+                                            stringResource(R.string.kids_guardian_request_body),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
-                                    TextButton(onClick = { viewModel.revokeLink(req.id) }) { Text("Decline") }
+                                    TextButton(onClick = { viewModel.revokeLink(req.id) }) { Text(stringResource(R.string.action_decline)) }
                                     Button(
                                         onClick = { viewModel.acceptGuardian(req.id) },
                                         enabled = state.busyRelationshipId != req.id,
-                                    ) { Text("Accept") }
+                                    ) { Text(stringResource(R.string.action_accept)) }
                                 }
                             }
                         }
@@ -142,7 +149,11 @@ fun MyKidsScreen(
                     item {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("Link a child account", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                Text(
+                                    stringResource(R.string.kids_link_title),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                )
                                 Spacer(Modifier.height(8.dp))
                                 state.linkError?.let {
                                     Text(it, color = LossRed, style = MaterialTheme.typography.bodySmall)
@@ -158,7 +169,7 @@ fun MyKidsScreen(
                                         childEmail = it
                                         if (state.linkError != null || state.linkNotice != null) viewModel.clearLinkNotice()
                                     },
-                                    label = { Text("Child's Chess99 account email") },
+                                    label = { Text(stringResource(R.string.kids_child_email)) },
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth(),
                                 )
@@ -166,7 +177,7 @@ fun MyKidsScreen(
                                 OutlinedTextField(
                                     value = relationshipLabel,
                                     onValueChange = { relationshipLabel = it },
-                                    label = { Text("Relationship (optional)") },
+                                    label = { Text(stringResource(R.string.kids_relationship)) },
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth(),
                                 )
@@ -185,13 +196,12 @@ fun MyKidsScreen(
                                     } else {
                                         Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(8.dp))
-                                        Text("Send invite")
+                                        Text(stringResource(R.string.kids_send_invite))
                                     }
                                 }
                                 Spacer(Modifier.height(6.dp))
                                 Text(
-                                    "Your child must already have a Chess99 account and approve the link " +
-                                        "from their own account.",
+                                    stringResource(R.string.kids_link_note),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -202,7 +212,11 @@ fun MyKidsScreen(
                     // Pending children (invited, not yet accepted)
                     if (state.pendingChildren.isNotEmpty()) {
                         item {
-                            Text("Awaiting confirmation", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(
+                                stringResource(R.string.kids_awaiting_confirmation),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                            )
                         }
                         items(state.pendingChildren) { pending ->
                             Card(modifier = Modifier.fillMaxWidth()) {
@@ -213,14 +227,17 @@ fun MyKidsScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(
-                                        "${pending.displayName} — invitation pending",
+                                        stringResource(
+                                            R.string.kids_invitation_pending,
+                                            pending.displayName,
+                                        ),
                                         modifier = Modifier.weight(1f),
                                         style = MaterialTheme.typography.bodyMedium,
                                     )
                                     TextButton(
                                         onClick = { viewModel.revokeLink(pending.id) },
                                         enabled = state.busyRelationshipId != pending.id,
-                                    ) { Text("Cancel") }
+                                    ) { Text(stringResource(R.string.action_cancel)) }
                                 }
                             }
                         }
@@ -254,8 +271,7 @@ fun MyKidsScreen(
                                     )
                                     Spacer(Modifier.height(8.dp))
                                     Text(
-                                        "No linked children yet. Add your child's account email above " +
-                                            "to start tracking their progress.",
+                                        stringResource(R.string.kids_empty),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = TextAlign.Center,
@@ -302,22 +318,30 @@ private fun ChildReportCard(
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("${report.rating}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    Text("Rating", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        stringResource(R.string.kids_rating),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
             Spacer(Modifier.height(14.dp))
-            Text("This week", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                stringResource(R.string.kids_this_week),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Spacer(Modifier.height(8.dp))
 
             // Week stats row
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                MiniStat("Games", "${report.weekGames}", Modifier.weight(1f))
-                MiniStat("W/L/D", report.weekResults, Modifier.weight(1f))
-                MiniStat("Puzzles", "${report.weekPuzzlesSolved}", Modifier.weight(1f), ChessGreen)
-                MiniStat("Lessons", "${report.weekLessons}", Modifier.weight(1f), AccentAmber)
+                MiniStat(stringResource(R.string.kids_stat_games), "${report.weekGames}", Modifier.weight(1f))
+                MiniStat(stringResource(R.string.kids_stat_wld), report.weekResults, Modifier.weight(1f))
+                MiniStat(stringResource(R.string.kids_stat_puzzles), "${report.weekPuzzlesSolved}", Modifier.weight(1f), ChessGreen)
+                MiniStat(stringResource(R.string.kids_stat_lessons), "${report.weekLessons}", Modifier.weight(1f), AccentAmber)
                 MiniStat(
-                    "Rating",
+                    stringResource(R.string.kids_rating),
                     report.ratingChangeLabel,
                     Modifier.weight(1f),
                     if (report.weekRatingChange >= 0) ChessGreen else LossRed,
@@ -326,9 +350,13 @@ private fun ChildReportCard(
 
             Spacer(Modifier.height(12.dp))
             Text(
-                "Learning time ${report.learningTimeLabel} · " +
-                    "Lifetime: ${report.lifetimeLessons} lessons, ${report.lifetimePuzzles} puzzles · " +
-                    "Tactical ${report.tacticalRating}",
+                stringResource(
+                    R.string.kids_learning_summary,
+                    report.learningTimeLabel,
+                    report.lifetimeLessons,
+                    report.lifetimePuzzles,
+                    report.tacticalRating,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -336,7 +364,11 @@ private fun ChildReportCard(
             // Recent games
             if (report.recentGames.isNotEmpty()) {
                 Spacer(Modifier.height(14.dp))
-                Text("Recent games", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.kids_recent_games),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Spacer(Modifier.height(6.dp))
                 report.recentGames.forEach { game ->
                     Row(
@@ -348,11 +380,13 @@ private fun ChildReportCard(
                         ResultBadge(game.result)
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            buildString {
-                                append("vs ")
-                                append(game.opponentName)
-                                game.opponentRating?.let { append(" ($it)") }
-                            },
+                            game.opponentRating?.let {
+                                stringResource(
+                                    R.string.kids_vs_opponent_rated,
+                                    game.opponentName,
+                                    it,
+                                )
+                            } ?: stringResource(R.string.kids_vs_opponent, game.opponentName),
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1,
@@ -364,7 +398,7 @@ private fun ChildReportCard(
                             ) {
                                 Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(2.dp))
-                                Text("Replay", style = MaterialTheme.typography.labelSmall)
+                                Text(stringResource(R.string.kids_replay), style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
@@ -380,13 +414,13 @@ private fun ChildReportCard(
                     } else {
                         Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Email report")
+                        Text(stringResource(R.string.kids_email_report))
                     }
                 }
                 OutlinedButton(onClick = onManage) {
                     Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Manage")
+                    Text(stringResource(R.string.kids_manage))
                 }
             }
         }
@@ -449,6 +483,9 @@ private fun ManageChildDialog(
     var password by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var localError by remember { mutableStateOf<String?>(null) }
+    // Resolved up front: the confirm-button callback below is not a composable scope.
+    val passwordsMismatch = stringResource(R.string.kids_passwords_mismatch)
+    val passwordTooShort = stringResource(R.string.kids_password_too_short)
 
     LaunchedEffect(success) {
         if (success) onDismiss()
@@ -456,7 +493,7 @@ private fun ManageChildDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Manage ${child.name}") },
+        title = { Text(stringResource(R.string.kids_manage_title, child.name)) },
         text = {
             Column {
                 (localError ?: error)?.let {
@@ -466,7 +503,7 @@ private fun ManageChildDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Display name") },
+                    label = { Text(stringResource(R.string.kids_display_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -474,7 +511,7 @@ private fun ManageChildDialog(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("New password (optional)") },
+                    label = { Text(stringResource(R.string.kids_new_password)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
@@ -483,7 +520,7 @@ private fun ManageChildDialog(
                 OutlinedTextField(
                     value = confirm,
                     onValueChange = { confirm = it },
-                    label = { Text("Confirm new password") },
+                    label = { Text(stringResource(R.string.kids_confirm_password)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
@@ -495,11 +532,11 @@ private fun ManageChildDialog(
                 onClick = {
                     localError = null
                     if (password.isNotBlank() && password != confirm) {
-                        localError = "Passwords do not match."
+                        localError = passwordsMismatch
                         return@Button
                     }
                     if (password.isNotBlank() && password.length < 8) {
-                        localError = "Password must be at least 8 characters."
+                        localError = passwordTooShort
                         return@Button
                     }
                     onSave(
@@ -512,12 +549,12 @@ private fun ManageChildDialog(
                 if (isManaging) {
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                 } else {
-                    Text("Save")
+                    Text(stringResource(R.string.action_save))
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }

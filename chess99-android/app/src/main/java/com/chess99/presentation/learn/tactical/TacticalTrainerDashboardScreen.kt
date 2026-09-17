@@ -14,12 +14,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,10 +80,10 @@ private fun DashboardContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tactical Trainer") },
+                title = { Text(stringResource(R.string.tactical_trainer_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -111,25 +113,25 @@ private fun DashboardContent(
                     ) {
                         StatBadge(
                             value = "${progress.rating}",
-                            label = "Rating",
+                            label = stringResource(R.string.tactical_stat_rating),
                             icon = Icons.Default.EmojiEvents,
                         )
                         VerticalDivider(modifier = Modifier.height(40.dp), color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
                         StatBadge(
                             value = "${progress.totalSolved}",
-                            label = "Solved",
+                            label = stringResource(R.string.tactical_stat_solved),
                             icon = Icons.Default.CheckCircle,
                         )
                         VerticalDivider(modifier = Modifier.height(40.dp), color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
                         StatBadge(
                             value = "$overallAccuracy%",
-                            label = "Accuracy",
+                            label = stringResource(R.string.tactical_stat_accuracy),
                             icon = if (overallAccuracy >= 70) Icons.Default.ThumbUp else Icons.Default.Info,
                         )
                         VerticalDivider(modifier = Modifier.height(40.dp), color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
                         StatBadge(
                             value = "${progress.streak}",
-                            label = "Streak",
+                            label = stringResource(R.string.tactical_stat_streak),
                             icon = Icons.Default.LocalFireDepartment,
                         )
                     }
@@ -150,12 +152,12 @@ private fun DashboardContent(
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Text(
-                                "Overall Progress",
+                                stringResource(R.string.tactical_overall_progress),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
-                                "$totalSolvedAcrossStages / $totalPuzzlesAcrossStages puzzles",
+                                stringResource(R.string.tactical_puzzles_progress, totalSolvedAcrossStages, totalPuzzlesAcrossStages),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -173,7 +175,7 @@ private fun DashboardContent(
                         if (progress.peakRating > 1000) {
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                "Peak rating: ${progress.peakRating} · Best streak: ${progress.bestStreak}",
+                                stringResource(R.string.tactical_peak_and_streak, progress.peakRating, progress.bestStreak),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -187,7 +189,7 @@ private fun DashboardContent(
             if (unlockedBadges.isNotEmpty()) {
                 item {
                     Text(
-                        "Badges",
+                        stringResource(R.string.tactical_badges),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(top = 4.dp),
@@ -220,7 +222,7 @@ private fun DashboardContent(
             // Stage cards
             item {
                 Text(
-                    "Stages",
+                    stringResource(R.string.tactical_stages),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
@@ -254,10 +256,10 @@ private fun DashboardContent(
     state.errorMessage?.let { error ->
         AlertDialog(
             onDismissRequest = onDismissError,
-            title = { Text("Error") },
+            title = { Text(stringResource(R.string.error_title)) },
             text = { Text(error) },
             confirmButton = {
-                TextButton(onClick = onDismissError) { Text("OK") }
+                TextButton(onClick = onDismissError) { Text(stringResource(R.string.action_ok)) }
             },
         )
     }
@@ -358,7 +360,7 @@ private fun StageCard(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        stage.title,
+                        stringResource(stage.title),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = if (isUnlocked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -370,7 +372,7 @@ private fun StageCard(
                         fontWeight = FontWeight.Medium,
                     )
                     Text(
-                        stage.description,
+                        stringResource(stage.description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
@@ -382,14 +384,14 @@ private fun StageCard(
                     Column(horizontalAlignment = Alignment.End) {
                         if (accuracy != null) {
                             Text(
-                                "$accuracy% acc",
+                                stringResource(R.string.tactical_accuracy_short, accuracy),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (accuracy >= 70) Color(0xFF81B64C) else Color(0xFFFFA726),
                                 fontWeight = FontWeight.Bold,
                             )
                         } else {
                             Text(
-                                "Not started",
+                                stringResource(R.string.tactical_not_started),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             )
@@ -433,7 +435,7 @@ private fun StageCard(
                                 shape = RoundedCornerShape(12.dp),
                             ) {
                                 Text(
-                                    theme,
+                                    stringResource(theme),
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = stageColor,
@@ -454,7 +456,7 @@ private fun StageCard(
                         shape = RoundedCornerShape(8.dp),
                     ) {
                         Text(
-                            "Solve $remaining more to unlock ${nextStage.title}",
+                            stringResource(R.string.tactical_unlock_hint, remaining, stringResource(nextStage.title)),
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -466,7 +468,7 @@ private fun StageCard(
                 val prevStage = TacticalStages.stages.find { it.id == stage.id - 1 }
                 val required = prevStage?.unlockAfter ?: 0
                 Text(
-                    "Solve $required puzzles in previous stage to unlock",
+                    stringResource(R.string.tactical_unlock_previous, required),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 )
@@ -488,10 +490,10 @@ private fun StageCompleteContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Stage Complete!") },
+                title = { Text(stringResource(R.string.tactical_stage_complete)) },
                 navigationIcon = {
                     IconButton(onClick = onBackToDashboard) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -511,19 +513,19 @@ private fun StageCompleteContent(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    "Stage Complete!",
+                    stringResource(R.string.tactical_stage_complete),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    "You've completed all ${state.puzzleCount} puzzles in",
+                    stringResource(R.string.tactical_completed_all, state.puzzleCount),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    stage.title,
+                    stringResource(stage.title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = stageColor,
@@ -545,11 +547,11 @@ private fun StageCompleteContent(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("$solved", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                            Text("Solved", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(R.string.tactical_stat_solved), style = MaterialTheme.typography.labelSmall)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("${state.progress.rating}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                            Text("Rating", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(R.string.tactical_stat_rating), style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -562,7 +564,7 @@ private fun StageCompleteContent(
 
                 if (nextStage != null && nextUnlocked) {
                     Text(
-                        "${nextStage.icon} ${nextStage.title} is now unlocked!",
+                        stringResource(R.string.tactical_stage_unlocked, nextStage.icon, stringResource(nextStage.title)),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFF81B64C),
                         fontWeight = FontWeight.Bold,
@@ -577,7 +579,7 @@ private fun StageCompleteContent(
                 ) {
                     Icon(Icons.Default.Dashboard, null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Back to Stages")
+                    Text(stringResource(R.string.tactical_back_to_stages))
                 }
             }
         }

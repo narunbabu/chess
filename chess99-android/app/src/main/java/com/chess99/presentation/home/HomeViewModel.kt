@@ -1,7 +1,9 @@
 package com.chess99.presentation.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.MatchmakingApi
 import com.chess99.data.api.RatingWindow
@@ -16,15 +18,16 @@ import com.chess99.domain.repository.AuthRepository
 import com.chess99.presentation.navigation.PendingDeepLinkStore
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * ViewModel backing the Home screen's "Continue playing" section.
@@ -42,6 +45,8 @@ class HomeViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val authRepository: AuthRepository,
     private val pendingDeepLinkStore: PendingDeepLinkStore,
+    // Injected so the snackbar and fallback copy below can come from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -139,13 +144,13 @@ class HomeViewModel @Inject constructor(
                     removeGame(gameId)
                 } else {
                     _uiState.value = _uiState.value.copy(
-                        snackbarMessage = "Couldn't discard that game. Please try again.",
+                        snackbarMessage = context.getString(R.string.home_discard_failed),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to discard game $gameId")
                 _uiState.value = _uiState.value.copy(
-                    snackbarMessage = "Couldn't discard that game. Please try again.",
+                    snackbarMessage = context.getString(R.string.home_discard_failed),
                 )
             }
         }
@@ -188,13 +193,13 @@ class HomeViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(startedGameId = gameId)
                 } else {
                     _uiState.value = _uiState.value.copy(
-                        snackbarMessage = "Couldn't start that game. Please try again.",
+                        snackbarMessage = context.getString(R.string.home_start_game_failed),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to start game vs synthetic player ${opponent.id}")
                 _uiState.value = _uiState.value.copy(
-                    snackbarMessage = "Couldn't start that game. Please try again.",
+                    snackbarMessage = context.getString(R.string.home_start_game_failed),
                 )
             }
         }
@@ -239,7 +244,10 @@ class HomeViewModel @Inject constructor(
         val whitePlayerId = json.int("white_player_id")
         val isWhite = whitePlayerId == currentUserId
         val opponent = if (isWhite) json.get("black_player")?.objOrNull() else json.get("white_player")?.objOrNull()
-        val opponentName = opponent.str("name") ?: "Opponent"
+        // A bot game has no User on the bot's side; its name is the synthetic player's.
+        val opponentName = opponent.str("name")
+            ?: json.get("synthetic_player")?.objOrNull().str("name")
+            ?: context.getString(R.string.player_opponent)
         val status = json.str("status") ?: "active"
         return ContinuePlayingGame(
             id = id,
@@ -259,7 +267,7 @@ class HomeViewModel @Inject constructor(
         val currentUserId = json.int("current_user_id")
         val whitePlayerId = json.int("white_player_id")
         val isWhite = whitePlayerId != null && whitePlayerId == currentUserId
-        val opponentName = json.str("opponent_name") ?: "Opponent"
+        val opponentName = json.str("opponent_name") ?: context.getString(R.string.player_opponent)
         return ContinuePlayingGame(
             id = id,
             opponentName = opponentName,
@@ -304,7 +312,7 @@ class HomeViewModel @Inject constructor(
         val id = json.int("id") ?: return null
         return NearbyOpponent(
             id = id,
-            name = json.str("name") ?: "Player",
+            name = json.str("name") ?: context.getString(R.string.player_generic),
             rating = json.int("rating") ?: 1200,
             avatarUrl = json.str("avatar_url"),
             isSynthetic = isSynthetic,

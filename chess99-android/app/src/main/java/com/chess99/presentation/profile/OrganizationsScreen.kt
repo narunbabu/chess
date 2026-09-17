@@ -12,11 +12,33 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 private val ORG_TYPES = listOf("club", "school", "federation", "company", "community", "other")
+
+/** Display label for an organization type key; unknown keys keep the server value. */
+@Composable
+private fun orgTypeLabel(type: String): String = when (type) {
+    "club" -> stringResource(R.string.org_type_club)
+    "school" -> stringResource(R.string.org_type_school)
+    "federation" -> stringResource(R.string.org_type_federation)
+    "company" -> stringResource(R.string.org_type_company)
+    "community" -> stringResource(R.string.org_type_community)
+    "other" -> stringResource(R.string.org_type_other)
+    else -> type.replaceFirstChar { it.uppercase() }
+}
+
+/** Display label for a member role key; unknown keys keep the server value. */
+@Composable
+private fun orgRoleLabel(role: String): String = when (role) {
+    "organization_admin" -> stringResource(R.string.org_role_admin)
+    "member" -> stringResource(R.string.org_role_member)
+    else -> role.replace("_", " ").replaceFirstChar { it.uppercase() }
+}
 
 /**
  * Organizations hub — mirrors the web Organizations area. Members can search/browse,
@@ -43,10 +65,13 @@ fun OrganizationsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Organizations", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.org_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
             )
@@ -55,7 +80,7 @@ fun OrganizationsScreen(
             ExtendedFloatingActionButton(
                 onClick = { showCreate = true },
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Create") },
+                text = { Text(stringResource(R.string.org_create)) },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -65,11 +90,13 @@ fun OrganizationsScreen(
                 value = state.query,
                 onValueChange = { viewModel.onQueryChange(it) },
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
-                label = { Text("Search clubs, schools, federations") },
+                label = { Text(stringResource(R.string.org_search_label)) },
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
-                    TextButton(onClick = { viewModel.search(state.query) }) { Text("Search") }
+                    TextButton(onClick = { viewModel.search(state.query) }) {
+                        Text(stringResource(R.string.org_search))
+                    }
                 },
             )
 
@@ -78,10 +105,16 @@ fun OrganizationsScreen(
                     CircularProgressIndicator()
                 }
                 state.error != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    Text(state.error ?: "Error", color = MaterialTheme.colorScheme.error)
+                    Text(
+                        state.error ?: stringResource(R.string.error_title),
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
                 state.organizations.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    Text("No organizations found", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        stringResource(R.string.org_none_found),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -97,9 +130,11 @@ fun OrganizationsScreen(
                                 leadingContent = { Icon(Icons.Default.Groups, contentDescription = null) },
                                 headlineContent = { Text(org.name, fontWeight = FontWeight.SemiBold) },
                                 supportingContent = {
-                                    Text(org.type.replaceFirstChar { it.uppercase() })
+                                    Text(orgTypeLabel(org.type))
                                 },
-                                trailingContent = { Text("${org.memberCount} members") },
+                                trailingContent = {
+                                    Text(stringResource(R.string.org_member_count, org.memberCount))
+                                },
                             )
                         }
                     }
@@ -146,13 +181,13 @@ private fun CreateOrganizationDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create organization") },
+        title = { Text(stringResource(R.string.org_create_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.org_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -161,10 +196,10 @@ private fun CreateOrganizationDialog(
                     onExpandedChange = { typeExpanded = it },
                 ) {
                     OutlinedTextField(
-                        value = type.replaceFirstChar { it.uppercase() },
+                        value = orgTypeLabel(type),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Type") },
+                        label = { Text(stringResource(R.string.org_type)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -176,7 +211,7 @@ private fun CreateOrganizationDialog(
                     ) {
                         ORG_TYPES.forEach { t ->
                             DropdownMenuItem(
-                                text = { Text(t.replaceFirstChar { it.uppercase() }) },
+                                text = { Text(orgTypeLabel(t)) },
                                 onClick = {
                                     type = t
                                     typeExpanded = false
@@ -188,14 +223,14 @@ private fun CreateOrganizationDialog(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Contact email") },
+                    label = { Text(stringResource(R.string.org_contact_email)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = desc,
                     onValueChange = { desc = it },
-                    label = { Text("Description (optional)") },
+                    label = { Text(stringResource(R.string.org_description)) },
                     minLines = 2,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -206,11 +241,13 @@ private fun CreateOrganizationDialog(
                 onClick = { onCreate(name, type, email, desc) },
                 enabled = name.isNotBlank() && email.isNotBlank() && !isCreating,
             ) {
-                Text(if (isCreating) "Creating…" else "Create")
+                Text(
+                    stringResource(if (isCreating) R.string.org_creating else R.string.org_create)
+                )
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
@@ -238,7 +275,7 @@ private fun OrganizationMembersSheet(
         ) {
             Text(org.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(
-                "${org.type.replaceFirstChar { it.uppercase() }} • ${org.memberCount} members",
+                stringResource(R.string.org_summary, orgTypeLabel(org.type), org.memberCount),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -249,19 +286,23 @@ private fun OrganizationMembersSheet(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Invite member")
+                Text(stringResource(R.string.org_invite_member))
             }
 
             HorizontalDivider()
 
-            Text("Members", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                stringResource(R.string.org_members),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
 
             when {
                 isLoading -> Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) {
                     CircularProgressIndicator()
                 }
                 members.isEmpty() -> Text(
-                    "No members yet.",
+                    stringResource(R.string.org_no_members),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -272,7 +313,7 @@ private fun OrganizationMembersSheet(
                         trailingContent = {
                             AssistChip(
                                 onClick = {},
-                                label = { Text(m.role.replace("_", " ").replaceFirstChar { it.uppercase() }) },
+                                label = { Text(orgRoleLabel(m.role)) },
                             )
                         },
                     )
@@ -304,19 +345,19 @@ private fun InviteMemberDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Invite member") },
+        title = { Text(stringResource(R.string.org_invite_member)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email") },
+                    label = { Text(stringResource(R.string.org_email)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = asAdmin, onCheckedChange = { asAdmin = it })
-                    Text("Invite as organization admin")
+                    Text(stringResource(R.string.org_invite_as_admin))
                 }
             }
         },
@@ -325,11 +366,13 @@ private fun InviteMemberDialog(
                 onClick = { onInvite(email, if (asAdmin) "organization_admin" else "member") },
                 enabled = email.isNotBlank() && !isInviting,
             ) {
-                Text(if (isInviting) "Sending…" else "Send invite")
+                Text(
+                    stringResource(if (isInviting) R.string.org_sending else R.string.org_send_invite)
+                )
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }

@@ -17,10 +17,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 /**
  * Ambassador toolkit — mirrors the web /ambassador page. Reuses ReferralViewModel
@@ -41,10 +43,13 @@ fun AmbassadorDashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ambassador", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.ambassador_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
             )
@@ -68,16 +73,18 @@ fun AmbassadorDashboardScreen(
                 status == null || status.equals("rejected", ignoreCase = true) -> {
                     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Become an Ambassador", fontWeight = FontWeight.Bold)
+                            Text(
+                                stringResource(R.string.ambassador_become_title),
+                                fontWeight = FontWeight.Bold,
+                            )
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                "Earn commission for every player you bring to Chess99. " +
-                                    "Apply to join the ambassador program.",
+                                stringResource(R.string.ambassador_become_body),
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Spacer(Modifier.height(12.dp))
                             Button(onClick = onNavigateToApply, modifier = Modifier.fillMaxWidth()) {
-                                Text("Apply Now")
+                                Text(stringResource(R.string.ambassador_apply_now))
                             }
                         }
                     }
@@ -85,11 +92,13 @@ fun AmbassadorDashboardScreen(
                 status.equals("pending", ignoreCase = true) -> {
                     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Application under review", fontWeight = FontWeight.Bold)
+                            Text(
+                                stringResource(R.string.ambassador_pending_title),
+                                fontWeight = FontWeight.Bold,
+                            )
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                "Your ambassador application is being reviewed. " +
-                                    "You can already share your referral link below.",
+                                stringResource(R.string.ambassador_pending_body),
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         }
@@ -104,9 +113,9 @@ fun AmbassadorDashboardScreen(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
-                        StatCell("Referred", s.totalReferrals.toString())
-                        StatCell("Active", s.activeReferrals.toString())
-                        StatCell("Earned", s.formattedEarnings)
+                        StatCell(stringResource(R.string.ambassador_stat_referred), s.totalReferrals.toString())
+                        StatCell(stringResource(R.string.ambassador_stat_active), s.activeReferrals.toString())
+                        StatCell(stringResource(R.string.ambassador_stat_earned), s.formattedEarnings)
                     }
                 }
             }
@@ -114,27 +123,32 @@ fun AmbassadorDashboardScreen(
             // ── Referral link ───────────────────────────────────────────────
             ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Your referral link", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.referral_your_link), fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(8.dp))
                     Text(link, style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { copyText(context, "Referral link", link) }) {
+                        val referralClipLabel = stringResource(R.string.referral_link_clip_label)
+                        OutlinedButton(onClick = { copyText(context, referralClipLabel, link) }) {
                             Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Copy")
+                            Text(stringResource(R.string.action_copy))
                         }
                         Button(onClick = { shareText(context, link) }) {
                             Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Share")
+                            Text(stringResource(R.string.action_share))
                         }
                     }
                 }
             }
 
             // ── Share templates ─────────────────────────────────────────────
-            Text("Share templates", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(R.string.ambassador_share_templates),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
             shareTemplates(link).forEach { tpl ->
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -146,12 +160,12 @@ fun AmbassadorDashboardScreen(
                             OutlinedButton(onClick = { copyText(context, tpl.audience, tpl.message) }) {
                                 Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Copy")
+                                Text(stringResource(R.string.action_copy))
                             }
                             Button(onClick = { shareText(context, tpl.message) }) {
                                 Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Share")
+                                Text(stringResource(R.string.action_share))
                             }
                         }
                     }
@@ -160,11 +174,17 @@ fun AmbassadorDashboardScreen(
 
             // ── Payout history (from referral data) ─────────────────────────
             if (state.payouts.isNotEmpty()) {
-                Text("Payout history", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.ambassador_payout_history),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
                 state.payouts.forEach { p ->
                     ListItem(
                         headlineContent = { Text(p.formattedAmount) },
-                        supportingContent = { Text("${p.method} • ${p.date}") },
+                        supportingContent = {
+                            Text(stringResource(R.string.ambassador_payout_detail, p.method, p.date))
+                        },
                         trailingContent = { Text(p.status) },
                     )
                 }
@@ -204,14 +224,14 @@ internal fun AdultOnlyNotice(modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.height(16.dp))
         Text(
-            "Adults only",
+            stringResource(R.string.ambassador_adults_only_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "The Ambassador program is for adults (18+).",
+            stringResource(R.string.ambassador_adults_only_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -221,30 +241,27 @@ internal fun AdultOnlyNotice(modifier: Modifier = Modifier) {
 
 private data class ShareTemplate(val audience: String, val message: String)
 
+@Composable
 private fun shareTemplates(link: String): List<ShareTemplate> = listOf(
     ShareTemplate(
-        "For Parents",
-        "I found a great way for kids to learn chess online — Chess99 has guided lessons, " +
-            "tactics training and safe online play. Join here: $link",
+        stringResource(R.string.ambassador_tpl_parents),
+        stringResource(R.string.ambassador_tpl_parents_body, link),
     ),
     ShareTemplate(
-        "For Students",
-        "Level up your chess! Chess99 has puzzles, lessons and rated games against real players. " +
-            "Sign up with my link: $link",
+        stringResource(R.string.ambassador_tpl_students),
+        stringResource(R.string.ambassador_tpl_students_body, link),
     ),
     ShareTemplate(
-        "For Friends",
-        "Let's play chess on Chess99 — quick games, ratings and tournaments. Join me: $link",
+        stringResource(R.string.ambassador_tpl_friends),
+        stringResource(R.string.ambassador_tpl_friends_body, link),
     ),
     ShareTemplate(
-        "For Coaches",
-        "Chess99 is a solid platform for coaching — lessons, tactical trainer, tournaments and student " +
-            "progress tracking. Take a look: $link",
+        stringResource(R.string.ambassador_tpl_coaches),
+        stringResource(R.string.ambassador_tpl_coaches_body, link),
     ),
     ShareTemplate(
-        "Telugu",
-        "చెస్ నేర్చుకోవాలనుకుంటున్నారా? Chess99 లో పాఠాలు, పజిల్స్, ఆన్‌లైన్ ఆటలు ఉన్నాయి. " +
-            "ఇక్కడ చేరండి: $link",
+        stringResource(R.string.ambassador_tpl_telugu),
+        stringResource(R.string.ambassador_tpl_telugu_body, link),
     ),
 )
 
@@ -258,5 +275,7 @@ private fun shareText(context: Context, text: String) {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, text)
     }
-    context.startActivity(Intent.createChooser(intent, "Share via"))
+    context.startActivity(
+        Intent.createChooser(intent, context.getString(R.string.share_via))
+    )
 }

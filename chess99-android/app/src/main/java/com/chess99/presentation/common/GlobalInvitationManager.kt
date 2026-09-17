@@ -1,10 +1,12 @@
 package com.chess99.presentation.common
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.MatchmakingApi
 import com.chess99.data.api.WebSocketApi
 import com.chess99.data.websocket.PusherManager
@@ -13,12 +15,13 @@ import com.google.gson.JsonParser
 import com.pusher.client.channel.PrivateChannelEventListener
 import com.pusher.client.channel.PusherEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 data class InvitationData(
     val id: String,
@@ -43,6 +46,8 @@ class GlobalInvitationViewModel @Inject constructor(
     private val matchmakingApi: MatchmakingApi,
     private val webSocketApi: WebSocketApi,
     private val pusherManager: PusherManager,
+    // Injected so the name fallback below can come from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _currentInvitation = MutableStateFlow<InvitationData?>(null)
@@ -111,7 +116,7 @@ class GlobalInvitationViewModel @Inject constructor(
                 _currentInvitation.value = InvitationData(
                     id = invitation.get("id")?.asString ?: return,
                     type = "invitation",
-                    inviterName = invitation.getAsJsonObject("inviter")?.get("name")?.asString ?: "Unknown",
+                    inviterName = invitation.getAsJsonObject("inviter")?.get("name")?.asString ?: context.getString(R.string.player_unknown),
                     inviterRating = invitation.getAsJsonObject("inviter")?.get("rating")?.asInt,
                     inviterAvatarUrl = invitation.getAsJsonObject("inviter")?.get("avatar_url")?.asString,
                     gameId = null,
@@ -133,7 +138,7 @@ class GlobalInvitationViewModel @Inject constructor(
                 _currentInvitation.value = InvitationData(
                     id = "new_game_$newGameId",
                     type = "new_game_request",
-                    inviterName = requestingUser?.get("name")?.asString ?: "Unknown",
+                    inviterName = requestingUser?.get("name")?.asString ?: context.getString(R.string.player_unknown),
                     inviterRating = requestingUser?.get("rating")?.asInt,
                     inviterAvatarUrl = requestingUser?.get("avatar_url")?.asString,
                     gameId = newGameId,
@@ -155,7 +160,7 @@ class GlobalInvitationViewModel @Inject constructor(
                 _currentInvitation.value = InvitationData(
                     id = "resume_$gameId",
                     type = "resume_request",
-                    inviterName = requestingUser?.get("name")?.asString ?: "Unknown",
+                    inviterName = requestingUser?.get("name")?.asString ?: context.getString(R.string.player_unknown),
                     inviterRating = null,
                     inviterAvatarUrl = null,
                     gameId = gameId,
@@ -177,7 +182,7 @@ class GlobalInvitationViewModel @Inject constructor(
                 _currentInvitation.value = InvitationData(
                     id = "match_${matchRequest.get("token")?.asString}",
                     type = "match_request",
-                    inviterName = requester?.get("name")?.asString ?: "Unknown",
+                    inviterName = requester?.get("name")?.asString ?: context.getString(R.string.player_unknown),
                     inviterRating = requester?.get("rating")?.asInt,
                     inviterAvatarUrl = requester?.get("avatar_url")?.asString,
                     gameId = null,
@@ -199,7 +204,7 @@ class GlobalInvitationViewModel @Inject constructor(
                 _currentInvitation.value = InvitationData(
                     id = "champ_resume_$matchId",
                     type = "championship_resume",
-                    inviterName = requester?.get("name")?.asString ?: "Unknown",
+                    inviterName = requester?.get("name")?.asString ?: context.getString(R.string.player_unknown),
                     inviterRating = null,
                     inviterAvatarUrl = requester?.get("avatar_url")?.asString,
                     gameId = data.get("game_id")?.asInt,

@@ -1,0 +1,287 @@
+[
+  {
+    "section": "Move classification labels (resource ids on the domain enum)",
+    "file": "domain/model/MoveAnalysis.kt",
+    "strings": {
+      "move_class_brilliant": "Brilliant",
+      "move_class_excellent": "Excellent",
+      "move_class_good": "Good",
+      "move_class_inaccuracy": "Inaccuracy",
+      "move_class_mistake": "Mistake",
+      "move_class_blunder": "Blunder",
+      "move_class_book": "Book"
+    },
+    "edits": [
+      [
+        "package com.chess99.domain.model\n",
+        "package com.chess99.domain.model\n\nimport com.chess99.R\n"
+      ],
+      [
+        "enum class MoveClassification(val icon: String, val label: String) {\n    BRILLIANT(\"★\", \"Brilliant\"),\n    EXCELLENT(\"⭐\", \"Excellent\"),\n    GOOD(\"✓\", \"Good\"),\n    INACCURACY(\"?!\", \"Inaccuracy\"),\n    MISTAKE(\"?\", \"Mistake\"),\n    BLUNDER(\"??\", \"Blunder\"),\n    BOOK(\"📗\", \"Book\"),\n}",
+        "/** `icon` is a glyph, not copy; the label is a string resource. */\nenum class MoveClassification(\n    val icon: String,\n    @androidx.annotation.StringRes val labelRes: Int,\n) {\n    BRILLIANT(\"★\", R.string.move_class_brilliant),\n    EXCELLENT(\"⭐\", R.string.move_class_excellent),\n    GOOD(\"✓\", R.string.move_class_good),\n    INACCURACY(\"?!\", R.string.move_class_inaccuracy),\n    MISTAKE(\"?\", R.string.move_class_mistake),\n    BLUNDER(\"??\", R.string.move_class_blunder),\n    BOOK(\"📗\", R.string.move_class_book),\n}"
+      ]
+    ]
+  },
+  {
+    "section": "Lifeline markers",
+    "file": "presentation/history/LifelineMarkers.kt",
+    "strings": {
+      "lifeline_best": "Best",
+      "lifeline_undo": "Undo",
+      "lifeline_review": "Review",
+      "lifeline_help": "Help"
+    },
+    "edits": [
+      [
+        "    fun label(marker: String): String = when (marker.lowercase()) {\n        \"best-move\", \"best_move\", \"best\" -> \"Best\"\n        \"undo\" -> \"Undo\"\n        \"review\" -> \"Review\"\n        else -> \"Help\"\n    }",
+        "    @androidx.annotation.StringRes\n    fun labelRes(marker: String): Int = when (marker.lowercase()) {\n        \"best-move\", \"best_move\", \"best\" -> R.string.lifeline_best\n        \"undo\" -> R.string.lifeline_undo\n        \"review\" -> R.string.lifeline_review\n        else -> R.string.lifeline_help\n    }"
+      ]
+    ]
+  },
+  {
+    "section": "Stockfish analysis panel",
+    "file": "presentation/history/MoveAnalysisUi.kt",
+    "strings": {
+      "analysis_run": "Analyze with Stockfish",
+      "analysis_run_body": "Run full game analysis to see evaluations, accuracy, and move quality",
+      "analysis_running_progress": "Analyzing game... %1$d%%",
+      "analysis_running": "Analyzing game...",
+      "analysis_running_body": "Stockfish is evaluating each position (depth 18)",
+      "analysis_failed": "Analysis Failed",
+      "analysis_title": "Stockfish Analysis",
+      "analysis_depth": "Depth 18",
+      "analysis_acpl": "ACPL: %1$.1f",
+      "analysis_accuracy_value": "%1$.1f%%",
+      "analysis_opening": "Opening",
+      "analysis_evaluation": "EVALUATION",
+      "analysis_move_classifications": "MOVE CLASSIFICATIONS"
+    },
+    "edits": [
+      [
+        "                Text(\"Analyze with Stockfish\")",
+        "                Text(stringResource(R.string.analysis_run))"
+      ],
+      [
+        "                text = \"Run full game analysis to see evaluations, accuracy, and move quality\",",
+        "                text = stringResource(R.string.analysis_run_body),"
+      ],
+      [
+        "                text = if (progress > 0) \"Analyzing game... $progress%\" else \"Analyzing game...\",",
+        "                text = if (progress > 0) {\n                    stringResource(R.string.analysis_running_progress, progress)\n                } else {\n                    stringResource(R.string.analysis_running)\n                },"
+      ],
+      [
+        "                text = \"Stockfish is evaluating each position (depth 18)\",",
+        "                text = stringResource(R.string.analysis_running_body),"
+      ],
+      [
+        "                text = \"Analysis Failed\",",
+        "                text = stringResource(R.string.analysis_failed),"
+      ],
+      [
+        "                Text(\"Retry\")",
+        "                Text(stringResource(R.string.action_retry))"
+      ],
+      [
+        "                        text = \"Stockfish Analysis\",",
+        "                        text = stringResource(R.string.analysis_title),"
+      ],
+      [
+        "                    text = \"Depth 18\",",
+        "                    text = stringResource(R.string.analysis_depth),"
+      ],
+      [
+        "            label = \"White\",\n            accuracy = accuracyWhite,",
+        "            label = stringResource(R.string.color_white_name),\n            accuracy = accuracyWhite,"
+      ],
+      [
+        "            label = \"Black\",\n            accuracy = accuracyBlack,",
+        "            label = stringResource(R.string.color_black_name),\n            accuracy = accuracyBlack,"
+      ],
+      [
+        "                    text = \"ACPL: ${\"%.1f\".format(acpl)}\",",
+        "                    text = stringResource(R.string.analysis_acpl, acpl),"
+      ],
+      [
+        "                    text = \"${\"%.1f\".format(accuracy)}%\",",
+        "                    text = stringResource(R.string.analysis_accuracy_value, accuracy),"
+      ],
+      [
+        "        QualityColumn(\"White\", qualityCounts.white, modifier = Modifier.weight(1f))\n        QualityColumn(\"Black\", qualityCounts.black, modifier = Modifier.weight(1f))",
+        "        QualityColumn(\n            stringResource(R.string.color_white_name),\n            qualityCounts.white,\n            modifier = Modifier.weight(1f),\n        )\n        QualityColumn(\n            stringResource(R.string.color_black_name),\n            qualityCounts.black,\n            modifier = Modifier.weight(1f),\n        )"
+      ],
+      [
+        "            text = \"EVALUATION\",",
+        "            text = stringResource(R.string.analysis_evaluation),"
+      ],
+      [
+        "            text = \"MOVE CLASSIFICATIONS\",",
+        "            text = stringResource(R.string.analysis_move_classifications),"
+      ],
+      [
+        "                        text = \"${pairIndex + 1}.\",",
+        "                        text = stringResource(R.string.game_move_number, pairIndex + 1),"
+      ],
+      [
+        "                text = \"Opening\",",
+        "                text = stringResource(R.string.analysis_opening),"
+      ],
+      [
+        "                    text = cls.label,",
+        "                    text = stringResource(cls.labelRes),"
+      ]
+    ]
+  },
+  {
+    "section": "Game review",
+    "file": "presentation/history/GameReviewScreen.kt",
+    "strings": {
+      "review_title": "Game Review",
+      "review_vs_opponent": "vs %1$s",
+      "a11y_copy_pgn": "Copy PGN",
+      "a11y_export_pgn": "Export PGN",
+      "review_unknown_error": "Unknown error",
+      "review_go_back": "Go Back",
+      "review_game_not_found": "Game not found",
+      "review_starting_position": "Starting position",
+      "review_move_san": "%1$d. %2$s",
+      "review_eval_loss": "-%1$.1f",
+      "review_eval_gain": "+%1$.1f",
+      "review_lifelines": "Lifelines",
+      "review_lifelines_summary": "%1$d used · %2$s",
+      "review_lifeline_count": "%1$d %2$s",
+      "review_detail_opponent": "Opponent",
+      "review_opponent_rated": "%1$s (%2$d)",
+      "review_detail_color": "Color",
+      "review_detail_time": "Time",
+      "review_detail_mode": "Mode",
+      "review_detail_moves": "Moves",
+      "review_end_checkmate": "Ended by checkmate",
+      "review_end_resignation": "Ended by resignation",
+      "review_end_timeout": "Ended on time",
+      "review_end_stalemate": "Ended in stalemate",
+      "review_end_agreed_draw": "Draw by agreement",
+      "review_end_insufficient_material": "Draw by insufficient material",
+      "review_end_repetition": "Draw by threefold repetition",
+      "review_end_fifty_move": "Draw by 50-move rule",
+      "review_end_abandoned": "Game abandoned"
+    },
+    "edits": [
+      [
+        "                            text = \"Game Review\",",
+        "                            text = stringResource(R.string.review_title),"
+      ],
+      [
+        "                                text = \"vs ${game.opponentName}\",",
+        "                                text = stringResource(R.string.review_vs_opponent, game.opponentName),"
+      ],
+      [
+        "Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = \"Back\")",
+        "Icon(\n                            Icons.AutoMirrored.Filled.ArrowBack,\n                            contentDescription = stringResource(R.string.action_back),\n                        )"
+      ],
+      [
+        "                                val clip = ClipData.newPlainText(\"PGN\", pgn)",
+        "                                val clip = ClipData.newPlainText(\n                                    context.getString(R.string.history_pgn_clip_label),\n                                    pgn,\n                                )"
+      ],
+      [
+        "                        Icon(Icons.Default.ContentCopy, contentDescription = \"Copy PGN\")",
+        "                        Icon(\n                            Icons.Default.ContentCopy,\n                            contentDescription = stringResource(R.string.a11y_copy_pgn),\n                        )"
+      ],
+      [
+        "                        Icon(Icons.Default.IosShare, contentDescription = \"Export PGN\")",
+        "                        Icon(\n                            Icons.Default.IosShare,\n                            contentDescription = stringResource(R.string.a11y_export_pgn),\n                        )"
+      ],
+      [
+        "                            text = state.error ?: \"Unknown error\",",
+        "                            text = state.error ?: stringResource(R.string.review_unknown_error),"
+      ],
+      [
+        "                            Text(\"Go Back\")",
+        "                            Text(stringResource(R.string.review_go_back))"
+      ],
+      [
+        "                        text = \"Game not found\",",
+        "                        text = stringResource(R.string.review_game_not_found),"
+      ],
+      [
+        "                                    val clip = ClipData.newPlainText(\"PGN\", pgn)",
+        "                                    val clip = ClipData.newPlainText(\n                                        context.getString(R.string.history_pgn_clip_label),\n                                        pgn,\n                                    )"
+      ],
+      [
+        "                            Text(\"Copy PGN\")",
+        "                            Text(stringResource(R.string.history_copy_pgn))"
+      ],
+      [
+        "                                    error = analysisReport.error ?: \"Unknown error\",",
+        "                                    error = analysisReport.error\n                                        ?: stringResource(R.string.review_unknown_error),"
+      ],
+      [
+        "            text = \"Starting position\",",
+        "            text = stringResource(R.string.review_starting_position),"
+      ],
+      [
+        "            text = \"${move.moveNumber}. ${move.san}\",",
+        "            text = stringResource(R.string.review_move_san, move.moveNumber, move.san),"
+      ],
+      [
+        "            val deltaText = if (deltaCp > 0) {\n                \"-${\"%.1f\".format(deltaCp / 100.0)}\"\n            } else {\n                \"+${\"%.1f\".format(-deltaCp / 100.0)}\"\n            }",
+        "            val deltaText = if (deltaCp > 0) {\n                stringResource(R.string.review_eval_loss, deltaCp / 100.0)\n            } else {\n                stringResource(R.string.review_eval_gain, -deltaCp / 100.0)\n            }"
+      ],
+      [
+        "                text = classification.label,",
+        "                text = stringResource(classification.labelRes),"
+      ],
+      [
+        "            \"Moves\",\n            style = MaterialTheme.typography.titleSmall,",
+        "            stringResource(R.string.game_moves),\n            style = MaterialTheme.typography.titleSmall,"
+      ],
+      [
+        "                    text = \"${pairIndex + 1}.\",",
+        "                    text = stringResource(R.string.game_move_number, pairIndex + 1),"
+      ],
+      [
+        "                        LifelineMarkers.label(marker),",
+        "                        stringResource(LifelineMarkers.labelRes(marker)),"
+      ],
+      [
+        "                    text = \"-${\"%.1f\".format(analysis.cpLoss / 100.0)}\",",
+        "                    text = stringResource(R.string.review_eval_loss, analysis.cpLoss / 100.0),"
+      ],
+      [
+        "            Text(\"Lifelines\", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)",
+        "            Text(\n                stringResource(R.string.review_lifelines),\n                fontWeight = FontWeight.Bold,\n                style = MaterialTheme.typography.labelLarge,\n            )"
+      ],
+      [
+        "                \"${markers.size} used · ${markers.groupBy { LifelineMarkers.label(it) }.entries.joinToString { \"${it.value.size} ${it.key}\" }}\",",
+        "                stringResource(\n                    R.string.review_lifelines_summary,\n                    markers.size,\n                    markers.groupBy { stringResource(LifelineMarkers.labelRes(it)) }\n                        .entries\n                        .joinToString { entry ->\n                            \"${entry.value.size} ${entry.key}\"\n                        },\n                ),"
+      ],
+      [
+        "                    text = when (game.result) {\n                        GameResult.WON -> \"Victory\"\n                        GameResult.LOST -> \"Defeat\"\n                        GameResult.DRAW -> \"Draw\"\n                    },",
+        "                    text = stringResource(\n                        when (game.result) {\n                            GameResult.WON -> R.string.history_result_won\n                            GameResult.LOST -> R.string.history_result_lost\n                            GameResult.DRAW -> R.string.history_result_draw\n                        }\n                    ),"
+      ],
+      [
+        "                    label = \"Opponent\",\n                    value = game.opponentName + if (game.opponentRating > 0) \" (${game.opponentRating})\" else \"\",",
+        "                    label = stringResource(R.string.review_detail_opponent),\n                    value = if (game.opponentRating > 0) {\n                        stringResource(\n                            R.string.review_opponent_rated,\n                            game.opponentName,\n                            game.opponentRating,\n                        )\n                    } else {\n                        game.opponentName\n                    },"
+      ],
+      [
+        "                    label = \"Color\",\n                    value = if (game.playerColor == \"white\") \"♔ White\" else \"♚ Black\",",
+        "                    label = stringResource(R.string.review_detail_color),\n                    value = stringResource(\n                        if (game.playerColor == \"white\") R.string.color_white\n                        else R.string.color_black\n                    ),"
+      ],
+      [
+        "                    DetailItem(label = \"Time\", value = game.timeControl)",
+        "                    DetailItem(\n                        label = stringResource(R.string.review_detail_time),\n                        value = game.timeControl,\n                    )"
+      ],
+      [
+        "                    label = \"Mode\",\n                    value = game.gameMode.replaceFirstChar { it.uppercaseChar() },",
+        "                    label = stringResource(R.string.review_detail_mode),\n                    value = game.gameMode.replaceFirstChar { it.uppercaseChar() },"
+      ],
+      [
+        "                    DetailItem(label = \"Moves\", value = \"${game.totalMoves}\")",
+        "                    DetailItem(\n                        label = stringResource(R.string.review_detail_moves),\n                        value = \"${game.totalMoves}\",\n                    )"
+      ],
+      [
+        "private fun formatEndReason(reason: String): String {\n    return when (reason.lowercase()) {\n        \"checkmate\" -> \"Ended by checkmate\"\n        \"resignation\", \"resign\" -> \"Ended by resignation\"\n        \"timeout\", \"time\" -> \"Ended on time\"\n        \"stalemate\" -> \"Ended in stalemate\"\n        \"draw\", \"agreed_draw\" -> \"Draw by agreement\"\n        \"insufficient_material\" -> \"Draw by insufficient material\"\n        \"threefold_repetition\", \"repetition\" -> \"Draw by threefold repetition\"\n        \"fifty_move_rule\", \"50_move\" -> \"Draw by 50-move rule\"\n        \"abandonment\", \"abandoned\" -> \"Game abandoned\"\n        else -> reason.replace(\"_\", \" \").replaceFirstChar { it.uppercaseChar() }\n    }\n}",
+        "@Composable\nprivate fun formatEndReason(reason: String): String {\n    val res = when (reason.lowercase()) {\n        \"checkmate\" -> R.string.review_end_checkmate\n        \"resignation\", \"resign\" -> R.string.review_end_resignation\n        \"timeout\", \"time\" -> R.string.review_end_timeout\n        \"stalemate\" -> R.string.review_end_stalemate\n        \"draw\", \"agreed_draw\" -> R.string.review_end_agreed_draw\n        \"insufficient_material\" -> R.string.review_end_insufficient_material\n        \"threefold_repetition\", \"repetition\" -> R.string.review_end_repetition\n        \"fifty_move_rule\", \"50_move\" -> R.string.review_end_fifty_move\n        \"abandonment\", \"abandoned\" -> R.string.review_end_abandoned\n        else -> null\n    }\n    return res?.let { stringResource(it) }\n        ?: reason.replace(\"_\", \" \").replaceFirstChar { it.uppercaseChar() }\n}"
+      ]
+    ]
+  }
+]

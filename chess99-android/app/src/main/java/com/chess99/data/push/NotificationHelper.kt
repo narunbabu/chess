@@ -44,33 +44,33 @@ class NotificationHelper @Inject constructor(
         val channels = listOf(
             NotificationChannel(
                 CHANNEL_GAME,
-                "Game Notifications",
+                context.getString(R.string.notif_channel_game),
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
-                description = "Notifications for game moves, invitations, and results"
+                description = context.getString(R.string.notif_channel_game_desc)
                 enableVibration(true)
                 enableLights(true)
             },
             NotificationChannel(
                 CHANNEL_TOURNAMENT,
-                "Tournament Notifications",
+                context.getString(R.string.notif_channel_tournament),
                 NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
-                description = "Notifications for tournament updates, round pairings, and results"
+                description = context.getString(R.string.notif_channel_tournament_desc)
             },
             NotificationChannel(
                 CHANNEL_SOCIAL,
-                "Social Notifications",
+                context.getString(R.string.notif_channel_social),
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = "Notifications for friend requests and social events"
+                description = context.getString(R.string.notif_channel_social_desc)
             },
             NotificationChannel(
                 CHANNEL_SYSTEM,
-                "System Notifications",
+                context.getString(R.string.notif_channel_system),
                 NotificationManager.IMPORTANCE_MIN,
             ).apply {
-                description = "System maintenance and informational messages"
+                description = context.getString(R.string.notif_channel_system_desc)
             },
         )
 
@@ -81,12 +81,13 @@ class NotificationHelper @Inject constructor(
     // ── Game Move ────────────────────────────────────────────────────────
 
     fun showGameMoveNotification(gameId: Int, opponentName: String, isYourTurn: Boolean) {
-        val title = if (isYourTurn) "Your turn!" else "Opponent moved"
-        val body = if (isYourTurn) {
-            "$opponentName made a move. It's your turn to play."
-        } else {
-            "You made a move against $opponentName."
-        }
+        val title = context.getString(
+            if (isYourTurn) R.string.notif_your_turn_title else R.string.notif_opponent_moved_title,
+        )
+        val body = context.getString(
+            if (isYourTurn) R.string.notif_your_turn_body else R.string.notif_opponent_moved_body,
+            opponentName,
+        )
 
         val pendingIntent = buildDeepLinkPendingIntent(
             uri = "chess99://game/$gameId",
@@ -128,19 +129,19 @@ class NotificationHelper @Inject constructor(
 
         val notification = NotificationCompat.Builder(context, CHANNEL_GAME)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Game Challenge")
-            .setContentText("$fromPlayer has challenged you to a game!")
+            .setContentTitle(context.getString(R.string.notif_challenge_title))
+            .setContentText(context.getString(R.string.notif_challenge_body, fromPlayer))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .addAction(
                 R.mipmap.ic_launcher,
-                "Accept",
+                context.getString(R.string.action_accept),
                 acceptIntent,
             )
             .addAction(
                 R.mipmap.ic_launcher,
-                "Decline",
+                context.getString(R.string.action_decline),
                 declineIntent,
             )
             .setCategory(NotificationCompat.CATEGORY_SOCIAL)

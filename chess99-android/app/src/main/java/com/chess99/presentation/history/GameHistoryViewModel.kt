@@ -1,8 +1,10 @@
 package com.chess99.presentation.history
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.arrOrNull
 import com.chess99.data.api.int
@@ -11,8 +13,8 @@ import com.chess99.data.api.str
 import com.chess99.domain.model.*
 import com.chess99.engine.ChessGame
 import com.chess99.engine.EngineFailureCopy
-import com.chess99.engine.StockfishEngine
 import com.chess99.engine.PositionAnalysis
+import com.chess99.engine.StockfishEngine
 import com.chess99.engine.detectOpening
 import com.chess99.presentation.common.MoveReplay
 import com.chess99.presentation.common.ReplayPly
@@ -20,6 +22,8 @@ import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +32,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * ViewModel for Game History screen.
@@ -42,6 +45,8 @@ class GameHistoryViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val stockfishEngine: StockfishEngine,
     private val shareManager: com.chess99.presentation.social.ShareManager,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     companion object {
@@ -115,7 +120,7 @@ class GameHistoryViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         isLoadingMore = false,
-                        error = "Couldn't load your games. Please try again.",
+                        error = context.getString(R.string.history_load_failed),
                     )
                 }
             } catch (e: Exception) {
@@ -123,7 +128,7 @@ class GameHistoryViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isLoadingMore = false,
-                    error = friendlyError(e, "your games"),
+                    error = friendlyError(context, e, R.string.error_subject_your_games),
                 )
             }
         }
@@ -231,14 +236,14 @@ class GameHistoryViewModel @Inject constructor(
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = "Failed to load game (${response.code()})",
+                        error = context.getString(R.string.history_load_game_failed_code, response.code()),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Error loading game $gameId")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = friendlyError(e, "this game"),
+                    error = friendlyError(context, e, R.string.error_subject_this_game),
                 )
             }
         }
@@ -250,20 +255,23 @@ class GameHistoryViewModel @Inject constructor(
                 val response = gameApi.getGameMoves(gameId)
                 if (response.isSuccessful) {
                     val body = response.body() ?: return@launch
-                    val movesArray = body.get("moves")?.arrOrNull()
-                        ?: body.get("data")?.arrOrNull()
-
-                    val moves = movesArray?.mapNotNull { el ->
-                        val m = el.objOrNull() ?: return@mapNotNull null
-                        ReplayMove(
-                            moveNumber = m.int("move_number") ?: 0,
-                            from = m.str("from") ?: "",
-                            to = m.str("to") ?: "",
-                            san = m.str("san") ?: m.str("notation") ?: "",
-                            fen = m.str("fen") ?: "",
-                            promotion = m.str("promotion"),
-                        )
-                    } ?: emptyList()
+                    val movesElement = body.get("moves") ?: body.get("data")
+                    val moves = when {
+                        movesElement?.isJsonArray == true -> movesElement.asJsonArray.mapNotNull { el ->
+                            val m = el.objOrNull() ?: return@mapNotNull null
+                            ReplayMove(
+                                moveNumber = m.int("move_number") ?: 0,
+                                from = m.str("from") ?: "",
+                                to = m.str("to") ?: "",
+                                san = m.str("san") ?: m.str("notation") ?: "",
+                                fen = m.str("fen") ?: "",
+                                promotion = m.str("promotion"),
+                                lifelines = LifelineMarkers.fromMoveJson(m),
+                            )
+                        }
+                        movesElement?.isJsonPrimitive == true -> parseCompactMoves(movesElement.asString)
+                        else -> emptyList()
+                    }
 
                     // Build FEN positions for navigation, plus the squares
                     // each ply touched so the board can highlight and animate it.
@@ -283,7 +291,7 @@ class GameHistoryViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         replayState = _uiState.value.replayState?.copy(
                             isLoadingMoves = false,
-                            error = "Failed to load moves",
+                            error = context.getString(R.string.history_load_moves_failed),
                         ),
                     )
                 }
@@ -292,7 +300,7 @@ class GameHistoryViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     replayState = _uiState.value.replayState?.copy(
                         isLoadingMoves = false,
-                        error = friendlyError(e, "the moves"),
+                        error = friendlyError(context, e, R.string.error_subject_the_moves),
                     ),
                 )
             }
@@ -360,6 +368,21 @@ class GameHistoryViewModel @Inject constructor(
         if (move.from.isBlank() || move.to.isBlank()) return null
         return move.from + move.to + (move.promotion ?: "")
     }
+
+    private fun parseCompactMoves(compact: String): List<ReplayMove> = compact
+        .split(';')
+        .mapIndexedNotNull { index, part ->
+            val fields = part.split(',')
+            val san = fields.firstOrNull()?.trim().orEmpty()
+            if (san.isBlank()) return@mapIndexedNotNull null
+            ReplayMove(
+                moveNumber = index + 1,
+                from = "",
+                to = "",
+                san = san,
+                lifelines = LifelineMarkers.fromCompactToken(fields.getOrNull(4)),
+            )
+        }
 
     // ── Replay Navigation ─────────────────────────────────────────────
 
@@ -560,7 +583,7 @@ class GameHistoryViewModel @Inject constructor(
         val opponentName = json.str("opponent_name")
             ?: json.get("opponent")?.objOrNull().str("name")
             ?: json.str("white_player_name")
-            ?: "Unknown"
+            ?: context.getString(R.string.player_unknown)
 
         val playerColor = json.str("player_color")
             ?: json.str("color")
@@ -699,7 +722,7 @@ class GameHistoryViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 analysisReport = GameAnalysisReport(
                     status = AnalysisStatus.ERROR,
-                    error = "No moves loaded for analysis",
+                    error = context.getString(R.string.history_no_moves_loaded),
                 ),
             )
             return
@@ -708,7 +731,7 @@ class GameHistoryViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 analysisReport = GameAnalysisReport(
                     status = AnalysisStatus.ERROR,
-                    error = "No moves to analyze",
+                    error = context.getString(R.string.history_no_moves_to_analyze),
                 ),
             )
             return
@@ -727,7 +750,7 @@ class GameHistoryViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 analysisReport = GameAnalysisReport(
                     status = AnalysisStatus.ERROR,
-                    error = EngineFailureCopy.MESSAGE,
+                    error = context.getString(EngineFailureCopy.MESSAGE),
                 ),
             )
             return
@@ -852,7 +875,7 @@ class GameHistoryViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 analysisReport = GameAnalysisReport(
                     status = AnalysisStatus.ERROR,
-                    error = "We couldn't finish analyzing this game. Please try again.",
+                    error = context.getString(R.string.history_analysis_failed),
                 ),
             )
         }
@@ -1104,6 +1127,7 @@ data class ReplayMove(
     val san: String,
     val fen: String = "",
     val promotion: String? = null,
+    val lifelines: List<String> = emptyList(),
 )
 
 enum class GameResult { WON, LOST, DRAW }

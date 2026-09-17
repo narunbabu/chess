@@ -1,17 +1,18 @@
 package com.chess99.data.push
 
+import com.chess99.R
 import com.chess99.data.api.DeviceApi
 import com.chess99.data.dto.DeviceTokenRequest
 import com.chess99.data.local.TokenManager
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class Chess99FirebaseMessagingService : FirebaseMessagingService() {
@@ -67,7 +68,7 @@ class Chess99FirebaseMessagingService : FirebaseMessagingService() {
 
     private fun handleGameMoveNotification(data: Map<String, String>) {
         val gameId = data["game_id"]?.toIntOrNull() ?: return
-        val opponentName = data["opponent_name"] ?: "Opponent"
+        val opponentName = data["opponent_name"] ?: getString(R.string.player_opponent)
         val isYourTurn = data["is_your_turn"]?.toBoolean() ?: true
         Timber.d("Game move notification for game: $gameId, yourTurn=$isYourTurn")
         notificationHelper.showGameMoveNotification(gameId, opponentName, isYourTurn)
@@ -75,22 +76,22 @@ class Chess99FirebaseMessagingService : FirebaseMessagingService() {
 
     private fun handleInvitationNotification(data: Map<String, String>) {
         val invitationId = data["invitation_id"]?.toIntOrNull() ?: return
-        val fromPlayer = data["from_player"] ?: data["sender_name"] ?: "Someone"
+        val fromPlayer = data["from_player"] ?: data["sender_name"] ?: getString(R.string.notif_someone)
         Timber.d("Game invitation notification: $invitationId from $fromPlayer")
         notificationHelper.showInvitationNotification(invitationId, fromPlayer)
     }
 
     private fun handleTournamentNotification(data: Map<String, String>) {
         val championshipId = data["championship_id"]?.toIntOrNull() ?: return
-        val title = data["title"] ?: "Tournament Update"
-        val message = data["message"] ?: "Check your tournament for updates."
+        val title = data["title"] ?: getString(R.string.notif_tournament_title)
+        val message = data["message"] ?: getString(R.string.notif_tournament_body)
         Timber.d("Tournament notification for: $championshipId")
         notificationHelper.showTournamentNotification(championshipId, title, message)
     }
 
     private fun handleGenericNotification(message: RemoteMessage) {
         val notification = message.notification
-        val title = notification?.title ?: message.data["title"] ?: "Chess99"
+        val title = notification?.title ?: message.data["title"] ?: getString(R.string.app_name)
         val body = notification?.body ?: message.data["body"] ?: ""
         Timber.d("Generic notification: $title - $body")
         notificationHelper.showGenericNotification(title, body)

@@ -1,5 +1,6 @@
 package com.chess99.engine
 
+import com.chess99.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -99,7 +100,7 @@ class CCTAnalyzerTest {
         val capture = CCTCapture(
             from = 2, to = 3, san = "dxe5",
             victimType = Piece.PAWN, attackerType = Piece.PAWN,
-            victimName = "Pawn", victimValue = 1.0, attackerValue = 1.0,
+            victimName = R.string.piece_pawn, victimValue = 1.0, attackerValue = 1.0,
         )
 
         fun severity(checks: List<CCTCheck>, captures: List<CCTCapture>) =

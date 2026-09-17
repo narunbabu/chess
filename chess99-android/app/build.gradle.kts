@@ -225,6 +225,26 @@ val verifyReleaseConfiguration by tasks.registering {
         if (releaseWsKey.isBlank()) {
             issues += "WS_KEY_RELEASE is missing. Set it as a Gradle property or environment variable."
         }
+        // Signing is checked here too, because the release buildType only asks
+        // whether keystore.properties *exists* — a present file pointing at a
+        // missing .jks leaves the upload key silently unresolved, and the failure
+        // otherwise surfaces deep in the signing task (or, worse, as an unsigned
+        // bundle Play rejects after upload). The drive letter really did go stale
+        // once, when the project moved from C:\ArunApps to D:\ArunApps.
+        if (!keystorePropsFile.exists()) {
+            issues += "Missing keystore.properties. A release bundle would be unsigned and rejected by Play."
+        } else {
+            val storeFilePath = keystoreProps.getProperty("storeFile").orEmpty()
+            when {
+                storeFilePath.isBlank() ->
+                    issues += "keystore.properties has no storeFile entry."
+                !file(storeFilePath).exists() ->
+                    issues += "keystore.properties storeFile does not exist: $storeFilePath."
+            }
+            listOf("storePassword", "keyAlias", "keyPassword")
+                .filter { keystoreProps.getProperty(it).isNullOrBlank() }
+                .forEach { issues += "keystore.properties is missing $it." }
+        }
         check(issues.isEmpty()) {
             "Release configuration is incomplete:\n- ${issues.joinToString("\n- ")}"
         }
@@ -275,6 +295,12 @@ dependencies {
 
     // DataStore & Security
     implementation(libs.datastore.preferences)
+    // DEPRECATED, migration-only: androidx.security:security-crypto is end-of-life
+    // at 1.1.0. Session storage moved to data/local/crypto/SecurePreferences (an
+    // ordinary prefs file with AES-256-GCM values under an Android Keystore key);
+    // the library is kept solely so LegacyEncryptedPreferences can import sessions
+    // written by the old format. Drop both once that migration has shipped and
+    // aged — the only cost of dropping it is a one-off re-login.
     implementation(libs.security.crypto)
 
     // Firebase

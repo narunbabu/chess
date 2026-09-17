@@ -33,7 +33,7 @@ interface TutorialApi {
     suspend fun startLesson(@Path("id") id: Int): Response<JsonObject>
 
     @POST("tutorial/lessons/{id}/complete")
-    suspend fun completeLesson(@Path("id") id: Int): Response<JsonObject>
+    suspend fun completeLesson(@Path("id") id: Int, @Body body: JsonObject): Response<JsonObject>
 
     @POST("tutorial/lessons/{id}/validate-move")
     suspend fun validateInteractiveMove(
@@ -75,6 +75,12 @@ interface TutorialApi {
 
     @POST("tutorial/daily-challenge/submit")
     suspend fun submitDailyChallenge(@Body body: JsonObject): Response<JsonObject>
+
+    @GET("tutorial/daily-challenge/leaderboard")
+    suspend fun getDailyChallengeLeaderboard(
+        @Query("date") date: String? = null,
+        @Query("track") track: String? = null,
+    ): Response<JsonObject>
 
     // ── Practice Games ─────────────────────────────────────────────────
 

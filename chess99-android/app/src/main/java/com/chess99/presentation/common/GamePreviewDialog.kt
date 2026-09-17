@@ -6,8 +6,10 @@ import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.chess99.R
 
 /**
  * Game preview dialog shown before joining a game.
@@ -27,24 +29,27 @@ fun GamePreviewDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.SportsEsports, contentDescription = null) },
         title = {
-            Text("Join Game?", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.preview_title), fontWeight = FontWeight.Bold)
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DetailInfoRow("Host", hostName)
-                DetailInfoRow("Rating", "$hostRating")
-                DetailInfoRow("Time Control", timeControl)
-                DetailInfoRow("Mode", if (isRated) "Rated" else "Casual")
+                DetailInfoRow(stringResource(R.string.preview_host), hostName)
+                DetailInfoRow(stringResource(R.string.preview_rating), "$hostRating")
+                DetailInfoRow(stringResource(R.string.championship_time_control), timeControl)
+                DetailInfoRow(
+                    stringResource(R.string.lobby_mode),
+                    stringResource(if (isRated) R.string.mode_rated else R.string.mode_casual),
+                )
             }
         },
         confirmButton = {
             Button(onClick = onJoin) {
-                Text("Join")
+                Text(stringResource(R.string.preview_join))
             }
         },
         dismissButton = {
             OutlinedButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         },
     )

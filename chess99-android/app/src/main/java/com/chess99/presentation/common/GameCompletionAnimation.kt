@@ -12,10 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chess99.R
 
 /**
  * Animated game completion overlay with win/loss/draw visuals.
@@ -41,12 +43,13 @@ fun GameCompletionAnimation(
         )
     }
 
-    val (title, icon, color) = when (result.lowercase()) {
-        "win" -> Triple("Victory!", Icons.Default.EmojiEvents, Color(0xFF4CAF50))
-        "loss" -> Triple("Defeat", Icons.Default.SentimentDissatisfied, Color(0xFFE53935))
-        "draw" -> Triple("Draw", Icons.Default.Handshake, Color(0xFFFF9800))
-        else -> Triple("Game Over", Icons.Default.SportsEsports, Color(0xFF9E9E9E))
+    val (titleRes, icon, color) = when (result.lowercase()) {
+        "win" -> Triple(R.string.game_result_victory, Icons.Default.EmojiEvents, Color(0xFF4CAF50))
+        "loss" -> Triple(R.string.game_result_defeat, Icons.Default.SentimentDissatisfied, Color(0xFFE53935))
+        "draw" -> Triple(R.string.game_result_draw, Icons.Default.Handshake, Color(0xFFFF9800))
+        else -> Triple(R.string.completion_game_over, Icons.Default.SportsEsports, Color(0xFF9E9E9E))
     }
+    val title = stringResource(titleRes)
 
     Box(
         modifier = Modifier
@@ -81,7 +84,7 @@ fun GameCompletionAnimation(
                     color = if (ratingChange > 0) Color(0xFF4CAF50) else Color(0xFFE53935),
                 )
                 Text(
-                    text = "Rating",
+                    text = stringResource(R.string.completion_rating),
                     fontSize = 14.sp,
                     color = Color.White.copy(alpha = 0.7f),
                 )
@@ -91,7 +94,7 @@ fun GameCompletionAnimation(
                 onClick = onDismiss,
                 colors = ButtonDefaults.buttonColors(containerColor = color),
             ) {
-                Text("Continue", color = Color.White)
+                Text(stringResource(R.string.completion_continue), color = Color.White)
             }
         }
     }
@@ -128,7 +131,7 @@ fun CheckmateNotification(
         ),
     ) {
         Text(
-            text = "Checkmate!",
+            text = stringResource(R.string.completion_checkmate),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),

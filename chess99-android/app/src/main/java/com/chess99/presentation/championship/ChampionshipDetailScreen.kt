@@ -1,5 +1,7 @@
 package com.chess99.presentation.championship
 
+import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,13 +15,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.ChampionshipApi
 import com.chess99.data.api.bool
 import com.chess99.data.api.int
@@ -27,15 +33,16 @@ import com.chess99.data.api.objOrNull
 import com.chess99.data.api.str
 import com.chess99.data.local.TokenManager
 import com.chess99.presentation.common.friendlyError
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
-import androidx.hilt.navigation.compose.hiltViewModel
 
 // ── ViewModel ──────────────────────────────────────────────────────────
 
@@ -43,6 +50,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 class ChampionshipDetailViewModel @Inject constructor(
     private val championshipApi: ChampionshipApi,
     private val tokenManager: TokenManager,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private var loadedId: Int = -1
@@ -118,13 +127,13 @@ class ChampionshipDetailViewModel @Inject constructor(
             } else {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = "Failed to load tournament (${response.code()})",
+                    error = context.getString(R.string.champ_load_failed_code, response.code()),
                 )
             }
         } catch (e: Exception) {
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
-                error = friendlyError(e, "tournament details"),
+                error = friendlyError(context, e, R.string.error_subject_tournament_details),
             )
         }
     }
@@ -136,21 +145,7 @@ class ChampionshipDetailViewModel @Inject constructor(
                 val body = response.body() ?: return
                 val arr = body.getAsJsonArray("participants")
                     ?: body.getAsJsonArray("data") ?: return
-                val participants = arr.mapNotNull { el ->
-                    try {
-                        val p = el.asJsonObject
-                        Participant(
-                            userId = p.get("user_id")?.asInt ?: p.get("id")?.asInt ?: return@mapNotNull null,
-                            name = p.get("name")?.asString
-                                ?: p.getAsJsonObject("user")?.get("name")?.asString ?: "",
-                            rating = p.get("rating")?.asInt
-                                ?: p.getAsJsonObject("user")?.get("rating")?.asInt ?: 1200,
-                            avatarUrl = p.get("avatar_url")?.asString,
-                            seed = p.get("seed")?.asInt,
-                        )
-                    } catch (_: Exception) { null }
-                }
-                _uiState.value = _uiState.value.copy(participants = participants)
+                _uiState.value = _uiState.value.copy(participants = parseParticipants(arr))
             }
         } catch (e: Exception) {
             Timber.e(e, "Failed to load participants")
@@ -307,14 +302,14 @@ class ChampionshipDetailViewModel @Inject constructor(
                         loadMyMatches(loadedId)
                         onGameReady(gameId)
                     } else {
-                        _uiState.value = _uiState.value.copy(manageMessage = "Game created but could not open it. Pull to refresh.")
+                        _uiState.value = _uiState.value.copy(manageMessage = context.getString(R.string.champ_game_created_not_opened))
                     }
                 } else {
                     // 400 = game already exists; refresh to pick up its game_id and open it.
                     val msg = when (response.code()) {
-                        400 -> "Match not ready to play yet."
-                        403 -> "You are not a player in this match."
-                        else -> "Couldn't start the game (${response.code()})."
+                        400 -> context.getString(R.string.champ_match_not_ready)
+                        403 -> context.getString(R.string.champ_not_a_player)
+                        else -> context.getString(R.string.champ_start_failed_code, response.code())
                     }
                     _uiState.value = _uiState.value.copy(creatingGameForMatchId = null, manageMessage = msg)
                     if (response.code() == 400) loadMyMatches(loadedId)
@@ -323,7 +318,7 @@ class ChampionshipDetailViewModel @Inject constructor(
                 Timber.e(e, "Failed to create game for match ${match.id}")
                 _uiState.value = _uiState.value.copy(
                     creatingGameForMatchId = null,
-                    manageMessage = friendlyError(e, "starting the game"),
+                    manageMessage = friendlyError(context, e, R.string.error_subject_starting_the_game),
                 )
             }
         }
@@ -348,20 +343,20 @@ class ChampionshipDetailViewModel @Inject constructor(
             try {
                 val response = block()
                 if (response.isSuccessful) {
-                    val msg = response.body()?.get("message")?.asString ?: "Done."
+                    val msg = response.body()?.get("message")?.asString ?: context.getString(R.string.champ_action_done)
                     _uiState.value = _uiState.value.copy(isManaging = false, manageMessage = msg)
                     loadChampionship(loadedId)
                 } else {
                     val msg = when (response.code()) {
-                        403 -> "You don't have permission to manage this tournament."
-                        422 -> "Action not allowed in the current tournament state."
-                        else -> "Action failed (${response.code()})."
+                        403 -> context.getString(R.string.champ_manage_forbidden)
+                        422 -> context.getString(R.string.champ_action_not_allowed)
+                        else -> context.getString(R.string.champ_action_failed_code, response.code())
                     }
                     _uiState.value = _uiState.value.copy(isManaging = false, manageMessage = msg)
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Tournament management action failed")
-                _uiState.value = _uiState.value.copy(isManaging = false, manageMessage = friendlyError(e, "this action"))
+                _uiState.value = _uiState.value.copy(isManaging = false, manageMessage = friendlyError(context, e, R.string.error_subject_this_action))
             }
         }
     }
@@ -421,7 +416,39 @@ data class Participant(
     val rating: Int,
     val avatarUrl: String?,
     val seed: Int?,
+    /**
+     * Dropped from the tournament (repeated forfeits). The player keeps their
+     * registration and payment, so this flag is the only signal that they are
+     * out; `dropped_at` is the underlying column and `dropped` its boolean alias.
+     */
+    val dropped: Boolean = false,
+    val droppedReason: String? = null,
 )
+
+/** Human label resource for `championship_participants.dropped_reason`. */
+@StringRes
+internal fun dropReasonLabelRes(reason: String?): Int = when (reason) {
+    "forfeit_limit" -> R.string.championship_drop_reason_forfeit_limit
+    else -> R.string.championship_drop_reason_removed
+}
+
+/**
+ * Parse the `participants` array of GET championships/{id}/participants.
+ * Extracted from the ViewModel so the drop flag can be unit-tested.
+ */
+internal fun parseParticipants(arr: JsonArray): List<Participant> = arr.mapNotNull { el ->
+    val p = el.objOrNull() ?: return@mapNotNull null
+    val user = p.get("user").objOrNull()
+    Participant(
+        userId = p.int("user_id") ?: p.int("id") ?: return@mapNotNull null,
+        name = p.str("name") ?: user.str("name") ?: "",
+        rating = p.int("rating") ?: user.int("rating") ?: 1200,
+        avatarUrl = p.str("avatar_url") ?: user.str("avatar_url"),
+        seed = p.int("seed") ?: p.int("seed_number"),
+        dropped = p.bool("dropped") ?: (p.str("dropped_at") != null),
+        droppedReason = p.str("dropped_reason"),
+    )
+}
 
 data class Standing(
     val rank: Int,
@@ -464,13 +491,14 @@ data class ChampionshipMatch(
     val isPlayable: Boolean
         get() = !isFinished && whiteId != null && blackId != null
 
-    /** Result from the current user's perspective: "Won" / "Lost" / "Draw" / null. */
-    fun myResultLabel(userId: Int): String? = when {
+    /** Result from the current user's perspective, as a string resource, or null. */
+    @StringRes
+    fun myResultLabelRes(userId: Int): Int? = when {
         !isFinished -> null
-        result == "draw" || result == "1/2-1/2" -> "Draw"
-        winnerId == null -> "Draw"
-        winnerId == userId -> "Won"
-        else -> "Lost"
+        result == "draw" || result == "1/2-1/2" -> R.string.championship_my_result_draw
+        winnerId == null -> R.string.championship_my_result_draw
+        winnerId == userId -> R.string.championship_my_result_won
+        else -> R.string.championship_my_result_lost
     }
 }
 
@@ -503,19 +531,20 @@ fun ChampionshipDetailScreen(
             TopAppBar(
                 title = {
                     Text(
-                        state.championship?.name ?: "Tournament",
+                        state.championship?.name
+                            ?: stringResource(R.string.championship_fallback_title),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.loadChampionship(championshipId) }) {
-                        Icon(Icons.Default.Refresh, "Refresh")
+                        Icon(Icons.Default.Refresh, stringResource(R.string.a11y_refresh))
                     }
                 },
             )
@@ -544,22 +573,22 @@ fun ChampionshipDetailScreen(
                 Tab(
                     selected = state.selectedTab == DetailTab.OVERVIEW,
                     onClick = { viewModel.selectTab(DetailTab.OVERVIEW) },
-                    text = { Text("Overview") },
+                    text = { Text(stringResource(R.string.championship_tab_overview)) },
                 )
                 Tab(
                     selected = state.selectedTab == DetailTab.PARTICIPANTS,
                     onClick = { viewModel.selectTab(DetailTab.PARTICIPANTS) },
-                    text = { Text("Players") },
+                    text = { Text(stringResource(R.string.championship_tab_players)) },
                 )
                 Tab(
                     selected = state.selectedTab == DetailTab.STANDINGS,
                     onClick = { viewModel.selectTab(DetailTab.STANDINGS) },
-                    text = { Text("Standings") },
+                    text = { Text(stringResource(R.string.championship_tab_standings)) },
                 )
                 Tab(
                     selected = state.selectedTab == DetailTab.MATCHES,
                     onClick = { viewModel.selectTab(DetailTab.MATCHES) },
-                    text = { Text("Matches") },
+                    text = { Text(stringResource(R.string.championship_tab_matches)) },
                 )
             }
 
@@ -589,10 +618,10 @@ fun ChampionshipDetailScreen(
         state.error?.let { error ->
             AlertDialog(
                 onDismissRequest = { viewModel.clearError() },
-                title = { Text("Error") },
+                title = { Text(stringResource(R.string.error_title)) },
                 text = { Text(error) },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.clearError() }) { Text("OK") }
+                    TextButton(onClick = { viewModel.clearError() }) { Text(stringResource(R.string.action_ok)) }
                 },
             )
         }
@@ -611,7 +640,10 @@ private fun OverviewTab(
 ) {
     if (championship == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No data available", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                stringResource(R.string.championship_no_data),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         return
     }
@@ -638,7 +670,7 @@ private fun OverviewTab(
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Text(
-                        championship.status.replaceFirstChar { it.uppercase() },
+                        championshipStatusLabel(championship.status),
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         color = statusColor,
                         fontWeight = FontWeight.SemiBold,
@@ -649,12 +681,7 @@ private fun OverviewTab(
                     onClick = {},
                     label = {
                         Text(
-                            when (championship.format) {
-                                "swiss" -> "Swiss"
-                                "elimination" -> "Elimination"
-                                "round_robin" -> "Round Robin"
-                                else -> championship.format.replaceFirstChar { it.uppercase() }
-                            },
+                            formatDisplayName(championship.format),
                         )
                     },
                 )
@@ -666,7 +693,11 @@ private fun OverviewTab(
             item {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Description", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            stringResource(R.string.championship_description),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(championship.description, style = MaterialTheme.typography.bodyMedium)
                     }
@@ -681,20 +712,58 @@ private fun OverviewTab(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("Details", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    DetailRow("Time Control", championship.timeControl.replace("|", "+"))
-                    DetailRow("Participants", "${championship.currentParticipants} / ${championship.maxParticipants}")
+                    Text(
+                        stringResource(R.string.championship_details),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    DetailRow(
+                        stringResource(R.string.championship_time_control),
+                        championship.timeControl.replace("|", "+"),
+                    )
+                    DetailRow(
+                        stringResource(R.string.championship_participants),
+                        stringResource(
+                            R.string.championship_participants_value,
+                            championship.currentParticipants,
+                            championship.maxParticipants,
+                        ),
+                    )
                     if (championship.totalRounds > 0) {
-                        DetailRow("Rounds", "${championship.currentRound} / ${championship.totalRounds}")
+                        DetailRow(
+                            stringResource(R.string.championship_rounds),
+                            stringResource(
+                                R.string.championship_rounds_value,
+                                championship.currentRound,
+                                championship.totalRounds,
+                            ),
+                        )
                     }
-                    DetailRow("Entry Fee", if (championship.entryFee > 0) "\u20B9${championship.entryFee}" else "Free")
+                    DetailRow(
+                        stringResource(R.string.championship_entry_fee),
+                        if (championship.entryFee > 0) {
+                            stringResource(R.string.championship_fee_value, championship.entryFee)
+                        } else {
+                            stringResource(R.string.championship_fee_free)
+                        },
+                    )
                     if (championship.prizePool > 0) {
-                        DetailRow("Prize Pool", "\u20B9${championship.prizePool}")
+                        DetailRow(
+                            stringResource(R.string.championship_prize_pool),
+                            stringResource(R.string.championship_fee_value, championship.prizePool),
+                        )
                     }
-                    championship.startDate?.let { DetailRow("Start Date", it) }
-                    championship.endDate?.let { DetailRow("End Date", it) }
+                    championship.startDate?.let {
+                        DetailRow(stringResource(R.string.championship_start_date), it)
+                    }
+                    championship.endDate?.let {
+                        DetailRow(stringResource(R.string.championship_end_date), it)
+                    }
                     if (championship.creatorName.isNotBlank()) {
-                        DetailRow("Organizer", championship.creatorName)
+                        DetailRow(
+                            stringResource(R.string.championship_organizer),
+                            championship.creatorName,
+                        )
                     }
                 }
             }
@@ -729,7 +798,7 @@ private fun OverviewTab(
                         Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            "You are registered for this tournament",
+                            stringResource(R.string.championship_registered),
                             fontWeight = FontWeight.Medium,
                         )
                     }
@@ -760,10 +829,14 @@ private fun OrganizerControls(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Settings, null, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Organizer controls", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.championship_organizer_controls),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                )
             }
             Text(
-                "Manage your tournament. Generate the bracket, schedule rounds, and start play.",
+                stringResource(R.string.championship_organizer_controls_body),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -776,13 +849,13 @@ private fun OrganizerControls(
                 onClick = onGeneratePairings,
                 enabled = !isManaging,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Generate pairings") }
+            ) { Text(stringResource(R.string.championship_generate_pairings)) }
 
             OutlinedButton(
                 onClick = onScheduleNextRound,
                 enabled = !isManaging,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Schedule next round") }
+            ) { Text(stringResource(R.string.championship_schedule_next_round)) }
 
             if (status.equals("upcoming", ignoreCase = true) ||
                 status.equals("registration", ignoreCase = true)
@@ -791,7 +864,7 @@ private fun OrganizerControls(
                     onClick = onStartTournament,
                     enabled = !isManaging,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Start tournament") }
+                ) { Text(stringResource(R.string.championship_start_tournament)) }
             }
         }
     }
@@ -822,7 +895,10 @@ private fun ParticipantsTab(participants: List<Participant>) {
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("No participants yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.championship_no_participants),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
         return
@@ -841,21 +917,21 @@ private fun ParticipantsTab(participants: List<Participant>) {
                     .padding(vertical = 8.dp),
             ) {
                 Text(
-                    "#",
+                    stringResource(R.string.championship_column_number),
                     modifier = Modifier.width(32.dp),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "Player",
+                    stringResource(R.string.championship_column_player),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "Rating",
+                    stringResource(R.string.championship_column_rating),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -877,12 +953,31 @@ private fun ParticipantsTab(participants: List<Participant>) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    participant.name,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        participant.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        textDecoration = if (participant.dropped) TextDecoration.LineThrough else null,
+                        color = if (participant.dropped) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            Color.Unspecified
+                        },
+                    )
+                    // A dropped player keeps their registration, so without this
+                    // the roster gives no sign that they are out.
+                    if (participant.dropped) {
+                        Text(
+                            stringResource(
+                                R.string.championship_withdrawn,
+                                stringResource(dropReasonLabelRes(participant.droppedReason)),
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
                 Text(
                     "${participant.rating}",
                     style = MaterialTheme.typography.bodyMedium,
@@ -908,7 +1003,10 @@ private fun StandingsTab(standings: List<Standing>) {
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Standings not available yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.championship_no_standings),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
         return
@@ -926,12 +1024,12 @@ private fun StandingsTab(standings: List<Standing>) {
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 8.dp),
             ) {
-                Text("#", modifier = Modifier.width(28.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                Text("Player", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                Text("Pts", modifier = Modifier.width(36.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                Text("W", modifier = Modifier.width(28.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                Text("D", modifier = Modifier.width(28.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                Text("L", modifier = Modifier.width(28.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Text(stringResource(R.string.championship_column_number), modifier = Modifier.width(28.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Text(stringResource(R.string.championship_column_player), modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.championship_column_points), modifier = Modifier.width(36.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Text(stringResource(R.string.championship_column_wins), modifier = Modifier.width(28.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Text(stringResource(R.string.championship_column_draws), modifier = Modifier.width(28.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Text(stringResource(R.string.championship_column_losses), modifier = Modifier.width(28.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
             }
             HorizontalDivider()
         }
@@ -1018,12 +1116,12 @@ private fun MatchesTab(
                     selected = filter == MatchesFilter.MINE,
                     onClick = { filter = MatchesFilter.MINE },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                ) { Text("My Matches") }
+                ) { Text(stringResource(R.string.championship_filter_my_matches)) }
                 SegmentedButton(
                     selected = filter == MatchesFilter.ALL,
                     onClick = { filter = MatchesFilter.ALL },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                ) { Text("All Matches") }
+                ) { Text(stringResource(R.string.championship_filter_all_matches)) }
             }
         }
 
@@ -1041,13 +1139,16 @@ private fun MatchesTab(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        if (filter == MatchesFilter.MINE) "No matches yet" else "No matches scheduled yet",
+                        stringResource(
+                            if (filter == MatchesFilter.MINE) R.string.championship_no_my_matches
+                            else R.string.championship_no_matches
+                        ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (filter == MatchesFilter.MINE) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "Once the tournament starts and you're paired, your games will show up here.",
+                            stringResource(R.string.championship_no_my_matches_body),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -1069,7 +1170,7 @@ private fun MatchesTab(
             matchesByRound.forEach { (round, roundMatches) ->
                 item {
                     Text(
-                        "Round $round",
+                        stringResource(R.string.championship_round, round),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(vertical = 4.dp),
@@ -1130,12 +1231,14 @@ private fun MatchCard(
                     modifier = Modifier.padding(horizontal = 12.dp),
                 ) {
                     Text(
-                        text = when (match.result) {
-                            "1-0" -> "1 - 0"
-                            "0-1" -> "0 - 1"
-                            "1/2-1/2", "draw" -> "\u00BD - \u00BD"
-                            else -> "vs"
-                        },
+                        text = stringResource(
+                            when (match.result) {
+                                "1-0" -> R.string.championship_score_white_win
+                                "0-1" -> R.string.championship_score_black_win
+                                "1/2-1/2", "draw" -> R.string.championship_score_draw
+                                else -> R.string.championship_versus
+                            }
+                        ),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
@@ -1167,14 +1270,14 @@ private fun MatchCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 MatchStatusChip(match.status)
-                match.myResultLabel(currentUserId)?.let { label ->
-                    val color = when (label) {
-                        "Won" -> Color(0xFF4CAF50)
-                        "Lost" -> MaterialTheme.colorScheme.error
+                match.myResultLabelRes(currentUserId)?.let { labelRes ->
+                    val color = when (labelRes) {
+                        R.string.championship_my_result_won -> Color(0xFF4CAF50)
+                        R.string.championship_my_result_lost -> MaterialTheme.colorScheme.error
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     }
                     Text(
-                        "You: $label",
+                        stringResource(R.string.championship_my_result, stringResource(labelRes)),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = color,
@@ -1191,7 +1294,7 @@ private fun MatchCard(
                         OutlinedButton(onClick = onOpenGame, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Default.Visibility, null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Review game")
+                            Text(stringResource(R.string.championship_review_game))
                         }
                     }
                     match.isFinished -> { /* No game object to open; result shown above. */ }
@@ -1200,7 +1303,7 @@ private fun MatchCard(
                         Button(onClick = onOpenGame, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Go to game")
+                            Text(stringResource(R.string.championship_go_to_game))
                         }
                     }
                     // No game yet \u2014 create and start.
@@ -1217,17 +1320,17 @@ private fun MatchCard(
                                     color = MaterialTheme.colorScheme.onPrimary,
                                 )
                                 Spacer(Modifier.width(6.dp))
-                                Text("Starting\u2026")
+                                Text(stringResource(R.string.championship_starting))
                             } else {
                                 Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Play")
+                                Text(stringResource(R.string.action_play))
                             }
                         }
                     }
                     else -> {
                         Text(
-                            "Waiting for pairing\u2026",
+                            stringResource(R.string.championship_waiting_for_pairing),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -1240,14 +1343,18 @@ private fun MatchCard(
 
 @Composable
 private fun MatchStatusChip(status: String) {
-    val (label, color) = when (status.lowercase()) {
-        "completed", "finished" -> "Completed" to MaterialTheme.colorScheme.onSurfaceVariant
-        "in_progress", "active" -> "In progress" to Color(0xFF4CAF50)
-        "scheduled" -> "Scheduled" to MaterialTheme.colorScheme.tertiary
-        "cancelled" -> "Cancelled" to MaterialTheme.colorScheme.onSurfaceVariant
-        "expired" -> "Expired" to MaterialTheme.colorScheme.error
-        else -> "Pending" to MaterialTheme.colorScheme.tertiary
+    val (labelRes, color) = when (status.lowercase()) {
+        "completed", "finished" ->
+            R.string.championship_status_completed to MaterialTheme.colorScheme.onSurfaceVariant
+        "in_progress", "active" ->
+            R.string.championship_status_in_progress to Color(0xFF4CAF50)
+        "scheduled" -> R.string.championship_status_scheduled to MaterialTheme.colorScheme.tertiary
+        "cancelled" ->
+            R.string.championship_status_cancelled to MaterialTheme.colorScheme.onSurfaceVariant
+        "expired" -> R.string.championship_status_expired to MaterialTheme.colorScheme.error
+        else -> R.string.championship_status_pending to MaterialTheme.colorScheme.tertiary
     }
+    val label = stringResource(labelRes)
     Surface(color = color.copy(alpha = 0.15f), shape = RoundedCornerShape(10.dp)) {
         Text(
             label,

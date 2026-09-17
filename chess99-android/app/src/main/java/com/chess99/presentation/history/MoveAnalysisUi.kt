@@ -22,10 +22,12 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chess99.R
 import com.chess99.domain.model.*
 
 // ── Classification Colors ──────────────────────────────────────────────
@@ -73,11 +75,11 @@ fun AnalysisTriggerButton(
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Analyze with Stockfish")
+                Text(stringResource(R.string.analysis_run))
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Run full game analysis to see evaluations, accuracy, and move quality",
+                text = stringResource(R.string.analysis_run_body),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -109,13 +111,17 @@ fun AnalysisLoadingIndicator(
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = if (progress > 0) "Analyzing game... $progress%" else "Analyzing game...",
+                text = if (progress > 0) {
+                    stringResource(R.string.analysis_running_progress, progress)
+                } else {
+                    stringResource(R.string.analysis_running)
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Stockfish is evaluating each position (depth 18)",
+                text = stringResource(R.string.analysis_running_body),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -154,7 +160,7 @@ fun AnalysisError(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "Analysis Failed",
+                text = stringResource(R.string.analysis_failed),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -169,7 +175,7 @@ fun AnalysisError(
             OutlinedButton(onClick = onRetry) {
                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Retry")
+                Text(stringResource(R.string.action_retry))
             }
         }
     }
@@ -204,13 +210,13 @@ fun AnalysisResults(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Stockfish Analysis",
+                        text = stringResource(R.string.analysis_title),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
                 Text(
-                    text = "Depth 18",
+                    text = stringResource(R.string.analysis_depth),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -269,14 +275,14 @@ private fun AccuracyBars(
 ) {
     Column {
         AccuracyRow(
-            label = "White",
+            label = stringResource(R.string.color_white_name),
             accuracy = accuracyWhite,
             acpl = acplWhite,
             barColor = Color(0xFFE8E8E8),
         )
         Spacer(modifier = Modifier.height(8.dp))
         AccuracyRow(
-            label = "Black",
+            label = stringResource(R.string.color_black_name),
             accuracy = accuracyBlack,
             acpl = acplBlack,
             barColor = Color(0xFF4A4744),
@@ -302,12 +308,12 @@ private fun AccuracyRow(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "ACPL: ${"%.1f".format(acpl)}",
+                    text = stringResource(R.string.analysis_acpl, acpl),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = "${"%.1f".format(accuracy)}%",
+                    text = stringResource(R.string.analysis_accuracy_value, accuracy),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -331,8 +337,16 @@ private fun AccuracyRow(
 @Composable
 private fun QualitySummary(qualityCounts: QualityCounts) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        QualityColumn("White", qualityCounts.white, modifier = Modifier.weight(1f))
-        QualityColumn("Black", qualityCounts.black, modifier = Modifier.weight(1f))
+        QualityColumn(
+            stringResource(R.string.color_white_name),
+            qualityCounts.white,
+            modifier = Modifier.weight(1f),
+        )
+        QualityColumn(
+            stringResource(R.string.color_black_name),
+            qualityCounts.black,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
@@ -415,7 +429,7 @@ private fun EvalGraph(moveAnalyses: List<AnalyzedMove>) {
 
     Column {
         Text(
-            text = "EVALUATION",
+            text = stringResource(R.string.analysis_evaluation),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             letterSpacing = 1.sp,
@@ -595,7 +609,7 @@ private fun EvalChart(
 private fun MoveClassificationList(moveAnalyses: List<AnalyzedMove>) {
     Column {
         Text(
-            text = "MOVE CLASSIFICATIONS",
+            text = stringResource(R.string.analysis_move_classifications),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             letterSpacing = 1.sp,
@@ -614,7 +628,7 @@ private fun MoveClassificationList(moveAnalyses: List<AnalyzedMove>) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "${pairIndex + 1}.",
+                        text = stringResource(R.string.game_move_number, pairIndex + 1),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.width(28.dp),
@@ -688,7 +702,7 @@ private fun OpeningNameDisplay(name: String) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Opening",
+                text = stringResource(R.string.analysis_opening),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -726,7 +740,7 @@ private fun ClassificationLegend() {
                 ) {}
                 Spacer(modifier = Modifier.width(2.dp))
                 Text(
-                    text = cls.label,
+                    text = stringResource(cls.labelRes),
                     fontSize = 9.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

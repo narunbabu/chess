@@ -1,7 +1,9 @@
 package com.chess99.presentation.history
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.GameApi
 import com.chess99.engine.ChessGame
 import com.chess99.presentation.common.MoveEffects
@@ -9,6 +11,10 @@ import com.chess99.presentation.common.MoveReplay
 import com.chess99.presentation.common.ReplayPly
 import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.text.SimpleDateFormat
+import java.util.Locale
+import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,13 +23,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Locale
-import javax.inject.Inject
 
 @HiltViewModel
 class GameDetailViewModel @Inject constructor(
     private val gameApi: GameApi,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     data class MovePair(
@@ -83,12 +88,12 @@ class GameDetailViewModel @Inject constructor(
             try {
                 val response = gameApi.getGame(gameId)
                 if (!response.isSuccessful) {
-                    _state.update { it.copy(isLoading = false, error = "Failed to load game") }
+                    _state.update { it.copy(isLoading = false, error = context.getString(R.string.detail_load_failed)) }
                     return@launch
                 }
 
                 val body = response.body() ?: run {
-                    _state.update { it.copy(isLoading = false, error = "Empty response") }
+                    _state.update { it.copy(isLoading = false, error = context.getString(R.string.detail_empty_response)) }
                     return@launch
                 }
 
@@ -160,9 +165,9 @@ class GameDetailViewModel @Inject constructor(
                         isLoading = false,
                         result = gameData.get("result")?.asString,
                         endReason = gameData.get("end_reason")?.asString,
-                        whiteName = whitePlayer?.get("name")?.asString ?: "White",
+                        whiteName = whitePlayer?.get("name")?.asString ?: context.getString(R.string.player_white),
                         whiteRating = whitePlayer?.get("rating")?.asInt,
-                        blackName = blackPlayer?.get("name")?.asString ?: "Black",
+                        blackName = blackPlayer?.get("name")?.asString ?: context.getString(R.string.player_black),
                         blackRating = blackPlayer?.get("rating")?.asInt,
                         playerColor = gameData.get("player_color")?.asString ?: "white",
                         date = formattedDate,
@@ -179,7 +184,7 @@ class GameDetailViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = friendlyError(e, "this game")) }
+                _state.update { it.copy(isLoading = false, error = friendlyError(context, e, R.string.error_subject_this_game)) }
             }
         }
     }

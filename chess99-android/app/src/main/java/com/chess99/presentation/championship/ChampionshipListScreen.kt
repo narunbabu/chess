@@ -12,11 +12,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 /**
  * Championship list screen with filter chips, search bar, and tournament cards.
@@ -44,15 +46,15 @@ fun ChampionshipListScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Tournaments") },
+                title = { Text(stringResource(R.string.championship_list_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.loadChampionships() }) {
-                        Icon(Icons.Default.Refresh, "Refresh")
+                        Icon(Icons.Default.Refresh, stringResource(R.string.a11y_refresh))
                     }
                 },
             )
@@ -61,7 +63,7 @@ fun ChampionshipListScreen(
             FloatingActionButton(
                 onClick = { viewModel.showCreateDialog() },
             ) {
-                Icon(Icons.Default.Add, "Create Tournament")
+                Icon(Icons.Default.Add, stringResource(R.string.a11y_create_tournament))
             }
         },
     ) { padding ->
@@ -77,14 +79,14 @@ fun ChampionshipListScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search tournaments...") },
+                placeholder = { Text(stringResource(R.string.championship_search)) },
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 singleLine = true,
             )
 
             // Status filter chips
             Text(
-                "Status",
+                stringResource(R.string.championship_filter_status),
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(horizontal = 16.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -97,20 +99,20 @@ fun ChampionshipListScreen(
                 FilterChip(
                     selected = state.statusFilter == null,
                     onClick = { viewModel.setStatusFilter(null) },
-                    label = { Text("All") },
+                    label = { Text(stringResource(R.string.filter_all)) },
                 )
                 listOf("upcoming", "active", "completed").forEach { status ->
                     FilterChip(
                         selected = state.statusFilter == status,
                         onClick = { viewModel.setStatusFilter(status) },
-                        label = { Text(status.replaceFirstChar { it.uppercase() }) },
+                        label = { Text(championshipStatusLabel(status)) },
                     )
                 }
             }
 
             // Format filter chips
             Text(
-                "Format",
+                stringResource(R.string.championship_filter_format),
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -123,7 +125,7 @@ fun ChampionshipListScreen(
                 FilterChip(
                     selected = state.formatFilter == null,
                     onClick = { viewModel.setFormatFilter(null) },
-                    label = { Text("All") },
+                    label = { Text(stringResource(R.string.filter_all)) },
                 )
                 listOf("swiss", "elimination", "round_robin").forEach { format ->
                     FilterChip(
@@ -160,13 +162,13 @@ fun ChampionshipListScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                "No tournaments found",
+                                stringResource(R.string.championship_none_found),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                "Try adjusting your filters or create a new one",
+                                stringResource(R.string.championship_none_found_body),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -196,10 +198,10 @@ fun ChampionshipListScreen(
         state.error?.let { error ->
             AlertDialog(
                 onDismissRequest = { viewModel.clearError() },
-                title = { Text("Error") },
+                title = { Text(stringResource(R.string.error_title)) },
                 text = { Text(error) },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.clearError() }) { Text("OK") }
+                    TextButton(onClick = { viewModel.clearError() }) { Text(stringResource(R.string.action_ok)) }
                 },
             )
         }
@@ -276,23 +278,27 @@ private fun ChampionshipCard(
             ) {
                 InfoItem(
                     icon = Icons.Default.People,
-                    label = "${championship.currentParticipants}/${championship.maxParticipants}",
+                    label = stringResource(
+                        R.string.championship_participants_ratio,
+                        championship.currentParticipants,
+                        championship.maxParticipants,
+                    ),
                 )
                 if (championship.prizePool > 0) {
                     InfoItem(
                         icon = Icons.Default.EmojiEvents,
-                        label = "\u20B9${championship.prizePool}",
+                        label = stringResource(R.string.championship_fee_value, championship.prizePool),
                     )
                 }
                 if (championship.entryFee > 0) {
                     InfoItem(
                         icon = Icons.Default.ConfirmationNumber,
-                        label = "\u20B9${championship.entryFee}",
+                        label = stringResource(R.string.championship_fee_value, championship.entryFee),
                     )
                 } else {
                     InfoItem(
                         icon = Icons.Default.ConfirmationNumber,
-                        label = "Free",
+                        label = stringResource(R.string.championship_fee_free),
                     )
                 }
             }
@@ -301,10 +307,9 @@ private fun ChampionshipCard(
             championship.startDate?.let { start ->
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = buildString {
-                        append("Starts: $start")
-                        championship.endDate?.let { append("  \u2022  Ends: $it") }
-                    },
+                    text = championship.endDate?.let { end ->
+                        stringResource(R.string.championship_dates_start_end, start, end)
+                    } ?: stringResource(R.string.championship_dates_start, start),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -326,7 +331,12 @@ private fun ChampionshipCard(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    Text(if (isRegistering) "Registering..." else "Register")
+                    Text(
+                        stringResource(
+                            if (isRegistering) R.string.championship_registering
+                            else R.string.championship_register
+                        )
+                    )
                 }
             } else if (championship.isRegistered) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -339,7 +349,7 @@ private fun ChampionshipCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        "Registered",
+                        stringResource(R.string.championship_registered_badge),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF4CAF50),
                         fontWeight = FontWeight.Medium,
@@ -382,7 +392,7 @@ private fun StatusBadge(status: String) {
         shape = RoundedCornerShape(12.dp),
     ) {
         Text(
-            text = status.replaceFirstChar { it.uppercase() },
+            text = championshipStatusLabel(status),
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
             color = textColor,
@@ -412,7 +422,7 @@ private fun CreateChampionshipDialog(
 
     AlertDialog(
         onDismissRequest = { if (!isCreating) onDismiss() },
-        title = { Text("Create Tournament") },
+        title = { Text(stringResource(R.string.championship_create_title)) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -421,13 +431,16 @@ private fun CreateChampionshipDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Tournament Name") },
+                    label = { Text(stringResource(R.string.championship_name_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
 
                 // Format selector
-                Text("Format", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    stringResource(R.string.championship_filter_format),
+                    style = MaterialTheme.typography.labelMedium,
+                )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     formats.forEach { f ->
                         FilterChip(
@@ -439,7 +452,10 @@ private fun CreateChampionshipDialog(
                 }
 
                 // Time control selector
-                Text("Time Control", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    stringResource(R.string.championship_time_control),
+                    style = MaterialTheme.typography.labelMedium,
+                )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -457,14 +473,14 @@ private fun CreateChampionshipDialog(
                     OutlinedTextField(
                         value = maxParticipants,
                         onValueChange = { maxParticipants = it.filter { c -> c.isDigit() } },
-                        label = { Text("Max Players") },
+                        label = { Text(stringResource(R.string.championship_max_players)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                     )
                     OutlinedTextField(
                         value = entryFee,
                         onValueChange = { entryFee = it.filter { c -> c.isDigit() } },
-                        label = { Text("Entry Fee (\u20B9)") },
+                        label = { Text(stringResource(R.string.championship_entry_fee_label)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                     )
@@ -473,7 +489,7 @@ private fun CreateChampionshipDialog(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description (optional)") },
+                    label = { Text(stringResource(R.string.championship_description_optional)) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 4,
@@ -502,7 +518,12 @@ private fun CreateChampionshipDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text(if (isCreating) "Creating..." else "Create")
+                Text(
+                    stringResource(
+                        if (isCreating) R.string.championship_creating
+                        else R.string.championship_create
+                    )
+                )
             }
         },
         dismissButton = {
@@ -510,7 +531,7 @@ private fun CreateChampionshipDialog(
                 onClick = onDismiss,
                 enabled = !isCreating,
             ) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         },
     )
@@ -518,10 +539,21 @@ private fun CreateChampionshipDialog(
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-private fun formatDisplayName(format: String): String = when (format) {
-    "swiss" -> "Swiss"
-    "elimination" -> "Elimination"
-    "round_robin" -> "Round Robin"
-    "hybrid" -> "Hybrid"
+@Composable
+internal fun formatDisplayName(format: String): String = when (format) {
+    "swiss" -> stringResource(R.string.championship_format_swiss)
+    "elimination" -> stringResource(R.string.championship_format_elimination)
+    "round_robin" -> stringResource(R.string.championship_format_round_robin)
+    "hybrid" -> stringResource(R.string.championship_format_hybrid)
     else -> format.replaceFirstChar { it.uppercase() }
+}
+
+/** Display label for a tournament status key; unknown keys keep the server value. */
+@Composable
+internal fun championshipStatusLabel(status: String): String = when (status) {
+    "upcoming" -> stringResource(R.string.championship_status_upcoming)
+    "active" -> stringResource(R.string.championship_status_active)
+    "completed" -> stringResource(R.string.championship_status_completed)
+    "paused" -> stringResource(R.string.championship_status_paused)
+    else -> status.replaceFirstChar { it.uppercase() }
 }

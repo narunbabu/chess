@@ -8,8 +8,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.chess99.R
 
 /**
  * Upgrade prompt card shown to free-tier users.
@@ -19,8 +21,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun UpgradePromptCard(
     modifier: Modifier = Modifier,
-    title: String = "Upgrade to Premium",
-    message: String = "Unlock unlimited games, advanced analysis, and ad-free experience.",
+    title: String = stringResource(R.string.upgrade_title),
+    message: String = stringResource(R.string.upgrade_message),
     onUpgrade: () -> Unit,
 ) {
     Card(
@@ -59,7 +61,7 @@ fun UpgradePromptCard(
                 onClick = onUpgrade,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                Text("Upgrade", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.upgrade_action), style = MaterialTheme.typography.labelMedium)
             }
         }
     }
@@ -84,13 +86,13 @@ fun AdBannerCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Playing on Free tier",
+                text = stringResource(R.string.upgrade_free_tier),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = onUpgrade) {
-                Text("Go Premium", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.upgrade_go_premium), style = MaterialTheme.typography.labelSmall)
             }
         }
     }

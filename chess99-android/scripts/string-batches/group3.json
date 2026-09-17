@@ -1,0 +1,197 @@
+[
+  {
+    "section": "Tutorial lesson screen",
+    "file": "presentation/learn/TutorialLessonScreen.kt",
+    "strings": {
+      "lesson_default_title": "Lesson",
+      "lesson_complete_title": "Lesson Complete!",
+      "lesson_back_to_lessons": "Back to Lessons",
+      "lesson_step_of": "Step %1$d of %2$d"
+    },
+    "edits": [
+      ["title = { Text(state.lessonTitle.ifEmpty { \"Lesson\" }) },", "title = { Text(state.lessonTitle.ifEmpty { stringResource(R.string.lesson_default_title) }) },"],
+      ["Icon(Icons.AutoMirrored.Filled.ArrowBack, \"Back\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))"],
+      ["                            state.error ?: \"Error\",", "                            state.error ?: stringResource(R.string.error_title),"],
+      ["Text(\"Retry\")", "Text(stringResource(R.string.action_retry))"],
+      ["                            \"Lesson Complete!\",", "                            stringResource(R.string.lesson_complete_title),"],
+      ["Text(\"Back to Lessons\")", "Text(stringResource(R.string.lesson_back_to_lessons))"],
+      ["\"Step ${state.currentStageIndex + 1} of ${state.stages.size}\",", "stringResource(R.string.lesson_step_of, state.currentStageIndex + 1, state.stages.size),"],
+      ["Text(\"Hint\", modifier = Modifier.padding(start = 4.dp))", "Text(stringResource(R.string.action_hint), modifier = Modifier.padding(start = 4.dp))"],
+      ["Text(\"Reset\", modifier = Modifier.padding(start = 4.dp))", "Text(stringResource(R.string.action_reset), modifier = Modifier.padding(start = 4.dp))"]
+    ]
+  },
+  {
+    "section": "Legal screen chrome",
+    "file": "presentation/legal/LegalScreens.kt",
+    "strings": {
+      "legal_last_updated": "Last updated: %1$s",
+      "legal_bullet": "•  %1$s"
+    },
+    "edits": [
+      ["Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = \"Back\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))"],
+      ["text = \"Last updated: $lastUpdated\",", "text = stringResource(R.string.legal_last_updated, lastUpdated),"],
+      ["text = \"•  $bullet\",", "text = stringResource(R.string.legal_bullet, bullet),"]
+    ]
+  },
+  {
+    "section": "Companion controls",
+    "file": "presentation/game/CompanionControls.kt",
+    "strings": {
+      "companion_choose_title": "Choose a Companion",
+      "companion_choose_subtitle": "An AI will play moves on your behalf. Casual games only.",
+      "companion_level": "Lv%1$d",
+      "companion_rating": "Rating: %1$d",
+      "companion_games_played": "%1$d games",
+      "companion_win_rate": "Win: %1$d%%",
+      "companion_summary": "Lv%1$d • %2$d ELO • %3$s %4$s",
+      "companion_game_not_active": "Game not active",
+      "companion_waiting_for_opponent": "Waiting for opponent's turn...",
+      "companion_play_one_move": "Play One Move",
+      "companion_stop": "Stop",
+      "companion_auto_play": "Auto Play",
+      "companion_release": "Release Companion"
+    },
+    "edits": [
+      ["            \"Choose a Companion\",", "            stringResource(R.string.companion_choose_title),"],
+      ["            \"An AI will play moves on your behalf. Casual games only.\",", "            stringResource(R.string.companion_choose_subtitle),"],
+      ["TextButton(onClick = onRetry) { Text(\"Retry\") }", "TextButton(onClick = onRetry) { Text(stringResource(R.string.action_retry)) }"],
+      ["                        \"Lv${companion.computerLevel}\",", "                        stringResource(R.string.companion_level, companion.computerLevel),"],
+      ["                        \"Rating: ${companion.rating}\",", "                        stringResource(R.string.companion_rating, companion.rating),"],
+      ["                        \"${companion.gamesPlayed} games\",", "                        stringResource(R.string.companion_games_played, companion.gamesPlayed),"],
+      ["                        \"Win: ${companion.winRate.toInt()}%\",", "                        stringResource(R.string.companion_win_rate, companion.winRate.toInt()),"],
+      [
+        "                    \"Lv${companion.computerLevel} • ${companion.rating} ELO • ${companion.personalityEmoji} ${companion.personality}\",",
+        "                    stringResource(\n                        R.string.companion_summary,\n                        companion.computerLevel,\n                        companion.rating,\n                        companion.personalityEmoji,\n                        companion.personality,\n                    ),"
+      ],
+      ["                \"Game not active\",", "                stringResource(R.string.companion_game_not_active),"],
+      ["                \"Waiting for opponent's turn...\",", "                stringResource(R.string.companion_waiting_for_opponent),"],
+      ["Text(\"Play One Move\", fontSize = 13.sp)", "Text(stringResource(R.string.companion_play_one_move), fontSize = 13.sp)"],
+      [
+        "                    if (isContinuousPlay) \"Stop\" else \"Auto Play\",",
+        "                    stringResource(\n                        if (isContinuousPlay) R.string.companion_stop else R.string.companion_auto_play,\n                    ),"
+      ],
+      ["Text(\"Release Companion\", fontSize = 13.sp)", "Text(stringResource(R.string.companion_release), fontSize = 13.sp)"]
+    ]
+  },
+  {
+    "section": "Tournament invitations",
+    "file": "presentation/championship/ChampionshipInvitationsScreen.kt",
+    "strings": {
+      "invitations_title": "Tournament Invitations",
+      "invitations_empty": "No pending invitations",
+      "invitations_format": "Format: %1$s • %2$d players",
+      "invitations_invited_by": "Invited by %1$s"
+    },
+    "edits": [
+      ["title = { Text(\"Tournament Invitations\") },", "title = { Text(stringResource(R.string.invitations_title)) },"],
+      ["Icon(Icons.AutoMirrored.Filled.ArrowBack, \"Back\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))"],
+      ["                            \"No pending invitations\",", "                            stringResource(R.string.invitations_empty),"],
+      ["                                    \"Format: ${invitation.format} \\u2022 ${invitation.playerCount} players\",", "                                    stringResource(R.string.invitations_format, invitation.format, invitation.playerCount),"],
+      ["                                    \"Invited by ${invitation.invitedBy}\",", "                                    stringResource(R.string.invitations_invited_by, invitation.invitedBy),"],
+      ["Text(\"Accept\")", "Text(stringResource(R.string.action_accept))"],
+      ["Text(\"Decline\")", "Text(stringResource(R.string.action_decline))"]
+    ]
+  },
+  {
+    "section": "My progress screen",
+    "file": "presentation/profile/ProgressScreen.kt",
+    "strings": {
+      "progress_title": "My Progress"
+    },
+    "edits": [
+      ["title = { Text(\"My Progress\") },", "title = { Text(stringResource(R.string.progress_title)) },"],
+      ["Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = \"Back\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))"]
+    ]
+  },
+  {
+    "section": "Public game replay",
+    "file": "presentation/game/PublicGameViewerScreen.kt",
+    "strings": {
+      "public_game_title": "Game Replay",
+      "public_game_not_found": "Game Not Found",
+      "public_game_move_counter": "Move %1$d / %2$d"
+    },
+    "edits": [
+      ["title = { Text(\"Game Replay\") },", "title = { Text(stringResource(R.string.public_game_title)) },"],
+      ["Icon(Icons.AutoMirrored.Filled.ArrowBack, \"Back\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))"],
+      ["Text(\"Game Not Found\", fontWeight = FontWeight.Bold, fontSize = 18.sp)", "Text(stringResource(R.string.public_game_not_found), fontWeight = FontWeight.Bold, fontSize = 18.sp)"],
+      ["Icon(Icons.Default.SkipPrevious, \"Start\")", "Icon(Icons.Default.SkipPrevious, stringResource(R.string.a11y_start))"],
+      ["Icon(Icons.Default.FastRewind, \"Previous\")", "Icon(Icons.Default.FastRewind, stringResource(R.string.a11y_previous_move))"],
+      [
+        "                                if (state.isAutoPlaying) \"Pause\" else \"Play\",",
+        "                                stringResource(\n                                    if (state.isAutoPlaying) R.string.action_pause else R.string.action_play,\n                                ),"
+      ],
+      ["Icon(Icons.Default.FastForward, \"Next\")", "Icon(Icons.Default.FastForward, stringResource(R.string.a11y_next_move))"],
+      ["Icon(Icons.Default.SkipNext, \"End\")", "Icon(Icons.Default.SkipNext, stringResource(R.string.a11y_end))"],
+      ["                        \"Move ${state.currentMoveIndex} / ${state.totalMoves}\",", "                        stringResource(R.string.public_game_move_counter, state.currentMoveIndex, state.totalMoves),"]
+    ]
+  },
+  {
+    "section": "Board customizer",
+    "file": "presentation/game/BoardCustomizerSheet.kt",
+    "strings": {
+      "board_customizer_title": "Board Theme",
+      "a11y_selected": "Selected",
+      "a11y_premium": "Premium",
+      "board_theme_green": "Green",
+      "board_theme_brown": "Brown",
+      "board_theme_purple": "Purple",
+      "board_theme_red": "Red",
+      "board_theme_dark": "Dark",
+      "board_theme_ice": "Ice",
+      "board_theme_wood": "Wood"
+    },
+    "edits": [
+      ["                \"Board Theme\",", "                stringResource(R.string.board_customizer_title),"],
+      ["contentDescription = \"Selected\",", "contentDescription = stringResource(R.string.a11y_selected),"],
+      ["contentDescription = \"Premium\",", "contentDescription = stringResource(R.string.a11y_premium),"],
+      ["                text = theme.name,", "                text = stringResource(theme.name),"],
+      [
+        "data class BoardTheme(\n    val id: String,\n    val name: String,",
+        "data class BoardTheme(\n    val id: String,\n    @StringRes val name: Int,"
+      ],
+      [
+        "val boardThemes = listOf(\n    BoardTheme(\"classic\", \"Classic\", Color(0xFFF0D9B5), Color(0xFFB58863)),\n    BoardTheme(\"green\", \"Green\", Color(0xFFEEEED2), Color(0xFF769656)),\n    BoardTheme(\"blue\", \"Blue\", Color(0xFFDEE3E6), Color(0xFF8CA2AD)),\n    BoardTheme(\"brown\", \"Brown\", Color(0xFFF0D9B5), Color(0xFF946F51)),\n    BoardTheme(\"purple\", \"Purple\", Color(0xFFE8DAF7), Color(0xFF9B72CF), isPremiumOnly = true),\n    BoardTheme(\"red\", \"Red\", Color(0xFFF2D7D5), Color(0xFFCA5353), isPremiumOnly = true),\n    BoardTheme(\"dark\", \"Dark\", Color(0xFF606060), Color(0xFF404040), isPremiumOnly = true),\n    BoardTheme(\"ice\", \"Ice\", Color(0xFFE0F0FF), Color(0xFF88AACC), isPremiumOnly = true),\n    BoardTheme(\"wood\", \"Wood\", Color(0xFFDEB887), Color(0xFF8B6914), isPremiumOnly = true),\n)",
+        "val boardThemes = listOf(\n    BoardTheme(\"classic\", R.string.board_theme_classic, Color(0xFFF0D9B5), Color(0xFFB58863)),\n    BoardTheme(\"green\", R.string.board_theme_green, Color(0xFFEEEED2), Color(0xFF769656)),\n    BoardTheme(\"blue\", R.string.board_theme_blue, Color(0xFFDEE3E6), Color(0xFF8CA2AD)),\n    BoardTheme(\"brown\", R.string.board_theme_brown, Color(0xFFF0D9B5), Color(0xFF946F51)),\n    BoardTheme(\"purple\", R.string.board_theme_purple, Color(0xFFE8DAF7), Color(0xFF9B72CF), isPremiumOnly = true),\n    BoardTheme(\"red\", R.string.board_theme_red, Color(0xFFF2D7D5), Color(0xFFCA5353), isPremiumOnly = true),\n    BoardTheme(\"dark\", R.string.board_theme_dark, Color(0xFF606060), Color(0xFF404040), isPremiumOnly = true),\n    BoardTheme(\"ice\", R.string.board_theme_ice, Color(0xFFE0F0FF), Color(0xFF88AACC), isPremiumOnly = true),\n    BoardTheme(\"wood\", R.string.board_theme_wood, Color(0xFFDEB887), Color(0xFF8B6914), isPremiumOnly = true),\n)"
+      ],
+      ["import androidx.compose.foundation.background", "import androidx.annotation.StringRes\nimport androidx.compose.foundation.background"]
+    ]
+  },
+  {
+    "section": "Progress charts",
+    "file": "presentation/profile/UserProgressCharts.kt",
+    "strings": {
+      "progress_range_week": "7 days",
+      "progress_range_month": "30 days",
+      "progress_range_all": "All time",
+      "progress_tap_to_retry": "Tap to retry",
+      "progress_empty": "No games in this period yet. Play a few games and your progress will show up here!",
+      "progress_rating_progression": "Rating Progression",
+      "progress_no_rating_changes": "No rating changes in this period.",
+      "progress_peak": "Peak %1$d",
+      "progress_games_per_day": "Games Played Per Day",
+      "progress_no_games": "No games in this period.",
+      "progress_legend_wins": "Wins",
+      "progress_legend_draws": "Draws",
+      "progress_legend_losses": "Losses"
+    },
+    "edits": [
+      [
+        "enum class ProgressRange(val label: String, val period: String) {\n    WEEK(\"7 days\", \"7d\"),\n    MONTH(\"30 days\", \"30d\"),\n    ALL(\"All time\", \"all\"),\n}",
+        "enum class ProgressRange(@StringRes val label: Int, val period: String) {\n    WEEK(R.string.progress_range_week, \"7d\"),\n    MONTH(R.string.progress_range_month, \"30d\"),\n    ALL(R.string.progress_range_all, \"all\"),\n}"
+      ],
+      ["label = { Text(range.label) },", "label = { Text(stringResource(range.label)) },"],
+      ["actionLabel = \"Tap to retry\",", "actionLabel = stringResource(R.string.progress_tap_to_retry),"],
+      ["message = \"No games in this period yet. Play a few games and your progress will show up here!\",", "message = stringResource(R.string.progress_empty),"],
+      ["                \"Rating Progression\",", "                stringResource(R.string.progress_rating_progression),"],
+      ["                    \"No rating changes in this period.\",", "                    stringResource(R.string.progress_no_rating_changes),"],
+      ["                        \"Peak $maxRating\",", "                        stringResource(R.string.progress_peak, maxRating),"],
+      ["                \"Games Played Per Day\",", "                stringResource(R.string.progress_games_per_day),"],
+      ["                    \"No games in this period.\",", "                    stringResource(R.string.progress_no_games),"],
+      ["LegendDot(\"Wins\", winColor)", "LegendDot(stringResource(R.string.progress_legend_wins), winColor)"],
+      ["LegendDot(\"Draws\", drawColor)", "LegendDot(stringResource(R.string.progress_legend_draws), drawColor)"],
+      ["LegendDot(\"Losses\", lossColor)", "LegendDot(stringResource(R.string.progress_legend_losses), lossColor)"],
+      ["import androidx.compose.foundation.Canvas", "import androidx.annotation.StringRes\nimport androidx.compose.foundation.Canvas"]
+    ]
+  }
+]

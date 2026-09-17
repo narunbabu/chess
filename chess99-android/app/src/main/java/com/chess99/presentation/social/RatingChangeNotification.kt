@@ -14,8 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.chess99.R
 import kotlinx.coroutines.delay
 
 /**
@@ -109,7 +111,7 @@ fun RatingChangeNotification(
                 // Rating info
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Rating Updated",
+                        text = stringResource(R.string.rating_updated),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                     )
@@ -171,7 +173,7 @@ fun RatingChangeNotification(
                 ) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Dismiss",
+                        contentDescription = stringResource(R.string.a11y_dismiss),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

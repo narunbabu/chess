@@ -5,9 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -17,12 +17,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 /**
  * Lobby screen with tabs for Players, Friends, and Matchmaking.
@@ -69,7 +71,7 @@ fun LobbyScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Lobby")
+                        Text(stringResource(R.string.lobby_title))
                         Spacer(modifier = Modifier.width(8.dp))
                         // Count what the Players tab actually lists. onlineCount
                         // comes from a separate endpoint that counts only real
@@ -77,13 +79,18 @@ fun LobbyScreen(
                         // available opponents. Synthetic players are presented as
                         // ordinary opponents, so they count as available too.
                         Badge {
-                            Text("${maxOf(state.onlineCount, state.onlinePlayers.size)} online")
+                            Text(
+                                stringResource(
+                                    R.string.lobby_online_count,
+                                    maxOf(state.onlineCount, state.onlinePlayers.size),
+                                )
+                            )
                         }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -97,13 +104,13 @@ fun LobbyScreen(
                 Tab(
                     selected = state.selectedTab == LobbyTab.PLAYERS,
                     onClick = { viewModel.selectTab(LobbyTab.PLAYERS) },
-                    text = { Text("Players") },
+                    text = { Text(stringResource(R.string.lobby_tab_players)) },
                     icon = { Icon(Icons.Default.People, null, modifier = Modifier.size(18.dp)) },
                 )
                 Tab(
                     selected = state.selectedTab == LobbyTab.FRIENDS,
                     onClick = { viewModel.selectTab(LobbyTab.FRIENDS) },
-                    text = { Text("Friends") },
+                    text = { Text(stringResource(R.string.lobby_tab_friends)) },
                     icon = {
                         BadgedBox(
                             badge = {
@@ -119,7 +126,7 @@ fun LobbyScreen(
                 Tab(
                     selected = state.selectedTab == LobbyTab.MATCHMAKING,
                     onClick = { viewModel.selectTab(LobbyTab.MATCHMAKING) },
-                    text = { Text("Quick Play") },
+                    text = { Text(stringResource(R.string.lobby_tab_quick_play)) },
                     icon = { Icon(Icons.Default.FlashOn, null, modifier = Modifier.size(18.dp)) },
                 )
             }
@@ -188,10 +195,10 @@ fun LobbyScreen(
         state.error?.let { error ->
             AlertDialog(
                 onDismissRequest = { viewModel.clearError() },
-                title = { Text("Error") },
+                title = { Text(stringResource(R.string.error_title)) },
                 text = { Text(error) },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.clearError() }) { Text("OK") }
+                    TextButton(onClick = { viewModel.clearError() }) { Text(stringResource(R.string.action_ok)) }
                 },
             )
         }
@@ -260,10 +267,13 @@ private fun PlayersTab(
                 ) {
                     Text(
                         if (state.onlinePlayers.isEmpty()) {
-                            "No players online"
+                            stringResource(R.string.lobby_no_players_online)
                         } else {
-                            "No opponents rated ${state.ratingWindow.minRating}-" +
-                                "${state.ratingWindow.maxRating}. Widen the range to see more."
+                            stringResource(
+                                R.string.lobby_no_players_in_range,
+                                state.ratingWindow.minRating,
+                                state.ratingWindow.maxRating,
+                            )
                         },
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -301,7 +311,7 @@ private fun EloFilterCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
-                "Opponent rating",
+                stringResource(R.string.lobby_opponent_rating),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
             )
@@ -313,16 +323,19 @@ private fun EloFilterCard(
                 OutlinedTextField(
                     value = minText,
                     onValueChange = onMinChange,
-                    label = { Text("From") },
+                    label = { Text(stringResource(R.string.lobby_rating_from)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f),
                 )
-                Text("to", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.lobby_rating_to_separator),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 OutlinedTextField(
                     value = maxText,
                     onValueChange = onMaxChange,
-                    label = { Text("To") },
+                    label = { Text(stringResource(R.string.lobby_rating_to)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f),
@@ -330,9 +343,9 @@ private fun EloFilterCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onApply) { Text("Apply") }
+                Button(onClick = onApply) { Text(stringResource(R.string.action_apply)) }
                 if (canReset) {
-                    OutlinedButton(onClick = onReset) { Text("Reset") }
+                    OutlinedButton(onClick = onReset) { Text(stringResource(R.string.action_reset)) }
                 }
             }
         }
@@ -358,31 +371,31 @@ private fun GameOptionsCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
-                "Game options",
+                stringResource(R.string.lobby_game_options),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                "Mode",
+                stringResource(R.string.lobby_mode),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MODE_OPTIONS.forEach { (value, label) ->
+                MODE_OPTIONS.forEach { (value, labelRes) ->
                     FilterChip(
                         selected = selectedMode == value,
                         onClick = { onModeChange(value) },
-                        label = { Text(label) },
+                        label = { Text(stringResource(labelRes)) },
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                "Time",
+                stringResource(R.string.lobby_time),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -396,7 +409,7 @@ private fun GameOptionsCard(
                     FilterChip(
                         selected = timeControlMinutes == minutes && incrementSeconds == increment,
                         onClick = { onTimeControlChange(minutes, increment) },
-                        label = { Text("$minutes+$increment") },
+                        label = { Text(stringResource(R.string.lobby_time_control_option, minutes, increment)) },
                     )
                 }
             }
@@ -405,9 +418,9 @@ private fun GameOptionsCard(
 }
 
 private val MODE_OPTIONS = listOf(
-    "casual" to "Casual",
-    "learning" to "Learning",
-    "rated" to "Rated",
+    "casual" to R.string.mode_casual,
+    "learning" to R.string.mode_learning,
+    "rated" to R.string.mode_rated,
 )
 
 @Composable
@@ -438,7 +451,7 @@ private fun PlayerCard(player: LobbyPlayer, onChallenge: () -> Unit) {
                     Text(player.name, fontWeight = FontWeight.Medium)
                 }
                 Text(
-                    "Rating: ${player.rating}",
+                    stringResource(R.string.lobby_player_rating, player.rating),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -448,7 +461,12 @@ private fun PlayerCard(player: LobbyPlayer, onChallenge: () -> Unit) {
             OutlinedButton(onClick = onChallenge, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
                 Icon(Icons.Default.SportsEsports, null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(if (player.isSynthetic) "Play" else "Challenge", fontSize = 12.sp)
+                Text(
+                    stringResource(
+                        if (player.isSynthetic) R.string.action_play else R.string.action_challenge
+                    ),
+                    fontSize = 12.sp,
+                )
             }
         }
     }
@@ -482,7 +500,7 @@ private fun FriendsTab(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            placeholder = { Text("Search players...") },
+            placeholder = { Text(stringResource(R.string.lobby_search_players)) },
             leadingIcon = { Icon(Icons.Default.Search, null) },
             singleLine = true,
         )
@@ -490,7 +508,7 @@ private fun FriendsTab(
         // Search results
         if (searchQuery.length >= 2 && searchResults.isNotEmpty()) {
             Text(
-                "Search Results",
+                stringResource(R.string.lobby_search_results),
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
@@ -510,7 +528,7 @@ private fun FriendsTab(
                                 Text("${user.rating}", style = MaterialTheme.typography.bodySmall)
                             }
                             TextButton(onClick = { onAddFriend(user.id) }) {
-                                Text("Add Friend")
+                                Text(stringResource(R.string.lobby_add_friend))
                             }
                         }
                     }
@@ -527,7 +545,7 @@ private fun FriendsTab(
             // Friend requests section (T1) — above the friends list, absent when empty.
             if (pendingRequests.isNotEmpty()) {
                 item(key = "requests-header") {
-                    SectionHeader("Friend requests")
+                    SectionHeader(stringResource(R.string.lobby_friend_requests))
                 }
                 items(pendingRequests, key = { "request-${it.id}" }) { requester ->
                     FriendRequestCard(
@@ -543,7 +561,7 @@ private fun FriendsTab(
 
             item(key = "friends-header") {
                 Text(
-                    "Friends (${friends.size})",
+                    stringResource(R.string.lobby_friends_count, friends.size),
                     style = MaterialTheme.typography.titleSmall,
                 )
             }
@@ -554,7 +572,10 @@ private fun FriendsTab(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text("No friends yet. Search for players above!", textAlign = TextAlign.Center)
+                        Text(
+                            stringResource(R.string.lobby_no_friends),
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 }
             } else {
@@ -573,16 +594,16 @@ private fun FriendsTab(
     friendPendingRemoval?.let { friend ->
         AlertDialog(
             onDismissRequest = { friendPendingRemoval = null },
-            title = { Text("Remove friend?") },
-            text = { Text("Remove ${friend.name} from your chess mates? You can add them again anytime.") },
+            title = { Text(stringResource(R.string.lobby_remove_friend_title)) },
+            text = { Text(stringResource(R.string.lobby_remove_friend_body, friend.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     onRemoveFriend(friend.id)
                     friendPendingRemoval = null
-                }) { Text("Remove") }
+                }) { Text(stringResource(R.string.action_remove)) }
             },
             dismissButton = {
-                TextButton(onClick = { friendPendingRemoval = null }) { Text("Cancel") }
+                TextButton(onClick = { friendPendingRemoval = null }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
@@ -631,18 +652,18 @@ private fun FriendRequestCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(requester.name, fontWeight = FontWeight.Medium)
                 Text(
-                    "Rating: ${requester.rating}",
+                    stringResource(R.string.lobby_player_rating, requester.rating),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             TextButton(onClick = onDecline, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                Text("Decline", fontSize = 12.sp)
+                Text(stringResource(R.string.action_decline), fontSize = 12.sp)
             }
             Spacer(modifier = Modifier.width(4.dp))
             Button(onClick = onAccept, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
-                Text("Accept", fontSize = 12.sp)
+                Text(stringResource(R.string.action_accept), fontSize = 12.sp)
             }
         }
     }
@@ -676,7 +697,7 @@ private fun FriendCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(friend.name, fontWeight = FontWeight.Medium)
                 Text(
-                    "Rating: ${friend.rating}",
+                    stringResource(R.string.lobby_player_rating, friend.rating),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -686,17 +707,17 @@ private fun FriendCard(
             OutlinedButton(onClick = onChallenge, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
                 Icon(Icons.Default.SportsEsports, null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Challenge", fontSize = 12.sp)
+                Text(stringResource(R.string.action_challenge), fontSize = 12.sp)
             }
 
             // Overflow menu — Remove friend is deliberately not a one-tap action.
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
-                    Icon(Icons.Default.MoreVert, "More options")
+                    Icon(Icons.Default.MoreVert, stringResource(R.string.a11y_more_options))
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(
-                        text = { Text("Remove friend") },
+                        text = { Text(stringResource(R.string.lobby_remove_friend)) },
                         onClick = {
                             menuExpanded = false
                             onRemove()
@@ -731,11 +752,15 @@ private fun MatchmakingTab(
     ) {
         when (state) {
             MatchmakingState.IDLE -> {
-                Text("Quick Play", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.lobby_quick_play_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                )
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Time control selector
-                Text("Time Control", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.lobby_time_control), style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -754,46 +779,46 @@ private fun MatchmakingTab(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // Color preference
-                Text("Color", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.lobby_color), style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = selectedColor == "random",
                         onClick = { selectedColor = "random" },
-                        label = { Text("Random") },
+                        label = { Text(stringResource(R.string.color_random)) },
                     )
                     FilterChip(
                         selected = selectedColor == "white",
                         onClick = { selectedColor = "white" },
-                        label = { Text("\u2654 White") },
+                        label = { Text(stringResource(R.string.color_white)) },
                     )
                     FilterChip(
                         selected = selectedColor == "black",
                         onClick = { selectedColor = "black" },
-                        label = { Text("\u265A Black") },
+                        label = { Text(stringResource(R.string.color_black)) },
                     )
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // Game mode
-                Text("Mode", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.lobby_mode), style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = selectedMode == "casual",
                         onClick = { selectedMode = "casual" },
-                        label = { Text("Casual") },
+                        label = { Text(stringResource(R.string.mode_casual)) },
                     )
                     FilterChip(
                         selected = selectedMode == "learning",
                         onClick = { selectedMode = "learning" },
-                        label = { Text("Learning") },
+                        label = { Text(stringResource(R.string.mode_learning)) },
                     )
                     FilterChip(
                         selected = selectedMode == "rated",
                         onClick = { selectedMode = "rated" },
-                        label = { Text("Rated") },
+                        label = { Text(stringResource(R.string.mode_rated)) },
                     )
                 }
 
@@ -807,7 +832,7 @@ private fun MatchmakingTab(
                 ) {
                     Icon(Icons.Default.Search, null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Find Opponent", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.lobby_find_opponent), style = MaterialTheme.typography.titleMedium)
                 }
             }
 
@@ -828,7 +853,11 @@ private fun MatchmakingTab(
 
                 CircularProgressIndicator(modifier = Modifier.size(64.dp))
                 Spacer(modifier = Modifier.height(24.dp))
-                Text("Finding opponent...", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.lobby_finding_opponent),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
                     progress = { progress },
@@ -839,7 +868,7 @@ private fun MatchmakingTab(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Searching for players...",
+                    text = stringResource(R.string.lobby_searching_players),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -849,13 +878,13 @@ private fun MatchmakingTab(
                 // checkStatus → matchWithSynthetic), so a search is never a
                 // dead end even in a thin player pool. No "0 online" badge.
                 Text(
-                    text = "Finding a player usually takes under a minute.",
+                    text = stringResource(R.string.lobby_search_expectation),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(28.dp))
                 OutlinedButton(onClick = onCancel) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
 
@@ -868,8 +897,15 @@ private fun MatchmakingTab(
                     tint = Color(0xFF4CAF50),
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Match Found!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                Text("Joining game...", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.lobby_match_found),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    stringResource(R.string.lobby_joining_game),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -886,16 +922,27 @@ private fun ActiveGamesBanner(games: List<ActiveGame>, onResume: (Int) -> Unit) 
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text("Active Games", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(R.string.lobby_active_games),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall,
+            )
             games.forEach { game ->
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("vs ${game.opponentName} (${game.timeControl})", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        stringResource(
+                            R.string.lobby_active_game_row,
+                            game.opponentName,
+                            game.timeControl,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                     TextButton(onClick = { onResume(game.id) }, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                        Text("Resume", fontSize = 12.sp)
+                        Text(stringResource(R.string.action_resume), fontSize = 12.sp)
                     }
                 }
             }
@@ -916,22 +963,26 @@ private fun InvitationsBanner(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text("Challenges", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(R.string.lobby_challenges),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall,
+            )
             invitations.forEach { inv ->
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "${inv.senderName} (${inv.timeControl})",
+                        stringResource(R.string.lobby_invitation_row, inv.senderName, inv.timeControl),
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.weight(1f),
                     )
                     TextButton(onClick = { onAccept(inv.id) }, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Text("Accept", fontSize = 12.sp)
+                        Text(stringResource(R.string.action_accept), fontSize = 12.sp)
                     }
                     TextButton(onClick = { onDecline(inv.id) }, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Text("Decline", fontSize = 12.sp)
+                        Text(stringResource(R.string.action_decline), fontSize = 12.sp)
                     }
                 }
             }

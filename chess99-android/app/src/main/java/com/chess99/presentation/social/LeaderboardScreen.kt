@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.chess99.R
 
 /**
  * Leaderboard screen with 4 category tabs and 4 period filters.
@@ -45,10 +47,10 @@ fun LeaderboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Leaderboard") },
+                title = { Text(stringResource(R.string.leaderboard_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -64,7 +66,7 @@ fun LeaderboardScreen(
                     Tab(
                         selected = state.selectedCategory == category,
                         onClick = { viewModel.selectCategory(category) },
-                        text = { Text(category.displayName, fontSize = 13.sp) },
+                        text = { Text(stringResource(category.displayNameRes), fontSize = 13.sp) },
                         icon = {
                             Icon(
                                 imageVector = when (category) {
@@ -97,7 +99,7 @@ fun LeaderboardScreen(
                                 viewModel.selectPeriod(period)
                             }
                         },
-                        label = { Text(period.displayName, fontSize = 12.sp) },
+                        label = { Text(stringResource(period.displayNameRes), fontSize = 12.sp) },
                         enabled = !isRatingCategory,
                     )
                 }
@@ -121,13 +123,13 @@ fun LeaderboardScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = state.error ?: "Unknown error",
+                                text = state.error ?: stringResource(R.string.review_unknown_error),
                                 color = MaterialTheme.colorScheme.error,
                                 textAlign = TextAlign.Center,
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             OutlinedButton(onClick = { viewModel.loadLeaderboard() }) {
-                                Text("Retry")
+                                Text(stringResource(R.string.action_retry))
                             }
                         }
                     }
@@ -147,12 +149,14 @@ fun LeaderboardScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = when (state.selectedPeriod) {
-                                    LeaderboardPeriod.TODAY -> "No games today. Be the first!"
-                                    LeaderboardPeriod.SEVEN_DAYS -> "No games this week yet."
-                                    LeaderboardPeriod.THIRTY_DAYS -> "No games this month yet."
-                                    LeaderboardPeriod.ALL_TIME -> "No leaderboard data available."
-                                },
+                                text = stringResource(
+                                    when (state.selectedPeriod) {
+                                        LeaderboardPeriod.TODAY -> R.string.leaderboard_empty_today
+                                        LeaderboardPeriod.SEVEN_DAYS -> R.string.leaderboard_empty_week
+                                        LeaderboardPeriod.THIRTY_DAYS -> R.string.leaderboard_empty_month
+                                        LeaderboardPeriod.ALL_TIME -> R.string.leaderboard_empty_all
+                                    }
+                                ),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(horizontal = 32.dp),
@@ -368,7 +372,7 @@ private fun PodiumEntry(
 
         // Value label
         Text(
-            text = category.valueLabel,
+            text = stringResource(category.valueLabelRes),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 10.sp,
@@ -377,7 +381,7 @@ private fun PodiumEntry(
         // Rating (show if not "By Rating" category)
         if (category != LeaderboardCategory.BY_RATING) {
             Text(
-                text = "${entry.rating} rated",
+                text = stringResource(R.string.leaderboard_rated, entry.rating),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 10.sp,
@@ -418,7 +422,7 @@ private fun LeaderboardRow(
         ) {
             // Rank
             Text(
-                text = "#${entry.rank}",
+                text = stringResource(R.string.leaderboard_rank, entry.rank),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.width(40.dp),
@@ -465,7 +469,7 @@ private fun LeaderboardRow(
                 )
                 if (category != LeaderboardCategory.BY_RATING) {
                     Text(
-                        text = "${entry.rating} rated",
+                        text = stringResource(R.string.leaderboard_rated, entry.rating),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp,
@@ -481,7 +485,7 @@ private fun LeaderboardRow(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = category.valueLabel,
+                    text = stringResource(category.valueLabelRes),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 10.sp,
@@ -495,7 +499,7 @@ private fun LeaderboardRow(
             ) {
                 Icon(
                     Icons.Default.Share,
-                    contentDescription = "Share",
+                    contentDescription = stringResource(R.string.action_share),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -525,13 +529,13 @@ private fun InviteBanner(onShare: () -> Unit) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Challenge your friends!",
+                    text = stringResource(R.string.leaderboard_invite_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Invite friends to Chess99 and see who climbs the leaderboard faster.",
+                    text = stringResource(R.string.leaderboard_invite_body),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -545,7 +549,7 @@ private fun InviteBanner(onShare: () -> Unit) {
             ) {
                 Icon(Icons.Default.Share, null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Invite")
+                Text(stringResource(R.string.leaderboard_invite))
             }
         }
     }

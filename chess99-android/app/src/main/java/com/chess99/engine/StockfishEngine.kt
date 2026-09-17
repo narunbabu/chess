@@ -1,14 +1,16 @@
 package com.chess99.engine
 
 import android.content.Context
+import androidx.annotation.StringRes
+import com.chess99.R
 import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.math.max
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import javax.inject.Inject
-import javax.inject.Singleton
-import kotlin.math.max
 
 /**
  * Stockfish engine wrapper using JNI bridge.
@@ -396,6 +398,6 @@ class EngineInitException(cause: Throwable) : Exception(cause)
 
 /** Shared, honest, kid-safe copy for engine-init failures. See EngineInitException. */
 object EngineFailureCopy {
-    const val MESSAGE = "The chess engine couldn't start on this device."
-    const val ACTION_LABEL = "Try a puzzle instead"
+    @StringRes val MESSAGE = R.string.engine_unavailable_message
+    @StringRes val ACTION_LABEL = R.string.engine_unavailable_action
 }

@@ -39,7 +39,7 @@ fun SkillAssessmentScreen(
                 title = { Text(stringResource(R.string.skill_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -76,19 +76,19 @@ fun SkillAssessmentScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "Assessment Complete!",
+                        stringResource(R.string.skill_assessment_complete),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Your estimated rating: ${state.estimatedRating}",
+                        stringResource(R.string.skill_estimated_rating, state.estimatedRating),
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "Level: ${state.skillLevel}",
+                        stringResource(R.string.skill_level_label, state.skillLevel),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -112,7 +112,7 @@ fun SkillAssessmentScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Question ${state.currentIndex + 1} of ${state.totalQuestions}",
+                        stringResource(R.string.skill_question_of, state.currentIndex + 1, state.totalQuestions),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

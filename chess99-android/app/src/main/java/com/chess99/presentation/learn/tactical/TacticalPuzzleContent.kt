@@ -11,9 +11,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.chess99.R
 import com.chess99.engine.ChessGame
 import com.chess99.presentation.common.ChessBoardView
 import com.chess99.presentation.common.MoveEffects
@@ -37,11 +39,11 @@ fun TacticalPuzzleContent(
                 title = {
                     Column {
                         Text(
-                            state.currentStage?.title ?: "Tactical Trainer",
+                            state.currentStage?.let { stringResource(it.title) } ?: stringResource(R.string.tactical_trainer_title),
                             style = MaterialTheme.typography.titleSmall,
                         )
                         Text(
-                            "Puzzle ${state.puzzleIndex + 1}/${state.puzzleCount}",
+                            stringResource(R.string.tactical_puzzle_index, state.puzzleIndex + 1, state.puzzleCount),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -49,12 +51,12 @@ fun TacticalPuzzleContent(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackToDashboard) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { onRequestHint() }, enabled = !state.isSolved && !state.solutionShown) {
-                        Icon(Icons.Default.Lightbulb, "Hint")
+                        Icon(Icons.Default.Lightbulb, stringResource(R.string.action_hint))
                     }
                 },
             )
@@ -96,17 +98,22 @@ fun TacticalPuzzleContent(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Star, null, modifier = Modifier.size(14.dp), tint = Color(0xFFFFC107))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Rating: ${puzzle.rating}", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.tactical_puzzle_rating, puzzle.rating), style = MaterialTheme.typography.labelSmall)
                 }
             }
 
             // Instruction
-            val instruction = when {
-                state.isSolved -> "Correct!"
-                else -> {
-                    val color = if (state.playerColor == com.chess99.engine.Color.WHITE) "White" else "Black"
-                    "$color to move. Find the best continuation."
-                }
+            val instruction = if (state.isSolved) {
+                stringResource(R.string.tactical_correct)
+            } else {
+                val color = stringResource(
+                    if (state.playerColor == com.chess99.engine.Color.WHITE) {
+                        R.string.color_white_name
+                    } else {
+                        R.string.color_black_name
+                    },
+                )
+                stringResource(R.string.tactical_to_move, color)
             }
             Text(
                 text = instruction,
@@ -125,7 +132,7 @@ fun TacticalPuzzleContent(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
                 ) {
                     Text(
-                        text = "Hint: Try moving from $hintSq",
+                        text = stringResource(R.string.tactical_hint_square, hintSq),
                         modifier = Modifier.padding(8.dp),
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -160,7 +167,7 @@ fun TacticalPuzzleContent(
                     Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        "Incorrect. Try again!",
+                        stringResource(R.string.tactical_incorrect),
                         color = MaterialTheme.colorScheme.error,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.bodyMedium,
@@ -185,13 +192,13 @@ fun TacticalPuzzleContent(
     if (state.showHintConfirmDialog) {
         AlertDialog(
             onDismissRequest = onDismissHintDialog,
-            title = { Text("Show the solution?") },
-            text = { Text("You'll get 0 points for this puzzle.") },
+            title = { Text(stringResource(R.string.tactical_show_solution_title)) },
+            text = { Text(stringResource(R.string.tactical_show_solution_body)) },
             confirmButton = {
-                TextButton(onClick = onConfirmShowSolution) { Text("Show solution") }
+                TextButton(onClick = onConfirmShowSolution) { Text(stringResource(R.string.tactical_show_solution_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = onDismissHintDialog) { Text("Keep trying") }
+                TextButton(onClick = onDismissHintDialog) { Text(stringResource(R.string.tactical_keep_trying)) }
             },
         )
     }
@@ -217,14 +224,14 @@ private fun SolvedCard(
         ) {
             Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(32.dp))
             Spacer(modifier = Modifier.height(4.dp))
-            Text("Correct!", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = Color(0xFF4CAF50))
+            Text(stringResource(R.string.tactical_correct), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = Color(0xFF4CAF50))
 
             RatingDeltaChip(ratingDelta, modifier = Modifier.padding(top = 4.dp))
 
             score?.let { s ->
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Score: ${s.combined ?: s.execScore}/100",
+                    stringResource(R.string.tactical_score, s.combined ?: s.execScore),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -234,7 +241,7 @@ private fun SolvedCard(
             Button(onClick = onNextPuzzle) {
                 Icon(Icons.Default.SkipNext, null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Next Puzzle")
+                Text(stringResource(R.string.tactical_next_puzzle))
             }
         }
     }
@@ -251,7 +258,7 @@ private fun RatingDeltaChip(delta: RatingDelta?, modifier: Modifier = Modifier) 
     val ratingText = if (signedValue > 0) "+$signedValue" else "$signedValue"
     val ratingColor = if (signedValue > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
     Text(
-        "Rating $ratingText",
+        stringResource(R.string.tactical_rating_delta, ratingText),
         style = MaterialTheme.typography.bodyMedium,
         color = ratingColor,
         fontWeight = FontWeight.SemiBold,
@@ -272,10 +279,10 @@ fun SolutionViewerContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Solution") },
+                title = { Text(stringResource(R.string.tactical_solution_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBackToDashboard) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -296,16 +303,16 @@ fun SolutionViewerContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = { onNavigateSolution(-1) }, enabled = state.solutionMoveIndex > 0) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Previous")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_previous_move))
                 }
                 Text(
-                    "Move ${state.solutionMoveIndex + 1}/${puzzle.moves.size}",
+                    stringResource(R.string.tactical_solution_move, state.solutionMoveIndex + 1, puzzle.moves.size),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
                 IconButton(onClick = { onNavigateSolution(1) }, enabled = state.solutionMoveIndex < puzzle.moves.lastIndex) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, "Next")
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, stringResource(R.string.a11y_next_move))
                 }
             }
 
@@ -360,7 +367,7 @@ fun SolutionViewerContent(
                 ) {
                     Icon(Icons.Default.Dashboard, null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Dashboard")
+                    Text(stringResource(R.string.drawer_dashboard))
                 }
                 Button(
                     onClick = onNextPuzzle,
@@ -368,7 +375,7 @@ fun SolutionViewerContent(
                 ) {
                     Icon(Icons.Default.SkipNext, null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Next")
+                    Text(stringResource(R.string.local_review_next))
                 }
             }
 

@@ -1,7 +1,9 @@
 package com.chess99.presentation.learn
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.TutorialApi
 import com.chess99.data.api.arrOrNull
 import com.chess99.data.api.bool
@@ -13,12 +15,13 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * ViewModel for the Learn screen (Tutorial Hub + Training).
@@ -35,6 +38,8 @@ import javax.inject.Inject
 @HiltViewModel
 class LearnViewModel @Inject constructor(
     private val tutorialApi: TutorialApi,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LearnUiState())
@@ -80,7 +85,7 @@ class LearnViewModel @Inject constructor(
             val response = tutorialApi.getModules()
             if (!response.isSuccessful) {
                 _uiState.value = _uiState.value.copy(
-                    error = friendlyError(java.io.IOException("HTTP ${response.code()}"), "lessons"),
+                    error = friendlyError(context, java.io.IOException("HTTP ${response.code()}"), R.string.error_subject_lessons),
                 )
                 return
             }
@@ -89,7 +94,7 @@ class LearnViewModel @Inject constructor(
             if (body == null || !body.succeeded() || modulesArray == null) {
                 Timber.w("tutorial contract miss (modules): keys=${body?.keySet()}")
                 _uiState.value = _uiState.value.copy(
-                    error = "Couldn't load lessons. Pull to retry.",
+                    error = context.getString(R.string.learn_lessons_failed),
                 )
                 return
             }
@@ -104,7 +109,7 @@ class LearnViewModel @Inject constructor(
             )
         } catch (e: Exception) {
             Timber.e(e, "Failed to load tutorial modules")
-            _uiState.value = _uiState.value.copy(error = friendlyError(e, "lessons"))
+            _uiState.value = _uiState.value.copy(error = friendlyError(context, e, R.string.error_subject_lessons))
         }
     }
 
@@ -153,7 +158,7 @@ class LearnViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 dailyChallenge = DailyChallenge(
                     id = challenge.int("id") ?: 0,
-                    title = challenge.str("challenge_type_display") ?: challenge.str("title") ?: "Daily Challenge",
+                    title = challenge.str("challenge_type_display") ?: challenge.str("title") ?: context.getString(R.string.learn_daily_challenge_default),
                     description = challenge.objOrNull("track").str("focus") ?: challenge.str("description") ?: "",
                     difficulty = challenge.objOrNull("track").str("skill_tier") ?: challenge.str("difficulty") ?: "medium",
                     isCompleted = challenge.objOrNull("user_completion").bool("completed") ?: false,
@@ -214,7 +219,7 @@ class LearnViewModel @Inject constructor(
                     }
                     _uiState.value = _uiState.value.copy(
                         isLoadingModule = false,
-                        error = body?.str("message") ?: "Couldn't load this module. Pull to retry.",
+                        error = body?.str("message") ?: context.getString(R.string.learn_module_failed),
                     )
                     return@launch
                 }
@@ -225,7 +230,7 @@ class LearnViewModel @Inject constructor(
                     Timber.w("tutorial contract miss (module detail): keys=${body?.keySet()}")
                     _uiState.value = _uiState.value.copy(
                         isLoadingModule = false,
-                        error = "Couldn't load this module. Pull to retry.",
+                        error = context.getString(R.string.learn_module_failed),
                     )
                     return@launch
                 }
@@ -254,7 +259,7 @@ class LearnViewModel @Inject constructor(
                 Timber.e(e, "Failed to load module detail: $slug")
                 _uiState.value = _uiState.value.copy(
                     isLoadingModule = false,
-                    error = friendlyError(e, "this module"),
+                    error = friendlyError(context, e, R.string.error_subject_this_module),
                 )
             }
         }
@@ -267,28 +272,7 @@ class LearnViewModel @Inject constructor(
         )
     }
 
-    // ── Lesson Completion ──────────────────────────────────────────────
-
-    fun completeLesson(lessonId: Int) {
-        viewModelScope.launch {
-            try {
-                val response = tutorialApi.completeLesson(lessonId)
-                if (response.isSuccessful) {
-                    // Refresh stats and module detail
-                    loadStats()
-                    _uiState.value.selectedModuleSlug?.let { loadModuleDetail(it) }
-                    _uiState.value = _uiState.value.copy(
-                        snackbarMessage = "Lesson completed!",
-                    )
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to complete lesson $lessonId")
-                _uiState.value = _uiState.value.copy(error = friendlyError(e, "your progress"))
-            }
-        }
-    }
-
-    // ── Tab Selection ──────────────────────────────────────────────────
+    // ── Tab Selection ──────────────────────────────────────────────
 
     fun selectTab(tab: LearnTab) {
         _uiState.value = _uiState.value.copy(selectedTab = tab)

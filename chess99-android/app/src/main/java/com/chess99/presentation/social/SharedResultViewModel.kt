@@ -1,16 +1,19 @@
 package com.chess99.presentation.social
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.SocialApi
 import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 data class SharedResultUiState(
     val isLoading: Boolean = false,
@@ -30,6 +33,8 @@ data class SharedResultUiState(
 @HiltViewModel
 class SharedResultViewModel @Inject constructor(
     private val socialApi: SocialApi,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SharedResultUiState())
@@ -43,15 +48,15 @@ class SharedResultViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     val body = response.body() ?: return@launch
                     val result = body.get("result")?.asString ?: "unknown"
-                    val whitePlayer = body.get("white_player")?.asString ?: "White"
-                    val blackPlayer = body.get("black_player")?.asString ?: "Black"
+                    val whitePlayer = body.get("white_player")?.asString ?: context.getString(R.string.player_white)
+                    val blackPlayer = body.get("black_player")?.asString ?: context.getString(R.string.player_black)
 
                     _uiState.value = SharedResultUiState(
                         resultText = when (result) {
                             "white" -> "$whitePlayer wins!"
                             "black" -> "$blackPlayer wins!"
-                            "draw" -> "Draw"
-                            else -> "Game Over"
+                            "draw" -> context.getString(R.string.share_result_draw)
+                            else -> context.getString(R.string.shared_result_game_over)
                         },
                         whiteName = whitePlayer,
                         blackName = blackPlayer,
@@ -69,11 +74,11 @@ class SharedResultViewModel @Inject constructor(
                         ratingChange = body.get("rating_change")?.asInt ?: 0,
                     )
                 } else {
-                    _uiState.value = SharedResultUiState(error = "Result not found")
+                    _uiState.value = SharedResultUiState(error = context.getString(R.string.shared_result_not_found))
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load shared result")
-                _uiState.value = SharedResultUiState(error = friendlyError(e, "this shared game"))
+                _uiState.value = SharedResultUiState(error = friendlyError(context, e, R.string.error_subject_this_shared_game))
             }
         }
     }

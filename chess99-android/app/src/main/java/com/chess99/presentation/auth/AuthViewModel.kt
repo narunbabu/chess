@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.chess99.domain.model.User
 import com.chess99.domain.repository.AuthRepository
 import com.chess99.presentation.common.friendlyError
+import com.chess99.R
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,14 +37,16 @@ private enum class AuthAction { LOGIN, REGISTER, GOOGLE, FACEBOOK }
  * to one honest, action-specific fallback rather than guessing at a status
  * code from message text.
  */
-private fun authErrorCopy(e: Throwable, action: AuthAction): String {
-    if (e is IOException) return friendlyError(e, "your request")
-    return when (action) {
-        AuthAction.LOGIN -> "That email or password doesn't match. Try again."
-        AuthAction.REGISTER -> "Please check your details and try again."
-        AuthAction.GOOGLE -> "Google sign-in didn't work. Please try again."
-        AuthAction.FACEBOOK -> "Facebook sign-in didn't work. Please try again."
-    }
+private fun authErrorCopy(context: Context, e: Throwable, action: AuthAction): String {
+    if (e is IOException) return friendlyError(context, e, R.string.error_subject_your_request)
+    return context.getString(
+        when (action) {
+            AuthAction.LOGIN -> R.string.auth_error_login
+            AuthAction.REGISTER -> R.string.auth_error_register
+            AuthAction.GOOGLE -> R.string.auth_error_google
+            AuthAction.FACEBOOK -> R.string.auth_error_facebook
+        }
+    )
 }
 
 data class AuthUiState(
@@ -57,6 +61,8 @@ class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val googleSignInHelper: GoogleSignInHelper,
     private val facebookSignInHelper: FacebookSignInHelper,
+    // Injected so the failure copy above can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -85,7 +91,7 @@ class AuthViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = authErrorCopy(error, AuthAction.LOGIN),
+                            error = authErrorCopy(context, error, AuthAction.LOGIN),
                         )
                     }
                 }
@@ -127,7 +133,7 @@ class AuthViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = authErrorCopy(error, AuthAction.REGISTER),
+                            error = authErrorCopy(context, error, AuthAction.REGISTER),
                         )
                     }
                 }
@@ -155,7 +161,7 @@ class AuthViewModel @Inject constructor(
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
-                                    error = authErrorCopy(error, AuthAction.GOOGLE),
+                                    error = authErrorCopy(context, error, AuthAction.GOOGLE),
                                 )
                             }
                         }
@@ -165,7 +171,7 @@ class AuthViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = authErrorCopy(result.exception, AuthAction.GOOGLE),
+                            error = authErrorCopy(context, result.exception, AuthAction.GOOGLE),
                         )
                     }
                 }
@@ -173,8 +179,7 @@ class AuthViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = "No Google account on this device. " +
-                                "Add one in Settings, or sign up with an email address.",
+                            error = context.getString(R.string.auth_error_no_google_account),
                         )
                     }
                 }
@@ -206,7 +211,7 @@ class AuthViewModel @Inject constructor(
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
-                                    error = authErrorCopy(error, AuthAction.FACEBOOK),
+                                    error = authErrorCopy(context, error, AuthAction.FACEBOOK),
                                 )
                             }
                         }
@@ -216,7 +221,7 @@ class AuthViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = authErrorCopy(result.exception, AuthAction.FACEBOOK),
+                            error = authErrorCopy(context, result.exception, AuthAction.FACEBOOK),
                         )
                     }
                 }

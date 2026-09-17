@@ -1,7 +1,9 @@
 package com.chess99.presentation.championship
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.ChampionshipApi
 import com.chess99.data.api.bool
 import com.chess99.data.api.dbl
@@ -11,12 +13,13 @@ import com.chess99.data.api.str
 import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * ViewModel for the championship list screen.
@@ -25,6 +28,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ChampionshipListViewModel @Inject constructor(
     private val championshipApi: ChampionshipApi,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChampionshipListUiState())
@@ -56,14 +61,14 @@ class ChampionshipListViewModel @Inject constructor(
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = "Failed to load tournaments (${response.code()})",
+                        error = context.getString(R.string.champ_list_load_failed_code, response.code()),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load championships")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = friendlyError(e, "tournaments"),
+                    error = friendlyError(context, e, R.string.error_subject_tournaments),
                 )
             }
         }
@@ -98,7 +103,7 @@ class ChampionshipListViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     _uiState.value = _uiState.value.copy(
                         registeringId = null,
-                        snackbarMessage = "Successfully registered!",
+                        snackbarMessage = context.getString(R.string.champ_registered),
                     )
                     loadChampionships()
                 } else {
@@ -109,14 +114,14 @@ class ChampionshipListViewModel @Inject constructor(
                     } catch (_: Exception) { null }
                     _uiState.value = _uiState.value.copy(
                         registeringId = null,
-                        error = message ?: "Registration failed (${response.code()})",
+                        error = message ?: context.getString(R.string.champ_registration_failed_code, response.code()),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to register for championship $championshipId")
                 _uiState.value = _uiState.value.copy(
                     registeringId = null,
-                    error = friendlyError(e, "tournament registration"),
+                    error = friendlyError(context, e, R.string.error_subject_tournament_registration),
                 )
             }
         }
@@ -148,20 +153,20 @@ class ChampionshipListViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isCreating = false,
                         showCreateDialog = false,
-                        snackbarMessage = "Tournament created!",
+                        snackbarMessage = context.getString(R.string.champ_created),
                     )
                     loadChampionships()
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isCreating = false,
-                        error = "Failed to create tournament (${response.code()})",
+                        error = context.getString(R.string.champ_create_failed_code, response.code()),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to create championship")
                 _uiState.value = _uiState.value.copy(
                     isCreating = false,
-                    error = friendlyError(e, "this action"),
+                    error = friendlyError(context, e, R.string.error_subject_this_action),
                 )
             }
         }

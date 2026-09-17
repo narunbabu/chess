@@ -9,10 +9,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 /**
  * View a shared game result from a deep link.
@@ -34,10 +36,10 @@ fun SharedResultScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Game Result") },
+                title = { Text(stringResource(R.string.shared_result_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -64,7 +66,7 @@ fun SharedResultScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            "Could not load result",
+                            stringResource(R.string.shared_result_load_failed),
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -101,7 +103,7 @@ fun SharedResultScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Column {
-                                    Text("White", style = MaterialTheme.typography.labelSmall)
+                                    Text(stringResource(R.string.color_white_name), style = MaterialTheme.typography.labelSmall)
                                     Text(state.whiteName, fontWeight = FontWeight.Bold)
                                     Text("${state.whiteRating}", style = MaterialTheme.typography.bodySmall)
                                 }
@@ -111,7 +113,7 @@ fun SharedResultScreen(
                                     fontWeight = FontWeight.Bold,
                                 )
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text("Black", style = MaterialTheme.typography.labelSmall)
+                                    Text(stringResource(R.string.color_black_name), style = MaterialTheme.typography.labelSmall)
                                     Text(state.blackName, fontWeight = FontWeight.Bold)
                                     Text("${state.blackRating}", style = MaterialTheme.typography.bodySmall)
                                 }
@@ -124,12 +126,12 @@ fun SharedResultScreen(
                     // Game details
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            DetailRow("Time Control", state.timeControl)
-                            DetailRow("Total Moves", "${state.totalMoves}")
-                            DetailRow("Result", state.result)
+                            DetailRow(stringResource(R.string.shared_result_time_control), state.timeControl)
+                            DetailRow(stringResource(R.string.shared_result_total_moves), "${state.totalMoves}")
+                            DetailRow(stringResource(R.string.shared_result_result), state.result)
                             if (state.ratingChange != 0) {
                                 DetailRow(
-                                    "Rating Change",
+                                    stringResource(R.string.shared_result_rating_change),
                                     if (state.ratingChange > 0) "+${state.ratingChange}" else "${state.ratingChange}",
                                 )
                             }

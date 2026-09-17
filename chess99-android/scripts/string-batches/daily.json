@@ -1,0 +1,99 @@
+[
+  {
+    "section": "Daily challenges",
+    "file": "presentation/daily/DailyChallengesScreen.kt",
+    "strings": {
+      "daily_title": "Daily Challenges",
+      "daily_streak": "%1$d-day streak",
+      "a11y_locked": "Locked",
+      "daily_track_locked_title": "This track is part of %1$s",
+      "daily_track_locked_default_tier": "a premium",
+      "daily_track_locked_body": "This daily challenge track is available on premium plans.",
+      "daily_todays_challenge": "Today's Challenge",
+      "daily_default_description": "Solve today's puzzle to keep your streak alive.",
+      "daily_difficulty_xp": "%1$s • +%2$d XP",
+      "daily_completed_today": "Completed Today",
+      "daily_solve": "Solve Today's Challenge",
+      "daily_leaderboard": "Leaderboard"
+    },
+    "edits": [
+      [
+        "title = { Text(\"Daily Challenges\", fontWeight = FontWeight.Bold) },",
+        "title = { Text(stringResource(R.string.daily_title), fontWeight = FontWeight.Bold) },"
+      ],
+      [
+        "Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = \"Back\")",
+        "Icon(\n                            Icons.AutoMirrored.Filled.ArrowBack,\n                            contentDescription = stringResource(R.string.action_back),\n                        )"
+      ],
+      [
+        "                        \"${state.streak}-day streak\",",
+        "                        stringResource(R.string.daily_streak, state.streak),"
+      ],
+      [
+        "                                        contentDescription = \"Locked\",",
+        "                                        contentDescription = stringResource(R.string.a11y_locked),"
+      ],
+      [
+        "                            \"This track is part of ${\n                                state.requiredTier?.replaceFirstChar { it.uppercase() } ?: \"a premium\"\n                            }\",",
+        "                            stringResource(\n                                R.string.daily_track_locked_title,\n                                state.requiredTier?.replaceFirstChar { it.uppercase() }\n                                    ?: stringResource(R.string.daily_track_locked_default_tier),\n                            ),"
+      ],
+      [
+        "                            \"This daily challenge track is available on premium plans.\",",
+        "                            stringResource(R.string.daily_track_locked_body),"
+      ],
+      [
+        "                                state.challenge?.title ?: \"Today's Challenge\",",
+        "                                state.challenge?.title\n                                    ?: stringResource(R.string.daily_todays_challenge),"
+      ],
+      [
+        "                                    contentDescription = \"Completed\",",
+        "                                    contentDescription = stringResource(R.string.a11y_completed),"
+      ],
+      [
+        "                            state.challenge?.description ?: \"Solve today's puzzle to keep your streak alive.\",",
+        "                            state.challenge?.description\n                                ?: stringResource(R.string.daily_default_description),"
+      ],
+      [
+        "                                label = { Text(\"${c.difficulty.replaceFirstChar { it.uppercase() }} • +${c.xpReward} XP\") },",
+        "                                label = {\n                                    Text(\n                                        stringResource(\n                                            R.string.daily_difficulty_xp,\n                                            c.difficulty.replaceFirstChar { it.uppercase() },\n                                            c.xpReward,\n                                        )\n                                    )\n                                },"
+      ],
+      [
+        "                            Text(if (state.challenge?.isCompleted == true) \"Completed Today\" else \"Solve Today's Challenge\")",
+        "                            Text(\n                                stringResource(\n                                    if (state.challenge?.isCompleted == true) R.string.daily_completed_today\n                                    else R.string.daily_solve\n                                )\n                            )"
+      ],
+      [
+        "                Text(\"Leaderboard\", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)",
+        "                Text(\n                    stringResource(R.string.daily_leaderboard),\n                    style = MaterialTheme.typography.titleMedium,\n                    fontWeight = FontWeight.Bold,\n                )"
+      ],
+      [
+        "                                leadingContent = { Text(\"#${l.rank}\", fontWeight = FontWeight.Bold) },",
+        "                                leadingContent = {\n                                    Text(\n                                        stringResource(R.string.leaderboard_rank, l.rank),\n                                        fontWeight = FontWeight.Bold,\n                                    )\n                                },"
+      ]
+    ]
+  },
+  {
+    "section": "Daily challenges (ViewModel fallback)",
+    "file": "presentation/daily/DailyChallengesViewModel.kt",
+    "strings": {
+      "daily_track_fallback": "Track"
+    },
+    "edits": [
+      [
+        "import androidx.lifecycle.ViewModel\n",
+        "import android.content.Context\nimport androidx.lifecycle.ViewModel\n"
+      ],
+      [
+        "import dagger.hilt.android.lifecycle.HiltViewModel\n",
+        "import dagger.hilt.android.lifecycle.HiltViewModel\nimport dagger.hilt.android.qualifiers.ApplicationContext\n"
+      ],
+      [
+        "class DailyChallengesViewModel @Inject constructor(\n    private val tutorialApi: TutorialApi,\n    private val tacticalApi: TacticalApi,\n) : ViewModel() {",
+        "class DailyChallengesViewModel @Inject constructor(\n    private val tutorialApi: TutorialApi,\n    private val tacticalApi: TacticalApi,\n    // Injected so the track-label fallback below can come from strings.xml.\n    @ApplicationContext private val context: Context,\n) : ViewModel() {"
+      ],
+      [
+        "label = o.get(\"label\")?.asString ?: \"Track\",",
+        "label = o.get(\"label\")?.asString ?: context.getString(R.string.daily_track_fallback),"
+      ]
+    ]
+  }
+]

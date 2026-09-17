@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -35,10 +36,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import com.chess99.R
 import com.chess99.engine.ChessGame
 import com.chess99.engine.Square
 import com.chess99.presentation.common.ChessBoardView
@@ -66,10 +71,13 @@ fun LocalGameReviewScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Game review") },
+                title = { Text(stringResource(R.string.local_review_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
             )
@@ -84,10 +92,10 @@ fun LocalGameReviewScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text("This local game is no longer available.")
+                Text(stringResource(R.string.local_review_unavailable))
                 Spacer(Modifier.height(16.dp))
                 Button(onClick = onNavigateBack, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
-                    Text("Go back")
+                    Text(stringResource(R.string.local_review_go_back))
                 }
             }
             return@Scaffold
@@ -120,7 +128,11 @@ fun LocalGameReviewScreen(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = "You vs ${review.opponentName} • ${review.gameMode.name.lowercase().replaceFirstChar { it.uppercase() }}",
+                        text = stringResource(
+                            R.string.local_review_summary,
+                            review.opponentName,
+                            review.gameMode.name.lowercase().replaceFirstChar { it.uppercase() },
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -137,7 +149,9 @@ fun LocalGameReviewScreen(
             )
 
             Text(
-                text = currentMove?.let { "Move $moveIndex: ${it.san}" } ?: "Starting position",
+                text = currentMove?.let {
+                    stringResource(R.string.local_review_move, moveIndex, it.san)
+                } ?: stringResource(R.string.review_starting_position),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(vertical = 8.dp),
             )
@@ -147,16 +161,16 @@ fun LocalGameReviewScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ReviewButton("First", enabled = moveIndex > 0, onClick = { moveIndex = 0 }) {
+                ReviewButton(stringResource(R.string.local_review_first), enabled = moveIndex > 0, onClick = { moveIndex = 0 }) {
                     Icon(Icons.Default.FirstPage, contentDescription = null)
                 }
-                ReviewButton("Previous", enabled = moveIndex > 0, onClick = { moveIndex-- }) {
+                ReviewButton(stringResource(R.string.local_review_previous), enabled = moveIndex > 0, onClick = { moveIndex-- }) {
                     Icon(Icons.Default.KeyboardArrowLeft, contentDescription = null)
                 }
-                ReviewButton("Next", enabled = moveIndex < review.moves.size, onClick = { moveIndex++ }) {
+                ReviewButton(stringResource(R.string.local_review_next), enabled = moveIndex < review.moves.size, onClick = { moveIndex++ }) {
                     Icon(Icons.Default.KeyboardArrowRight, contentDescription = null)
                 }
-                ReviewButton("Last", enabled = moveIndex < review.moves.size, onClick = { moveIndex = review.moves.size }) {
+                ReviewButton(stringResource(R.string.local_review_last), enabled = moveIndex < review.moves.size, onClick = { moveIndex = review.moves.size }) {
                     Icon(Icons.Default.LastPage, contentDescription = null)
                 }
             }
@@ -173,8 +187,25 @@ fun LocalGameReviewScreen(
                         Button(
                             onClick = { moveIndex = index + 1 },
                             modifier = Modifier.sizeIn(minHeight = 48.dp),
-                        ) {
-                            Text("${index + 1}. ${move.san}")
+                    ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    stringResource(
+                                        R.string.local_review_move_san,
+                                        index + 1,
+                                        move.san,
+                                    )
+                                )
+                                move.lifelines.forEach { marker ->
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        stringResource(LifelineMarkers.labelRes(marker)),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF2E8B6D),
+                                    )
+                                }
+                            }
                         }
                     }
                 }

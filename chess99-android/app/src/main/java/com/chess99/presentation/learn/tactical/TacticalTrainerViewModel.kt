@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.TacticalApi
 import com.chess99.engine.ChessGame
 import com.chess99.engine.Color
@@ -16,13 +17,13 @@ import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.InputStreamReader
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.io.InputStreamReader
-import javax.inject.Inject
 
 enum class TacticalScreenPhase {
     DASHBOARD, PUZZLE, SOLUTION_VIEWER, STAGE_COMPLETE,
@@ -251,7 +252,7 @@ class TacticalTrainerViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = friendlyError(e, "the puzzles"),
+                    errorMessage = friendlyError(appContext, e, R.string.error_subject_the_puzzles),
                 )
             }
         }

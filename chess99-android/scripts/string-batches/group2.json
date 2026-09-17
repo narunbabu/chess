@@ -1,0 +1,224 @@
+[
+  {
+    "section": "Accessible move input and promotion dialog",
+    "file": "presentation/common/ChessBoardView.kt",
+    "strings": {
+      "board_accessible_input_open": "Accessible move input",
+      "board_accessible_input_close": "Close accessible move input",
+      "board_choose_piece": "Choose one of your pieces",
+      "board_piece_selected": "%1$s on %2$s selected. Choose a legal destination.",
+      "board_piece_at_square": "%1$s %2$s",
+      "board_move_to": "Move to %1$s",
+      "board_promotion_title": "Choose promotion piece",
+      "board_promotion_body": "Promote the pawn to a queen, rook, bishop or knight.",
+      "piece_queen": "Queen",
+      "piece_rook": "Rook",
+      "piece_bishop": "Bishop",
+      "piece_knight": "Knight",
+      "piece_spoken_pawn": "pawn",
+      "piece_spoken_knight": "knight",
+      "piece_spoken_bishop": "bishop",
+      "piece_spoken_rook": "rook",
+      "piece_spoken_queen": "queen",
+      "piece_spoken_king": "king",
+      "piece_spoken_unknown": "piece",
+      "board_piece_spoken_name": "%1$s %2$s"
+    },
+    "edits": [
+      [
+        "Text(if (expanded) \"Close accessible move input\" else \"Accessible move input\")",
+        "Text(\n                stringResource(\n                    if (expanded) {\n                        R.string.board_accessible_input_close\n                    } else {\n                        R.string.board_accessible_input_open\n                    },\n                ),\n            )"
+      ],
+      [
+        "                text = if (selectedFrom == -1) {\n                    \"Choose one of your pieces\"\n                } else {\n                    \"${pieceSpokenName(game.get(selectedFrom))} on ${Square.toAlgebraic(selectedFrom)} selected. Choose a legal destination.\"\n                },",
+        "                text = if (selectedFrom == -1) {\n                    stringResource(R.string.board_choose_piece)\n                } else {\n                    stringResource(\n                        R.string.board_piece_selected,\n                        pieceSpokenName(game.get(selectedFrom)),\n                        Square.toAlgebraic(selectedFrom),\n                    )\n                },"
+      ],
+      [
+        "Text(\"${pieceSpokenName(game.get(square))} ${Square.toAlgebraic(square)}\")",
+        "Text(\n                            stringResource(\n                                R.string.board_piece_at_square,\n                                pieceSpokenName(game.get(square)),\n                                Square.toAlgebraic(square),\n                            ),\n                        )"
+      ],
+      ["Text(\"Move to ${Square.toAlgebraic(toSquare)}\")", "Text(stringResource(R.string.board_move_to, Square.toAlgebraic(toSquare)))"],
+      ["title = { Text(\"Choose promotion piece\") },", "title = { Text(stringResource(R.string.board_promotion_title)) },"],
+      ["text = { Text(\"Promote the pawn to a queen, rook, bishop or knight.\") },", "text = { Text(stringResource(R.string.board_promotion_body)) },"],
+      [
+        "                listOf('q' to \"Queen\", 'r' to \"Rook\", 'b' to \"Bishop\", 'n' to \"Knight\")\n                    .forEach { (piece, label) ->",
+        "                listOf(\n                    'q' to R.string.piece_queen,\n                    'r' to R.string.piece_rook,\n                    'b' to R.string.piece_bishop,\n                    'n' to R.string.piece_knight,\n                )\n                    .forEach { (piece, label) ->"
+      ],
+      ["                        ) { Text(label) }", "                        ) { Text(stringResource(label)) }"],
+      ["            ) { Text(\"Cancel\") }", "            ) { Text(stringResource(R.string.action_cancel)) }"],
+      [
+        "private fun pieceSpokenName(piece: Int): String {\n    val color = if (Piece.color(piece) == com.chess99.engine.Color.WHITE) \"White\" else \"Black\"\n    val name = when (Piece.type(piece)) {\n        Piece.PAWN -> \"pawn\"\n        Piece.KNIGHT -> \"knight\"\n        Piece.BISHOP -> \"bishop\"\n        Piece.ROOK -> \"rook\"\n        Piece.QUEEN -> \"queen\"\n        Piece.KING -> \"king\"\n        else -> \"piece\"\n    }\n    return \"$color $name\"\n}",
+        "@Composable\nprivate fun pieceSpokenName(piece: Int): String {\n    val color = stringResource(\n        if (Piece.color(piece) == com.chess99.engine.Color.WHITE) {\n            R.string.color_white_name\n        } else {\n            R.string.color_black_name\n        },\n    )\n    val name = stringResource(\n        when (Piece.type(piece)) {\n            Piece.PAWN -> R.string.piece_spoken_pawn\n            Piece.KNIGHT -> R.string.piece_spoken_knight\n            Piece.BISHOP -> R.string.piece_spoken_bishop\n            Piece.ROOK -> R.string.piece_spoken_rook\n            Piece.QUEEN -> R.string.piece_spoken_queen\n            Piece.KING -> R.string.piece_spoken_king\n            else -> R.string.piece_spoken_unknown\n        },\n    )\n    return stringResource(R.string.board_piece_spoken_name, color, name)\n}"
+      ]
+    ]
+  },
+  {
+    "section": "Daily puzzle screen",
+    "file": "presentation/learn/PuzzleScreen.kt",
+    "strings": {
+      "puzzle_title": "Puzzles",
+      "puzzle_none_available": "No puzzles available",
+      "puzzle_number": "Puzzle #%1$d",
+      "puzzle_difficulty_offline": "%1$s · Offline",
+      "puzzle_solved": "Solved",
+      "puzzle_streak": "Streak"
+    },
+    "edits": [
+      ["title = { Text(\"Puzzles\") },", "title = { Text(stringResource(R.string.puzzle_title)) },"],
+      ["Icon(Icons.AutoMirrored.Filled.ArrowBack, \"Back\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))"],
+      ["Icon(Icons.Default.Lightbulb, \"Hint\")", "Icon(Icons.Default.Lightbulb, stringResource(R.string.action_hint))"],
+      ["Icon(Icons.Default.SkipNext, \"Next\")", "Icon(Icons.Default.SkipNext, stringResource(R.string.local_review_next))"],
+      ["\"No puzzles available\",", "stringResource(R.string.puzzle_none_available),"],
+      ["Text(\"Retry\")", "Text(stringResource(R.string.action_retry))"],
+      ["\"Puzzle #${state.puzzleNumber}\",", "stringResource(R.string.puzzle_number, state.puzzleNumber),"],
+      ["\"${state.difficulty} · Offline\"", "stringResource(R.string.puzzle_difficulty_offline, state.difficulty)"],
+      ["                                    \"Correct!\",", "                                    stringResource(R.string.tactical_correct),"],
+      ["Text(\"Next Puzzle\")", "Text(stringResource(R.string.tactical_next_puzzle))"],
+      ["                            \"Incorrect. Try again!\",", "                            stringResource(R.string.tactical_incorrect),"],
+      ["Text(\"Solved\", style = MaterialTheme.typography.bodySmall)", "Text(stringResource(R.string.puzzle_solved), style = MaterialTheme.typography.bodySmall)"],
+      ["Text(\"Streak\", style = MaterialTheme.typography.bodySmall)", "Text(stringResource(R.string.puzzle_streak), style = MaterialTheme.typography.bodySmall)"]
+    ]
+  },
+  {
+    "section": "CCT analysis panel",
+    "file": "presentation/game/CCTControls.kt",
+    "strings": {
+      "cct_panel_title": "Analysis Panel",
+      "cct_panel_subtitle": "Checks, Captures & Threats scanner",
+      "cct_panel_inactive": "Start a game to activate the learning panel.",
+      "cct_rated_gate_title": "Limited in Rated games",
+      "cct_rated_gate_body": "CCT counts are visible but move hints and best moves are disabled.",
+      "cct_chip_cct": "CCT",
+      "cct_perspective_mine": "My Moves",
+      "cct_perspective_opponent": "Their Threats",
+      "cct_checks": "Checks",
+      "cct_captures": "Captures",
+      "cct_threats": "Threats",
+      "cct_mate": "Mate",
+      "cct_calculating": "Calculating...",
+      "cct_top_moves": "Top 3 Moves",
+      "cct_analysing": "Analysing position...",
+      "cct_no_moves": "No moves found."
+    },
+    "edits": [
+      ["                \"Analysis Panel\",", "                stringResource(R.string.cct_panel_title),"],
+      ["                \"Checks, Captures & Threats scanner\",", "                stringResource(R.string.cct_panel_subtitle),"],
+      ["                    \"Start a game to activate the learning panel.\",", "                    stringResource(R.string.cct_panel_inactive),"],
+      ["            \"Limited in Rated games\",", "            stringResource(R.string.cct_rated_gate_title),"],
+      ["            \"CCT counts are visible but move hints and best moves are disabled.\",", "            stringResource(R.string.cct_rated_gate_body),"],
+      ["label = { Text(\"CCT\") },", "label = { Text(stringResource(R.string.cct_chip_cct)) },"],
+      ["label = { Text(\"Best\") },", "label = { Text(stringResource(R.string.game_best)) },"],
+      ["Text(\"My Moves\", fontSize = 12.sp)", "Text(stringResource(R.string.cct_perspective_mine), fontSize = 12.sp)"],
+      ["Text(\"Their Threats\", fontSize = 12.sp)", "Text(stringResource(R.string.cct_perspective_opponent), fontSize = 12.sp)"],
+      [
+        "        CCTSection(\n            title = \"Checks\",\n            count = cct.checks.size,\n            color = CheckColor,\n            bgColor = CheckBgColor,\n            items = cct.checks.map { it.san to (if (it.isCheckmate) \"Mate\" else null) },",
+        "        val mateLabel = stringResource(R.string.cct_mate)\n        CCTSection(\n            title = stringResource(R.string.cct_checks),\n            count = cct.checks.size,\n            color = CheckColor,\n            bgColor = CheckBgColor,\n            items = cct.checks.map { it.san to (if (it.isCheckmate) mateLabel else null) },"
+      ],
+      ["            title = \"Captures\",", "            title = stringResource(R.string.cct_captures),"],
+      ["            title = \"Threats\",", "            title = stringResource(R.string.cct_threats),"],
+      ["            \"Calculating...\",", "            stringResource(R.string.cct_calculating),"],
+      ["            \"Top 3 Moves\",", "            stringResource(R.string.cct_top_moves),"],
+      ["                    \"Analysing position...\",", "                    stringResource(R.string.cct_analysing),"],
+      ["                    \"No moves found.\",", "                    stringResource(R.string.cct_no_moves),"],
+      ["        CountPill(\"Checks\", cct.checks.size, CheckColor, CheckBgColor)", "        CountPill(stringResource(R.string.cct_checks), cct.checks.size, CheckColor, CheckBgColor)"],
+      ["        CountPill(\"Captures\", cct.captures.size, CaptureColor, CaptureBgColor)", "        CountPill(stringResource(R.string.cct_captures), cct.captures.size, CaptureColor, CaptureBgColor)"],
+      ["        CountPill(\"Threats\", cct.threats.size, ThreatColor, ThreatBgColor)", "        CountPill(stringResource(R.string.cct_threats), cct.threats.size, ThreatColor, ThreatBgColor)"]
+    ]
+  },
+  {
+    "section": "Shared game result",
+    "file": "presentation/social/SharedResultScreen.kt",
+    "strings": {
+      "shared_result_title": "Game Result",
+      "shared_result_load_failed": "Could not load result",
+      "shared_result_time_control": "Time Control",
+      "shared_result_total_moves": "Total Moves",
+      "shared_result_result": "Result",
+      "shared_result_rating_change": "Rating Change"
+    },
+    "edits": [
+      ["title = { Text(\"Game Result\") },", "title = { Text(stringResource(R.string.shared_result_title)) },"],
+      ["Icon(Icons.AutoMirrored.Filled.ArrowBack, \"Back\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))"],
+      ["                            \"Could not load result\",", "                            stringResource(R.string.shared_result_load_failed),"],
+      ["Text(\"White\", style = MaterialTheme.typography.labelSmall)", "Text(stringResource(R.string.color_white_name), style = MaterialTheme.typography.labelSmall)"],
+      ["Text(\"Black\", style = MaterialTheme.typography.labelSmall)", "Text(stringResource(R.string.color_black_name), style = MaterialTheme.typography.labelSmall)"],
+      ["DetailRow(\"Time Control\", state.timeControl)", "DetailRow(stringResource(R.string.shared_result_time_control), state.timeControl)"],
+      ["DetailRow(\"Total Moves\", \"${state.totalMoves}\")", "DetailRow(stringResource(R.string.shared_result_total_moves), \"${state.totalMoves}\")"],
+      ["DetailRow(\"Result\", state.result)", "DetailRow(stringResource(R.string.shared_result_result), state.result)"],
+      ["                                    \"Rating Change\",", "                                    stringResource(R.string.shared_result_rating_change),"]
+    ]
+  },
+  {
+    "section": "Open-source licences",
+    "file": "presentation/legal/OpenSourceLicensesScreen.kt",
+    "strings": {
+      "licences_title": "Open-source licences",
+      "licences_stockfish_heading": "Stockfish 11",
+      "licences_stockfish_body": "Chess99 includes unmodified Stockfish 11 executables. Stockfish is free software licensed under GNU GPL version 3. The exact corresponding source is available at the link below.",
+      "licences_view_source": "View exact Stockfish source"
+    },
+    "edits": [
+      ["title = { Text(\"Open-source licences\", fontWeight = FontWeight.Bold) },", "title = { Text(stringResource(R.string.licences_title), fontWeight = FontWeight.Bold) },"],
+      ["Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = \"Back\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))"],
+      ["text = \"Stockfish 11\",", "text = stringResource(R.string.licences_stockfish_heading),"],
+      [
+        "                    text = \"Chess99 includes unmodified Stockfish 11 executables. \" +\n                        \"Stockfish is free software licensed under GNU GPL version 3. \" +\n                        \"The exact corresponding source is available at the link below.\",",
+        "                    text = stringResource(R.string.licences_stockfish_body),"
+      ],
+      ["Text(\"View exact Stockfish source\")", "Text(stringResource(R.string.licences_view_source))"]
+    ]
+  },
+  {
+    "section": "Rating change notification",
+    "file": "presentation/social/RatingChangeNotification.kt",
+    "strings": {
+      "rating_updated": "Rating Updated"
+    },
+    "edits": [
+      ["text = \"Rating Updated\",", "text = stringResource(R.string.rating_updated),"],
+      ["contentDescription = \"Dismiss\",", "contentDescription = stringResource(R.string.a11y_dismiss),"]
+    ]
+  },
+  {
+    "section": "Rating history",
+    "file": "presentation/profile/RatingHistoryScreen.kt",
+    "strings": {
+      "rating_history_title": "Rating History",
+      "rating_history_your_progress": "Your Progress",
+      "rating_history_empty": "No rating history yet. Play some games!",
+      "rating_history_recent_games": "Recent Games",
+      "rating_stat_current": "Current",
+      "rating_stat_peak": "Peak",
+      "rating_stat_record": "Record",
+      "rating_stat_avg_change": "Avg Change",
+      "rating_stat_streak": "Streak"
+    },
+    "edits": [
+      ["title = { Text(\"Rating History\") },", "title = { Text(stringResource(R.string.rating_history_title)) },"],
+      ["Icon(Icons.AutoMirrored.Filled.ArrowBack, \"Back\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))"],
+      ["Text(state.error ?: \"Error\", color = MaterialTheme.colorScheme.error)", "Text(state.error ?: stringResource(R.string.error_title), color = MaterialTheme.colorScheme.error)"],
+      ["                            \"Your Progress\",", "                            stringResource(R.string.rating_history_your_progress),"],
+      ["text = \"No rating history yet. Play some games!\",", "text = stringResource(R.string.rating_history_empty),"],
+      ["                                \"Recent Games\",", "                                stringResource(R.string.rating_history_recent_games),"],
+      ["StatCard(\"Current\", \"${stats.currentRating}\", Modifier.weight(1f))", "StatCard(stringResource(R.string.rating_stat_current), \"${stats.currentRating}\", Modifier.weight(1f))"],
+      ["StatCard(\"Peak\", \"${stats.highestRating}\", Modifier.weight(1f))", "StatCard(stringResource(R.string.rating_stat_peak), \"${stats.highestRating}\", Modifier.weight(1f))"],
+      ["                \"Record\",", "                stringResource(R.string.rating_stat_record),"],
+      ["StatCard(\"Avg Change\", \"$changePrefix${stats.averageChange}\", Modifier.weight(1f))", "StatCard(stringResource(R.string.rating_stat_avg_change), \"$changePrefix${stats.averageChange}\", Modifier.weight(1f))"],
+      ["                \"Streak\",", "                stringResource(R.string.rating_stat_streak),"]
+    ]
+  },
+  {
+    "section": "Onboarding call to action",
+    "file": "presentation/onboarding/OnboardingScreen.kt",
+    "strings": {
+      "onboarding_get_started": "Get started",
+      "onboarding_have_account": "I already have an account",
+      "onboarding_try_as_guest": "Try as guest"
+    },
+    "edits": [
+      ["Text(\"Get started\", fontWeight = FontWeight.Bold)", "Text(stringResource(R.string.onboarding_get_started), fontWeight = FontWeight.Bold)"],
+      ["Text(\"I already have an account\", color = Color.White)", "Text(stringResource(R.string.onboarding_have_account), color = Color.White)"],
+      ["Text(\"Try as guest\")", "Text(stringResource(R.string.onboarding_try_as_guest))"]
+    ]
+  }
+]

@@ -13,10 +13,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,18 +26,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 import com.chess99.engine.ChessGame
-import com.chess99.presentation.common.ActiveGameType
 import com.chess99.presentation.common.AccessibleChessMoveControls
+import com.chess99.presentation.common.ActiveGameType
 import com.chess99.presentation.common.ChessBoardView
 import com.chess99.presentation.common.GameCompletionAnimation
 import com.chess99.presentation.common.GameNavigationWarningDialog
 import com.chess99.presentation.common.GameTimerDisplay
+import com.chess99.presentation.history.LifelineMarkers
 import kotlinx.coroutines.launch
 
 /**
@@ -148,24 +151,29 @@ fun PlayMultiplayerScreen(
                         // bot's real name here \u2014 never "Computer (Level N)"
                         // and never a raw "synthetic" enum (spec T4).
                         Text(
-                            text = if (state.isSyntheticGame) "Playing ${state.opponentName}" else "Game #${state.gameId}",
+                            text = if (state.isSyntheticGame) {
+                                stringResource(R.string.game_playing_opponent, state.opponentName)
+                            } else {
+                                stringResource(R.string.game_number, state.gameId)
+                            },
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
-                            text = buildString {
-                                // Learning games are casual server-side (game_mode
-                                // is validated as rated|casual), so the flag - not
-                                // game_mode - decides the label. Without this a
-                                // Learning game reads "Casual".
-                                append(
+                            // Learning games are casual server-side (game_mode
+                            // is validated as rated|casual), so the flag - not
+                            // game_mode - decides the label. Without this a
+                            // Learning game reads "Casual".
+                            text = stringResource(
+                                R.string.game_subtitle,
+                                stringResource(
                                     when {
-                                        state.isRated -> "Rated"
-                                        state.isLearningMode -> "Learning"
-                                        else -> "Casual"
+                                        state.isRated -> R.string.mode_rated
+                                        state.isLearningMode -> R.string.mode_learning
+                                        else -> R.string.mode_casual
                                     }
-                                )
-                                append(" \u2022 ${state.timeControl}")
-                            },
+                                ),
+                                state.timeControl,
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -179,7 +187,7 @@ fun PlayMultiplayerScreen(
                             onNavigateBack()
                         }
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
                 actions = {
@@ -195,7 +203,7 @@ fun PlayMultiplayerScreen(
                         }) {
                             Icon(
                                 Icons.Default.SmartToy,
-                                contentDescription = "Companion",
+                                contentDescription = stringResource(R.string.a11y_companion),
                                 tint = if (companionState.selectedCompanion != null)
                                     MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurface,
@@ -212,7 +220,7 @@ fun PlayMultiplayerScreen(
                         }) {
                             Icon(
                                 Icons.Default.Analytics,
-                                contentDescription = "Analysis",
+                                contentDescription = stringResource(R.string.a11y_analysis),
                                 tint = if (cctState.hintLevel > 0)
                                     MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurface,
@@ -229,7 +237,7 @@ fun PlayMultiplayerScreen(
                             }
                         ) {
                             IconButton(onClick = { viewModel.toggleChat() }) {
-                                Icon(Icons.AutoMirrored.Filled.Chat, "Chat")
+                                Icon(Icons.AutoMirrored.Filled.Chat, stringResource(R.string.a11y_chat))
                             }
                         }
                     }
@@ -260,7 +268,7 @@ fun PlayMultiplayerScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("Loading game...")
+                        Text(stringResource(R.string.game_loading))
                     }
                 }
             }
@@ -292,9 +300,17 @@ fun PlayMultiplayerScreen(
                     onDeclineDraw = { viewModel.declineDraw() },
                     onRequestUndo = { viewModel.requestUndo() },
                     bestMovesOn = cctState.hintLevel == 2,
+                    // Best shares the takeback pool, so a paid reveal needs a
+                    // chance left — unless it is already showing at this
+                    // position (same-position re-toggles stay free).
+                    canUseBestMoves = state.undoChancesRemaining > 0 || cctState.hintLevel == 2,
                     onToggleBest = {
                         viewModel.setCctHintLevel(if (cctState.hintLevel == 2) 0 else 2)
                     },
+                    reviewEnabled = state.reviewEnabled,
+                    reviewLoading = state.reviewLoading,
+                    onToggleReview = { viewModel.setReviewEnabled(it) },
+                    latestReview = state.latestReview,
                     onAcceptUndo = { viewModel.acceptUndo() },
                     onDeclineUndo = { viewModel.declineUndo() },
                     onPause = { viewModel.pauseGame() },
@@ -314,10 +330,10 @@ fun PlayMultiplayerScreen(
         state.error?.let { error ->
             AlertDialog(
                 onDismissRequest = { viewModel.clearError() },
-                title = { Text("Error") },
+                title = { Text(stringResource(R.string.error_title)) },
                 text = { Text(error) },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.clearError() }) { Text("OK") }
+                    TextButton(onClick = { viewModel.clearError() }) { Text(stringResource(R.string.action_ok)) }
                 },
             )
         }
@@ -386,7 +402,12 @@ private fun GameBoard(
     onDeclineDraw: () -> Unit,
     onRequestUndo: () -> Unit,
     bestMovesOn: Boolean,
+    canUseBestMoves: Boolean,
     onToggleBest: () -> Unit,
+    reviewEnabled: Boolean,
+    reviewLoading: Boolean,
+    onToggleReview: (Boolean) -> Unit,
+    latestReview: LiveReviewResult?,
     onAcceptUndo: () -> Unit,
     onDeclineUndo: () -> Unit,
     onPause: () -> Unit,
@@ -407,7 +428,11 @@ private fun GameBoard(
         GameTimerDisplay(
             timeSeconds = if (opponentColor == com.chess99.engine.Color.WHITE) state.whiteTimeSeconds else state.blackTimeSeconds,
             isActive = game.turn == opponentColor && state.gamePhase == MultiplayerPhase.PLAYING,
-            playerName = "${state.opponentName} (${state.opponentRating})",
+            playerName = stringResource(
+                R.string.game_player_with_rating,
+                state.opponentName,
+                state.opponentRating,
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
@@ -438,7 +463,7 @@ private fun GameBoard(
         GameTimerDisplay(
             timeSeconds = if (state.playerColor == com.chess99.engine.Color.WHITE) state.whiteTimeSeconds else state.blackTimeSeconds,
             isActive = game.turn == state.playerColor && state.gamePhase == MultiplayerPhase.PLAYING,
-            playerName = "You (${state.myRating})",
+            playerName = stringResource(R.string.game_you_with_rating, state.myRating),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
@@ -453,7 +478,9 @@ private fun GameBoard(
                 label = "turnColor",
             )
             Text(
-                text = if (isMyTurn) "Your turn" else "Opponent's turn",
+                text = stringResource(
+                    if (isMyTurn) R.string.game_your_turn else R.string.game_opponents_turn
+                ),
                 color = turnColor,
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.bodyMedium,
@@ -490,7 +517,11 @@ private fun GameBoard(
                     undoRequestPending = state.undoRequestPending,
                     onRequestUndo = onRequestUndo,
                     bestMovesOn = bestMovesOn,
+                    canUseBestMoves = canUseBestMoves,
                     onToggleBest = onToggleBest,
+                    reviewEnabled = reviewEnabled,
+                    reviewLoading = reviewLoading,
+                    onToggleReview = onToggleReview,
                 )
             }
 
@@ -519,9 +550,19 @@ private fun GameBoard(
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Connecting...", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.game_connecting), style = MaterialTheme.typography.bodySmall)
                 }
             }
+        }
+
+        if (reviewLoading || latestReview != null) {
+            LiveReviewResultCard(
+                result = latestReview,
+                loading = reviewLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+            )
         }
 
         // Move list
@@ -551,7 +592,11 @@ private fun GameControlsRow(
     undoRequestPending: Boolean,
     onRequestUndo: () -> Unit,
     bestMovesOn: Boolean,
+    canUseBestMoves: Boolean,
     onToggleBest: () -> Unit,
+    reviewEnabled: Boolean,
+    reviewLoading: Boolean,
+    onToggleReview: (Boolean) -> Unit,
 ) {
     var showResignConfirm by remember { mutableStateOf(false) }
 
@@ -579,7 +624,7 @@ private fun GameControlsRow(
             Icon(Icons.Default.Handshake, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                if (drawOfferedByMe) "Offered" else "Draw",
+                stringResource(if (drawOfferedByMe) R.string.game_draw_offered else R.string.action_draw),
                 fontSize = 14.sp,
                 maxLines = 1,
                 softWrap = false,
@@ -588,10 +633,13 @@ private fun GameControlsRow(
 
         // Best moves (casual only) - web parity with GameContainer.js's Best
         // action: toggles the top-3 engine arrows on the board. Hidden in rated
-        // games; the ViewModel also refuses the hint level there.
+        // games; the ViewModel also refuses the hint level there. Each reveal
+        // is paid from the shared takeback pool, so the button locks once the
+        // pool is empty and no reveal is currently showing.
         if (!isRated) {
             OutlinedButton(
                 onClick = onToggleBest,
+                enabled = canUseBestMoves,
                 colors = if (bestMovesOn) {
                     ButtonDefaults.outlinedButtonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -606,7 +654,7 @@ private fun GameControlsRow(
             ) {
                 Icon(Icons.Default.Lightbulb, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Best", fontSize = 14.sp, maxLines = 1, softWrap = false)
+                Text(stringResource(R.string.game_best), fontSize = 14.sp, maxLines = 1, softWrap = false)
             }
         }
 
@@ -621,7 +669,7 @@ private fun GameControlsRow(
             ) {
                 Icon(Icons.Default.Pause, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Pause", fontSize = 14.sp, maxLines = 1, softWrap = false)
+                Text(stringResource(R.string.action_pause), fontSize = 14.sp, maxLines = 1, softWrap = false)
             }
         }
         }
@@ -630,6 +678,33 @@ private fun GameControlsRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+
+        // Review is a live, post-move alternative check. It is unavailable in
+        // rated games, matching the web coaching gate.
+        if (!isRated) {
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(stringResource(R.string.game_review), fontSize = 14.sp, maxLines = 1, softWrap = false)
+                    Switch(
+                        checked = reviewEnabled,
+                        onCheckedChange = onToggleReview,
+                        enabled = !reviewLoading,
+                    )
+                }
+            }
+        }
 
         // Takeback - web parity with GameContainer.js's Undo. Hidden entirely in
         // rated games (where it can never be used) rather than shown disabled.
@@ -649,7 +724,11 @@ private fun GameControlsRow(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    if (undoRequestPending) "Asked" else "Undo $undoChancesRemaining",
+                    if (undoRequestPending) {
+                        stringResource(R.string.game_undo_asked)
+                    } else {
+                        stringResource(R.string.game_undo_count, undoChancesRemaining)
+                    },
                     fontSize = 14.sp,
                     maxLines = 1,
                     softWrap = false,
@@ -670,7 +749,7 @@ private fun GameControlsRow(
         ) {
             Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Resign", fontSize = 14.sp, maxLines = 1, softWrap = false)
+            Text(stringResource(R.string.action_resign), fontSize = 14.sp, maxLines = 1, softWrap = false)
         }
         }
     }
@@ -678,18 +757,18 @@ private fun GameControlsRow(
     if (showResignConfirm) {
         AlertDialog(
             onDismissRequest = { showResignConfirm = false },
-            title = { Text("Resign Game?") },
-            text = { Text("Are you sure you want to resign? This will count as a loss.") },
+            title = { Text(stringResource(R.string.game_resign_title)) },
+            text = { Text(stringResource(R.string.game_resign_body)) },
             confirmButton = {
                 TextButton(onClick = {
                     showResignConfirm = false
                     onResign()
                 }) {
-                    Text("Resign", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.action_resign), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showResignConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showResignConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
@@ -714,10 +793,13 @@ private fun DrawOfferBanner(onAccept: () -> Unit, onDecline: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("Opponent offers a draw", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                stringResource(R.string.game_opponent_offers_draw),
+                style = MaterialTheme.typography.bodyMedium,
+            )
             Row {
-                TextButton(onClick = onAccept) { Text("Accept") }
-                TextButton(onClick = onDecline) { Text("Decline") }
+                TextButton(onClick = onAccept) { Text(stringResource(R.string.action_accept)) }
+                TextButton(onClick = onDecline) { Text(stringResource(R.string.action_decline)) }
             }
         }
     }
@@ -742,10 +824,13 @@ private fun UndoRequestBanner(onAccept: () -> Unit, onDecline: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("Opponent requests undo", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                stringResource(R.string.game_opponent_requests_undo),
+                style = MaterialTheme.typography.bodyMedium,
+            )
             Row {
-                TextButton(onClick = onAccept) { Text("Allow") }
-                TextButton(onClick = onDecline) { Text("Deny") }
+                TextButton(onClick = onAccept) { Text(stringResource(R.string.action_allow)) }
+                TextButton(onClick = onDecline) { Text(stringResource(R.string.action_deny)) }
             }
         }
     }
@@ -774,14 +859,21 @@ private fun PausedOverlay(resumeRequestSecondsLeft: Int, onRequestResume: () -> 
                 tint = MaterialTheme.colorScheme.primary,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Game Paused", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(R.string.game_paused),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
             Spacer(modifier = Modifier.height(12.dp))
             Button(onClick = onRequestResume, enabled = resumeRequestSecondsLeft == 0) {
                 Text(
                     if (resumeRequestSecondsLeft > 0) {
-                        "Waiting for opponent… ${resumeRequestSecondsLeft}s"
+                        stringResource(
+                            R.string.game_waiting_for_opponent_seconds,
+                            resumeRequestSecondsLeft,
+                        )
                     } else {
-                        "Request Resume"
+                        stringResource(R.string.game_request_resume)
                     }
                 )
             }
@@ -815,11 +907,13 @@ private fun MultiplayerResultCard(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = when (result.status) {
-                    ResultStatus.WON -> "Victory!"
-                    ResultStatus.LOST -> "Defeat"
-                    ResultStatus.DRAW -> "Draw"
-                },
+                text = stringResource(
+                    when (result.status) {
+                        ResultStatus.WON -> R.string.game_result_victory
+                        ResultStatus.LOST -> R.string.game_result_defeat
+                        ResultStatus.DRAW -> R.string.game_result_draw
+                    }
+                ),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
             )
@@ -828,7 +922,7 @@ private fun MultiplayerResultCard(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                text = "vs $opponentName",
+                text = stringResource(R.string.game_vs_opponent, opponentName),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -840,12 +934,12 @@ private fun MultiplayerResultCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Button(onClick = onBackToLobby) {
-                    Text("Back to Lobby")
+                    Text(stringResource(R.string.action_back_to_lobby))
                 }
                 OutlinedButton(onClick = onShare) {
                     Icon(Icons.Default.Share, contentDescription = null)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Share")
+                    Text(stringResource(R.string.action_share))
                 }
             }
         }
@@ -865,10 +959,15 @@ private fun RatingChangeLine(ratingChange: RatingChangeInfo?) {
     // web's RatingChangeDisplay returning null when there's nothing to show.
     if (ratingChange == null) return
     val change = ratingChange.change
-    val (label, color) = when {
-        change > 0 -> "Rating +$change" to MaterialTheme.colorScheme.primary
-        change < 0 -> "Rating $change" to MaterialTheme.colorScheme.error
-        else -> "Rating unchanged" to MaterialTheme.colorScheme.onSurfaceVariant
+    val color = when {
+        change > 0 -> MaterialTheme.colorScheme.primary
+        change < 0 -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val label = when {
+        change > 0 -> stringResource(R.string.game_rating_gain, change)
+        change < 0 -> stringResource(R.string.game_rating_loss, change)
+        else -> stringResource(R.string.game_rating_unchanged)
     }
     Text(
         text = label,
@@ -877,7 +976,11 @@ private fun RatingChangeLine(ratingChange: RatingChangeInfo?) {
         color = color,
     )
     Text(
-        text = "${ratingChange.oldRating} → ${ratingChange.newRating}",
+        text = stringResource(
+            R.string.game_rating_transition,
+            ratingChange.oldRating,
+            ratingChange.newRating,
+        ),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -920,9 +1023,13 @@ private fun ChatPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("Chat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(R.string.chat_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
             IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, "Close chat")
+                Icon(Icons.Default.Close, stringResource(R.string.a11y_close_chat))
             }
         }
 
@@ -939,7 +1046,7 @@ private fun ChatPanel(
             if (messages.isEmpty()) {
                 item {
                     Text(
-                        text = "No messages yet. Say hi!",
+                        text = stringResource(R.string.chat_empty),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(32.dp),
@@ -960,7 +1067,7 @@ private fun ChatPanel(
         }
 
         val statusNotice = notice ?: if (!policy.enabled) {
-            ChatSafetyRules.disabledReason(policy.reason)
+            stringResource(ChatSafetyRules.disabledReason(policy.reason))
         } else null
         statusNotice?.let {
             HorizontalDivider()
@@ -982,7 +1089,9 @@ private fun ChatPanel(
         if (!isGameOver && policy.enabled && presetOnly) {
             HorizontalDivider()
             Text(
-                text = if (isMinor) "Choose a kid-safe quick message" else "Choose a quick message",
+                text = stringResource(
+                    if (isMinor) R.string.chat_choose_kid_safe else R.string.chat_choose_quick
+                ),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1014,7 +1123,7 @@ private fun ChatPanel(
                     value = messageText,
                     onValueChange = { if (it.length <= 500) messageText = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Type a message...") },
+                    placeholder = { Text(stringResource(R.string.chat_type_message)) },
                     singleLine = true,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1025,7 +1134,7 @@ private fun ChatPanel(
                     },
                     enabled = messageText.isNotBlank(),
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, "Send")
+                    Icon(Icons.AutoMirrored.Filled.Send, stringResource(R.string.a11y_send))
                 }
             }
         }
@@ -1033,18 +1142,18 @@ private fun ChatPanel(
         pendingBlockUserId?.let { userId ->
             AlertDialog(
                 onDismissRequest = { pendingBlockUserId = null },
-                title = { Text("Block this player?") },
-                text = { Text("You will no longer be able to chat with each other.") },
+                title = { Text(stringResource(R.string.chat_block_title)) },
+                text = { Text(stringResource(R.string.chat_block_body)) },
                 confirmButton = {
                     TextButton(
                         onClick = {
                             onBlockUser(userId)
                             pendingBlockUserId = null
                         }
-                    ) { Text("Block") }
+                    ) { Text(stringResource(R.string.action_block)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { pendingBlockUserId = null }) { Text("Cancel") }
+                    TextButton(onClick = { pendingBlockUserId = null }) { Text(stringResource(R.string.action_cancel)) }
                 },
             )
         }
@@ -1089,7 +1198,9 @@ private fun ChatBubble(
                 ) {
                     Icon(
                         Icons.Default.ReportProblem,
-                        contentDescription = if (isReported) "Message reported" else "Report message",
+                        contentDescription = stringResource(
+                            if (isReported) R.string.a11y_message_reported else R.string.a11y_report_message
+                        ),
                         modifier = Modifier.size(18.dp),
                     )
                 }
@@ -1100,13 +1211,13 @@ private fun ChatBubble(
                 ) {
                     Icon(
                         Icons.Default.Block,
-                        contentDescription = "Block player",
+                        contentDescription = stringResource(R.string.a11y_block_player),
                         modifier = Modifier.size(18.dp),
                     )
                 }
                 if (msg.filtered) {
                     Text(
-                        "filtered",
+                        stringResource(R.string.chat_filtered),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1124,14 +1235,18 @@ private fun MultiplayerMoveList(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.verticalScroll(rememberScrollState())) {
-        Text("Moves", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Text(
+            stringResource(R.string.game_moves),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+        )
         Spacer(modifier = Modifier.height(4.dp))
 
         val pairs = moves.chunked(2)
         for ((index, pair) in pairs.withIndex()) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "${index + 1}.",
+                    text = stringResource(R.string.game_move_number, index + 1),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.width(32.dp),
                 )
@@ -1141,14 +1256,91 @@ private fun MultiplayerMoveList(
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.width(64.dp),
                 )
+                MoveLifelineBadges(pair[0].lifelines)
                 if (pair.size > 1) {
                     Text(
                         text = pair[1].san,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.width(64.dp),
                     )
+                    MoveLifelineBadges(pair[1].lifelines)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LiveReviewResultCard(
+    result: LiveReviewResult?,
+    loading: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            if (loading) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.game_reviewing_move), style = MaterialTheme.typography.bodySmall)
+                }
+            } else if (result != null) {
+                val rankText = result.userMoveRank?.let {
+                    stringResource(R.string.game_review_rank, it, result.topMoves.size)
+                } ?: stringResource(R.string.game_review_outside_top, result.topMoves.size)
+                Text(
+                    stringResource(R.string.game_review_header, result.moveNumber, result.san),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    rankText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (result.topMoves.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        result.topMoves.forEachIndexed { index, move ->
+                            AssistChip(
+                                onClick = {},
+                                enabled = false,
+                                label = {
+                                    Text(
+                                        stringResource(
+                                            R.string.game_review_top_move,
+                                            index + 1,
+                                            move.san,
+                                        ),
+                                        fontSize = 11.sp,
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoveLifelineBadges(markers: List<String>) {
+    markers.forEach { marker ->
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = Color(0x2E3FB98F),
+            modifier = Modifier.padding(end = 3.dp),
+        ) {
+            Text(
+                stringResource(LifelineMarkers.labelRes(marker)),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                color = Color(0xFF9CE5CA),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }

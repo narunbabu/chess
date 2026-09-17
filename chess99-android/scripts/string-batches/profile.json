@@ -1,0 +1,334 @@
+[
+  {
+    "section": "Board themes and piece styles (kept as resource ids on the model)",
+    "file": "presentation/profile/ProfileViewModel.kt",
+    "strings": {
+      "board_theme_classic": "Classic",
+      "board_theme_blue": "Blue",
+      "board_theme_walnut": "Walnut",
+      "board_theme_royal": "Royal",
+      "board_theme_coral": "Coral",
+      "board_theme_midnight": "Midnight",
+      "board_theme_forest": "Forest",
+      "board_theme_marble": "Marble",
+      "board_theme_ocean": "Ocean",
+      "board_theme_autumn": "Autumn",
+      "board_theme_neon": "Neon",
+      "board_theme_obsidian": "Obsidian",
+      "piece_style_standard": "Standard",
+      "piece_style_3d_classic": "3D Classic"
+    },
+    "edits": [
+      [
+        "            \"classic\" to BoardThemeInfo(\"Classic\", ",
+        "            \"classic\" to BoardThemeInfo(R.string.board_theme_classic, "
+      ],
+      [
+        "            \"blue\" to BoardThemeInfo(\"Blue\", ",
+        "            \"blue\" to BoardThemeInfo(R.string.board_theme_blue, "
+      ],
+      [
+        "            \"brown\" to BoardThemeInfo(\"Walnut\", ",
+        "            \"brown\" to BoardThemeInfo(R.string.board_theme_walnut, "
+      ],
+      [
+        "            \"purple\" to BoardThemeInfo(\"Royal\", ",
+        "            \"purple\" to BoardThemeInfo(R.string.board_theme_royal, "
+      ],
+      [
+        "            \"coral\" to BoardThemeInfo(\"Coral\", ",
+        "            \"coral\" to BoardThemeInfo(R.string.board_theme_coral, "
+      ],
+      [
+        "            \"midnight\" to BoardThemeInfo(\"Midnight\", ",
+        "            \"midnight\" to BoardThemeInfo(R.string.board_theme_midnight, "
+      ],
+      [
+        "            \"forest\" to BoardThemeInfo(\"Forest\", ",
+        "            \"forest\" to BoardThemeInfo(R.string.board_theme_forest, "
+      ],
+      [
+        "            \"marble\" to BoardThemeInfo(\"Marble\", ",
+        "            \"marble\" to BoardThemeInfo(R.string.board_theme_marble, "
+      ],
+      [
+        "            \"ocean\" to BoardThemeInfo(\"Ocean\", ",
+        "            \"ocean\" to BoardThemeInfo(R.string.board_theme_ocean, "
+      ],
+      [
+        "            \"autumn\" to BoardThemeInfo(\"Autumn\", ",
+        "            \"autumn\" to BoardThemeInfo(R.string.board_theme_autumn, "
+      ],
+      [
+        "            \"neon\" to BoardThemeInfo(\"Neon\", ",
+        "            \"neon\" to BoardThemeInfo(R.string.board_theme_neon, "
+      ],
+      [
+        "            \"obsidian\" to BoardThemeInfo(\"Obsidian\", ",
+        "            \"obsidian\" to BoardThemeInfo(R.string.board_theme_obsidian, "
+      ],
+      [
+        "            PieceStyleInfo(\"standard\", \"Standard\"),\n            PieceStyleInfo(\"3d\", \"3D Classic\"),",
+        "            PieceStyleInfo(\"standard\", R.string.piece_style_standard),\n            PieceStyleInfo(\"3d\", R.string.piece_style_3d_classic),"
+      ],
+      [
+        "data class BoardThemeInfo(\n    val name: String,",
+        "data class BoardThemeInfo(\n    @androidx.annotation.StringRes val nameRes: Int,"
+      ],
+      [
+        "data class PieceStyleInfo(\n    val key: String,\n    val label: String,\n)",
+        "data class PieceStyleInfo(\n    val key: String,\n    @androidx.annotation.StringRes val labelRes: Int,\n)"
+      ]
+    ]
+  },
+  {
+    "section": "Profile",
+    "file": "presentation/profile/ProfileScreen.kt",
+    "strings": {
+      "profile_title": "Profile",
+      "a11y_my_kids": "My Kids",
+      "a11y_referrals": "Referrals",
+      "a11y_about": "About",
+      "a11y_profile_avatar": "Profile avatar",
+      "a11y_default_avatar": "Default avatar",
+      "a11y_dicebear_avatar": "%1$s avatar",
+      "profile_tab_settings": "Settings",
+      "profile_tab_friends": "Friends",
+      "profile_tab_stats": "Stats",
+      "profile_avatar": "Avatar",
+      "profile_upload_photo": "Upload Photo",
+      "profile_pick_avatar": "Pick Avatar",
+      "profile_info": "Profile Info",
+      "profile_display_name": "Display Name",
+      "profile_birthday": "Birthday (YYYY-MM-DD)",
+      "profile_class_grade": "Class / Grade (1-12)",
+      "profile_save_changes": "Save Changes",
+      "profile_game_sounds": "Game Sounds",
+      "profile_sound_muted": "Muted",
+      "profile_sound_enabled": "Enabled",
+      "profile_choose_avatar": "Choose an Avatar",
+      "profile_new_options": "New Options",
+      "profile_board_theme": "Board Theme",
+      "profile_piece_style": "Piece Style",
+      "profile_friends_count": "Friends (%1$d)",
+      "profile_no_friends": "No friends yet.\nSearch for players above!",
+      "profile_friend_rating": "Rating: %1$d",
+      "profile_online": "Online",
+      "profile_stats_empty": "Play your first game to see stats!",
+      "profile_game_results": "Game Results",
+      "profile_stat_wins": "Wins",
+      "profile_stat_losses": "Losses",
+      "profile_stat_draws": "Draws",
+      "profile_performance": "Performance",
+      "profile_total_games": "Total Games",
+      "profile_win_rate": "Win Rate",
+      "profile_win_rate_value": "%1$.1f%%",
+      "profile_current_streak": "Current Streak",
+      "profile_best_streak": "Best Streak",
+      "profile_avg_game_duration": "Avg Game Duration",
+      "profile_duration_value": "%1$dm %2$ds",
+      "profile_not_available": "N/A",
+      "profile_rating_history": "Rating History",
+      "profile_view_rating_history_body": "View your full rating history",
+      "profile_view_rating_history": "View Rating History"
+    },
+    "edits": [
+      [
+        "import java.util.Locale\n",
+        ""
+      ],
+      [
+        "title = { Text(\"Profile\") },",
+        "title = { Text(stringResource(R.string.profile_title)) },"
+      ],
+      [
+        "Icon(Icons.AutoMirrored.Filled.ArrowBack, \"Back\")",
+        "Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))"
+      ],
+      [
+        "Icon(Icons.Default.FamilyRestroom, \"My Kids\")",
+        "Icon(Icons.Default.FamilyRestroom, stringResource(R.string.a11y_my_kids))"
+      ],
+      [
+        "Icon(Icons.Default.Share, \"Referrals\")",
+        "Icon(Icons.Default.Share, stringResource(R.string.a11y_referrals))"
+      ],
+      [
+        "Icon(Icons.Default.Info, \"About\")",
+        "Icon(Icons.Default.Info, stringResource(R.string.a11y_about))"
+      ],
+      [
+        "text = { Text(\"Settings\") },",
+        "text = { Text(stringResource(R.string.profile_tab_settings)) },"
+      ],
+      [
+        "text = { Text(\"Friends\") },",
+        "text = { Text(stringResource(R.string.profile_tab_friends)) },"
+      ],
+      [
+        "text = { Text(\"Stats\") },",
+        "text = { Text(stringResource(R.string.profile_tab_stats)) },"
+      ],
+      [
+        "title = { Text(\"Error\") },",
+        "title = { Text(stringResource(R.string.error_title)) },"
+      ],
+      [
+        "{ Text(\"OK\") }",
+        "{ Text(stringResource(R.string.action_ok)) }"
+      ],
+      [
+        "                        \"Avatar\",",
+        "                        stringResource(R.string.profile_avatar),"
+      ],
+      [
+        "Text(\"Upload Photo\")",
+        "Text(stringResource(R.string.profile_upload_photo))"
+      ],
+      [
+        "Text(\"Pick Avatar\")",
+        "Text(stringResource(R.string.profile_pick_avatar))"
+      ],
+      [
+        "                        \"Profile Info\",",
+        "                        stringResource(R.string.profile_info),"
+      ],
+      [
+        "label = { Text(\"Display Name\") },",
+        "label = { Text(stringResource(R.string.profile_display_name)) },"
+      ],
+      [
+        "label = { Text(\"Birthday (YYYY-MM-DD)\") },",
+        "label = { Text(stringResource(R.string.profile_birthday)) },"
+      ],
+      [
+        "label = { Text(\"Class / Grade (1-12)\") },",
+        "label = { Text(stringResource(R.string.profile_class_grade)) },"
+      ],
+      [
+        "Text(\"Save Changes\")",
+        "Text(stringResource(R.string.profile_save_changes))"
+      ],
+      [
+        "                                \"Game Sounds\",",
+        "                                stringResource(R.string.profile_game_sounds),"
+      ],
+      [
+        "                                if (state.isSoundMuted) \"Muted\" else \"Enabled\",",
+        "                                stringResource(\n                                    if (state.isSoundMuted) R.string.profile_sound_muted\n                                    else R.string.profile_sound_enabled\n                                ),"
+      ],
+      [
+        "                    \"Choose an Avatar\",",
+        "                    stringResource(R.string.profile_choose_avatar),"
+      ],
+      [
+        "Text(\"New Options\")",
+        "Text(stringResource(R.string.profile_new_options))"
+      ],
+      [
+        "contentDescription = \"${option.style} avatar\",",
+        "contentDescription = stringResource(R.string.a11y_dicebear_avatar, option.style),"
+      ],
+      [
+        "                \"Board Theme\",",
+        "                stringResource(R.string.profile_board_theme),"
+      ],
+      [
+        "                                    text = theme.name,",
+        "                                    text = stringResource(theme.nameRes),"
+      ],
+      [
+        "                \"Piece Style\",",
+        "                stringResource(R.string.profile_piece_style),"
+      ],
+      [
+        "label = { Text(style.label) },",
+        "label = { Text(stringResource(style.labelRes)) },"
+      ],
+      [
+        "placeholder = { Text(\"Search players...\") },",
+        "placeholder = { Text(stringResource(R.string.lobby_search_players)) },"
+      ],
+      [
+        "                \"Search Results\",",
+        "                stringResource(R.string.lobby_search_results),"
+      ],
+      [
+        "            \"Friends (${state.friends.size})\",",
+        "            stringResource(R.string.profile_friends_count, state.friends.size),"
+      ],
+      [
+        "                        \"No friends yet.\\nSearch for players above!\",",
+        "                        stringResource(R.string.profile_no_friends),"
+      ],
+      [
+        "                    \"Rating: ${friend.rating}\",",
+        "                    stringResource(R.string.profile_friend_rating, friend.rating),"
+      ],
+      [
+        "                    \"Online\",",
+        "                    stringResource(R.string.profile_online),"
+      ],
+      [
+        "                    Text(\"Retry\")",
+        "                    Text(stringResource(R.string.action_retry))"
+      ],
+      [
+        "                    text = \"Play your first game to see stats!\",",
+        "                    text = stringResource(R.string.profile_stats_empty),"
+      ],
+      [
+        "                        \"Game Results\",",
+        "                        stringResource(R.string.profile_game_results),"
+      ],
+      [
+        "                            label = \"Wins\",",
+        "                            label = stringResource(R.string.profile_stat_wins),"
+      ],
+      [
+        "                            label = \"Losses\",",
+        "                            label = stringResource(R.string.profile_stat_losses),"
+      ],
+      [
+        "                            label = \"Draws\",",
+        "                            label = stringResource(R.string.profile_stat_draws),"
+      ],
+      [
+        "                        \"Performance\",",
+        "                        stringResource(R.string.profile_performance),"
+      ],
+      [
+        "                    StatsRow(label = \"Total Games\", value = \"${stats.totalGames}\")",
+        "                    StatsRow(\n                        label = stringResource(R.string.profile_total_games),\n                        value = \"${stats.totalGames}\",\n                    )"
+      ],
+      [
+        "                        label = \"Win Rate\",\n                        value = \"${String.format(Locale.getDefault(), \"%.1f\", stats.winRate)}%\",",
+        "                        label = stringResource(R.string.profile_win_rate),\n                        value = stringResource(R.string.profile_win_rate_value, stats.winRate),"
+      ],
+      [
+        "                    StatsRow(label = \"Current Streak\", value = \"${stats.currentStreak}\")",
+        "                    StatsRow(\n                        label = stringResource(R.string.profile_current_streak),\n                        value = \"${stats.currentStreak}\",\n                    )"
+      ],
+      [
+        "                    StatsRow(label = \"Best Streak\", value = \"${stats.bestStreak}\")",
+        "                    StatsRow(\n                        label = stringResource(R.string.profile_best_streak),\n                        value = \"${stats.bestStreak}\",\n                    )"
+      ],
+      [
+        "                        label = \"Avg Game Duration\",\n                        value = if (stats.averageGameDuration > 0) {\n                            \"${stats.averageGameDuration / 60}m ${stats.averageGameDuration % 60}s\"\n                        } else {\n                            \"N/A\"\n                        },",
+        "                        label = stringResource(R.string.profile_avg_game_duration),\n                        value = if (stats.averageGameDuration > 0) {\n                            stringResource(\n                                R.string.profile_duration_value,\n                                stats.averageGameDuration / 60,\n                                stats.averageGameDuration % 60,\n                            )\n                        } else {\n                            stringResource(R.string.profile_not_available)\n                        },"
+      ],
+      [
+        "                        \"Rating History\",",
+        "                        stringResource(R.string.profile_rating_history),"
+      ],
+      [
+        "                                    \"View your full rating history\",",
+        "                                    stringResource(R.string.profile_view_rating_history_body),"
+      ],
+      [
+        "                                    Text(\"View Rating History\")",
+        "                                    Text(stringResource(R.string.profile_view_rating_history))"
+      ]
+    ]
+  }
+]

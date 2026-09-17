@@ -1,5 +1,8 @@
 package com.chess99.engine
 
+import androidx.annotation.StringRes
+import com.chess99.R
+
 /**
  * CCT (Checks, Captures, Threats) positional scanner for live learning.
  * Pure chess logic — zero latency, no engine needed.
@@ -13,11 +16,15 @@ object PieceValues {
     )
     fun value(pieceType: Int): Double = VALUES[pieceType] ?: 0.0
 
+    /** Resource ids, not text: the engine layer has no Context — the UI resolves these. */
     val NAMES = mapOf(
-        Piece.PAWN to "Pawn", Piece.KNIGHT to "Knight", Piece.BISHOP to "Bishop",
-        Piece.ROOK to "Rook", Piece.QUEEN to "Queen", Piece.KING to "King",
+        Piece.PAWN to R.string.piece_pawn, Piece.KNIGHT to R.string.piece_knight,
+        Piece.BISHOP to R.string.piece_bishop, Piece.ROOK to R.string.piece_rook,
+        Piece.QUEEN to R.string.piece_queen, Piece.KING to R.string.piece_king,
     )
-    fun name(pieceType: Int): String = NAMES[pieceType] ?: "?"
+
+    @StringRes
+    fun name(pieceType: Int): Int = NAMES[pieceType] ?: R.string.piece_unknown
 }
 
 data class CCTCheck(
@@ -33,7 +40,7 @@ data class CCTCapture(
     val san: String,
     val victimType: Int,
     val attackerType: Int,
-    val victimName: String,
+    @StringRes val victimName: Int,
     val victimValue: Double,
     val attackerValue: Double,
 )
@@ -44,7 +51,7 @@ data class CCTThreat(
     val san: String,
     val threatens: Int,
     val threatenedPieceType: Int,
-    val victimName: String,
+    @StringRes val victimName: Int,
     val victimValue: Double,
     val attackerValue: Double,
 )

@@ -1,6 +1,8 @@
 package com.chess99.presentation.game
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
+import com.chess99.R
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.MatchmakingApi
 import com.chess99.data.api.WebSocketApi
@@ -45,6 +47,8 @@ class PlayMultiplayerResumeRequestTest {
 
     private lateinit var socketService: GameWebSocketService
     private lateinit var gameApi: GameApi
+    private lateinit var webSocketApi: WebSocketApi
+    private lateinit var context: Context
 
     @Before
     fun setUp() {
@@ -55,6 +59,15 @@ class PlayMultiplayerResumeRequestTest {
         coEvery { socketService.getChatMessages() } returns Result.success(JsonObject())
         gameApi = mockk(relaxed = true)
         coEvery { gameApi.getGameMoves(42) } returns jsonResponse("""{"moves":[]}""")
+        webSocketApi = mockk(relaxed = true)
+        context = mockk(relaxed = true)
+        every { context.getString(R.string.mp_resume_request_sent) } returns "Resume request sent"
+        every { context.getString(R.string.mp_resume_pending_mine) } returns
+            "Your resume request is still pending. Waiting for your opponent."
+        every { context.getString(R.string.mp_resume_pending_theirs) } returns
+            "Your opponent already asked to resume. Accept their request to continue."
+        every { context.getString(R.string.mp_resume_failed) } returns
+            "Couldn't send the resume request. Please try again."
     }
 
     @After
@@ -157,6 +170,57 @@ class PlayMultiplayerResumeRequestTest {
         assertEquals(0, viewModel.uiState.value.resumeRequestSecondsLeft)
     }
 
+    @Test
+    fun `casual synthetic game auto-resumes while opening from Home`() {
+        coEvery { webSocketApi.requestResume(42, any()) } returns jsonResponse(
+            """{"success":true,"auto_accepted":true,"status":"active"}"""
+        )
+        coEvery { gameApi.getGame(42) } returns jsonResponse(
+            """{
+                "game":{
+                    "id":42,
+                    "fen":"rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+                    "status":"paused",
+                    "white_player_id":7,
+                    "black_player_id":null,
+                    "game_mode":"casual",
+                    "computer_level":1,
+                    "synthetic_player_id":45,
+                    "time_control_minutes":10,
+                    "increment_seconds":0,
+                    "white_player":{"id":7,"name":"Me","rating":1200},
+                    "black_player":null
+                }
+            }""".trimIndent(),
+        )
+
+        val tokenManager = mockk<TokenManager>(relaxed = true)
+        every { tokenManager.getUserId() } returns 7
+        every { tokenManager.getUserName() } returns "Me"
+        every { tokenManager.isMinor() } returns false
+
+        val flags = mockk<FeatureFlagManager>(relaxed = true)
+        every { flags.flags } returns MutableStateFlow(emptyMap())
+        every { flags.isEnabled(any()) } returns false
+
+        val viewModel = PlayMultiplayerViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("gameId" to 42)),
+            gameWebSocketService = socketService,
+            gameApi = gameApi,
+            matchmakingApi = mockk<MatchmakingApi>(relaxed = true),
+            webSocketApi = webSocketApi,
+            tokenManager = tokenManager,
+            featureFlagManager = flags,
+            stockfishEngine = mockk<StockfishEngine>(relaxed = true),
+            shareManager = mockk<ShareManager>(relaxed = true),
+            context = context,
+        )
+        scheduler.runCurrent()
+
+        assertEquals(MultiplayerPhase.PLAYING, viewModel.uiState.value.gamePhase)
+        coVerify(exactly = 1) { webSocketApi.requestResume(42, any()) }
+    }
+
     private fun pausedViewModel(): PlayMultiplayerViewModel {
         coEvery { gameApi.getGame(42) } returns jsonResponse(
             """{
@@ -189,11 +253,12 @@ class PlayMultiplayerResumeRequestTest {
             gameWebSocketService = socketService,
             gameApi = gameApi,
             matchmakingApi = mockk<MatchmakingApi>(relaxed = true),
-            webSocketApi = mockk<WebSocketApi>(relaxed = true),
+            webSocketApi = webSocketApi,
             tokenManager = tokenManager,
             featureFlagManager = flags,
             stockfishEngine = mockk<StockfishEngine>(relaxed = true),
             shareManager = mockk<ShareManager>(relaxed = true),
+            context = context,
         )
         scheduler.runCurrent()
         viewModel.handleGameEvent(GameEvent.GamePaused)

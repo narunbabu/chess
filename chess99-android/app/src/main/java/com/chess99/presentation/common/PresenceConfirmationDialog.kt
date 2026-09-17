@@ -7,9 +7,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.chess99.R
 import kotlinx.coroutines.delay
 
 /**
@@ -38,14 +40,14 @@ fun PresenceConfirmationDialog(
         icon = { Icon(Icons.Default.Timer, contentDescription = null) },
         title = {
             Text(
-                text = "Are you still there?",
+                text = stringResource(R.string.presence_title),
                 fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Confirm your presence to continue the game.",
+                    text = stringResource(R.string.presence_body),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                 )
@@ -59,7 +61,7 @@ fun PresenceConfirmationDialog(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "seconds remaining",
+                    text = stringResource(R.string.presence_seconds_remaining),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -67,7 +69,7 @@ fun PresenceConfirmationDialog(
         },
         confirmButton = {
             Button(onClick = onConfirm) {
-                Text("I'm here!")
+                Text(stringResource(R.string.presence_confirm))
             }
         },
     )

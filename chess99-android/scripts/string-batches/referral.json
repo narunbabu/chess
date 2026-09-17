@@ -1,0 +1,72 @@
+[
+{
+  "section": "Referral dashboard",
+  "file": "presentation/referral/ReferralDashboardScreen.kt",
+  "strings": {
+    "referral_title": "Referral Program",
+    "referral_stat_referrals": "Referrals",
+    "referral_stat_active": "Active",
+    "referral_stat_earned": "Earned",
+    "referral_link_title": "Your Referral Link",
+    "referral_link_copied": "Link copied!",
+    "referral_copy_link": "Copy Link",
+    "referral_generate_title": "Generate New Code",
+    "referral_label_optional": "Label (optional)",
+    "referral_generate": "Generate",
+    "referral_referred_users": "Referred Users",
+    "a11y_subscribed": "Subscribed",
+    "referral_earnings": "Earnings",
+    "referral_payout_history": "Payout History",
+    "referral_empty": "Share your referral link to start earning!"
+  },
+  "edits": [
+    ["title = { Text(\"Referral Program\") },", "title = { Text(stringResource(R.string.referral_title)) },"],
+    ["Icon(Icons.AutoMirrored.Filled.ArrowBack, \"Back\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))"],
+    ["                            Text(\"Retry\")", "                            Text(stringResource(R.string.action_retry))"],
+    ["                                    label = \"Referrals\",", "                                    label = stringResource(R.string.referral_stat_referrals),"],
+    ["                                    label = \"Active\",", "                                    label = stringResource(R.string.referral_stat_active),"],
+    ["                                    label = \"Earned\",", "                                    label = stringResource(R.string.referral_stat_earned),"],
+    ["                                        \"Your Referral Link\",", "                                        stringResource(R.string.referral_link_title),"],
+    ["                                    Button(\n                                        onClick = {\n                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager\n                                            clipboard.setPrimaryClip(ClipData.newPlainText(\"Referral Link\", link))\n                                            viewModel.showSnackbar(\"Link copied!\")\n                                        },\n                                    ) {",
+     "                                    val clipLabel = stringResource(R.string.referral_link_clip_label)\n                                    val copiedMessage = stringResource(R.string.referral_link_copied)\n                                    Button(\n                                        onClick = {\n                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager\n                                            clipboard.setPrimaryClip(ClipData.newPlainText(clipLabel, link))\n                                            viewModel.showSnackbar(copiedMessage)\n                                        },\n                                    ) {"],
+    ["                                        Text(\"Copy Link\")", "                                        Text(stringResource(R.string.referral_copy_link))"],
+    ["                                    \"Generate New Code\",", "                                    stringResource(R.string.referral_generate_title),"],
+    ["                                        label = { Text(\"Label (optional)\") },", "                                        label = { Text(stringResource(R.string.referral_label_optional)) },"],
+    ["                                            Text(\"Generate\")", "                                            Text(stringResource(R.string.referral_generate))"],
+    ["                                \"Referred Users\",", "                                stringResource(R.string.referral_referred_users),"],
+    ["                                            contentDescription = \"Subscribed\",", "                                            contentDescription = stringResource(R.string.a11y_subscribed),"],
+    ["                                \"Earnings\",", "                                stringResource(R.string.referral_earnings),"],
+    ["                                \"Payout History\",", "                                stringResource(R.string.referral_payout_history),"],
+    ["                                        \"Share your referral link to start earning!\",", "                                        stringResource(R.string.referral_empty),"]
+  ]
+},
+{
+  "section": "Become an ambassador",
+  "file": "presentation/referral/BecomeAmbassadorScreen.kt",
+  "strings": {
+    "become_ambassador_approved": "You're an approved ambassador!",
+    "become_ambassador_under_review": "Your application is under review",
+    "become_ambassador_notify": "We'll notify you once there's an update.",
+    "become_ambassador_intro": "Help more kids discover chess. Ambassadors earn commission for every player they bring to Chess99. Tell us a bit about yourself.",
+    "become_ambassador_full_name": "Full name",
+    "become_ambassador_mobile": "Mobile number",
+    "become_ambassador_upi": "UPI ID (for payouts)",
+    "become_ambassador_upi_hint": "name@bank",
+    "become_ambassador_reason": "Why do you want to join? (optional)",
+    "become_ambassador_submit": "Submit Application"
+  },
+  "edits": [
+    ["title = { Text(\"Become an Ambassador\", fontWeight = FontWeight.Bold) },", "title = { Text(stringResource(R.string.ambassador_become_title), fontWeight = FontWeight.Bold) },"],
+    ["Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = \"Back\")", "Icon(\n                            Icons.AutoMirrored.Filled.ArrowBack,\n                            contentDescription = stringResource(R.string.action_back),\n                        )"],
+    ["                            if (state.ambassadorStatus.equals(\"approved\", ignoreCase = true)) {\n                                \"You're an approved ambassador!\"\n                            } else {\n                                \"Your application is under review\"\n                            },",
+     "                            stringResource(\n                                if (state.ambassadorStatus.equals(\"approved\", ignoreCase = true)) {\n                                    R.string.become_ambassador_approved\n                                } else {\n                                    R.string.become_ambassador_under_review\n                                }\n                            ),"],
+    ["                            \"We'll notify you once there's an update.\",", "                            stringResource(R.string.become_ambassador_notify),"],
+    ["                \"Help more kids discover chess. Ambassadors earn commission for every \" +\n                    \"player they bring to Chess99. Tell us a bit about yourself.\",", "                stringResource(R.string.become_ambassador_intro),"],
+    ["                label = { Text(\"Full name\") },", "                label = { Text(stringResource(R.string.become_ambassador_full_name)) },"],
+    ["                label = { Text(\"Mobile number\") },", "                label = { Text(stringResource(R.string.become_ambassador_mobile)) },"],
+    ["                label = { Text(\"UPI ID (for payouts)\") },\n                placeholder = { Text(\"name@bank\") },", "                label = { Text(stringResource(R.string.become_ambassador_upi)) },\n                placeholder = { Text(stringResource(R.string.become_ambassador_upi_hint)) },"],
+    ["                label = { Text(\"Why do you want to join? (optional)\") },", "                label = { Text(stringResource(R.string.become_ambassador_reason)) },"],
+    ["                    Text(\"Submit Application\")", "                    Text(stringResource(R.string.become_ambassador_submit))"]
+  ]
+}
+]

@@ -25,10 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chess99.R
 import kotlinx.coroutines.delay
 
 @Composable
@@ -83,7 +85,7 @@ fun CheckmateNotification(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = "CHECKMATE!",
+                    text = stringResource(R.string.checkmate_banner),
                     color = Color.White,
                     fontSize = 32.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -91,7 +93,13 @@ fun CheckmateNotification(
                     letterSpacing = 4.sp,
                 )
                 Text(
-                    text = "${winner.replaceFirstChar { it.uppercase() }} wins!",
+                    text = stringResource(
+                        R.string.checkmate_winner,
+                        stringResource(
+                            if (winner.equals("black", ignoreCase = true)) R.string.color_black_name
+                            else R.string.color_white_name
+                        ),
+                    ),
                     color = Color.White.copy(alpha = 0.9f),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,

@@ -1,0 +1,728 @@
+[
+  {
+    "section": "Tournament detail — ViewModel copy",
+    "file": "presentation/championship/ChampionshipDetailScreen.kt",
+    "strings": {
+      "champ_load_failed_code": "Failed to load tournament (%1$d)",
+      "champ_game_created_not_opened": "Game created but could not open it. Pull to refresh.",
+      "champ_match_not_ready": "Match not ready to play yet.",
+      "champ_not_a_player": "You are not a player in this match.",
+      "champ_start_failed_code": "Couldn't start the game (%1$d).",
+      "champ_action_done": "Done.",
+      "champ_manage_forbidden": "You don't have permission to manage this tournament.",
+      "champ_action_not_allowed": "Action not allowed in the current tournament state.",
+      "champ_action_failed_code": "Action failed (%1$d)."
+    },
+    "edits": [
+      [
+        "error = \"Failed to load tournament (${response.code()})\",",
+        "error = context.getString(R.string.champ_load_failed_code, response.code()),"
+      ],
+      [
+        "manageMessage = \"Game created but could not open it. Pull to refresh.\")",
+        "manageMessage = context.getString(R.string.champ_game_created_not_opened))"
+      ],
+      [
+        "                    400 -> \"Match not ready to play yet.\"",
+        "                    400 -> context.getString(R.string.champ_match_not_ready)"
+      ],
+      [
+        "                    403 -> \"You are not a player in this match.\"",
+        "                    403 -> context.getString(R.string.champ_not_a_player)"
+      ],
+      [
+        "                    else -> \"Couldn't start the game (${response.code()}).\"",
+        "                    else -> context.getString(R.string.champ_start_failed_code, response.code())"
+      ],
+      [
+        "?.get(\"message\")?.asString ?: \"Done.\"",
+        "?.get(\"message\")?.asString ?: context.getString(R.string.champ_action_done)"
+      ],
+      [
+        "                    403 -> \"You don't have permission to manage this tournament.\"",
+        "                    403 -> context.getString(R.string.champ_manage_forbidden)"
+      ],
+      [
+        "                    422 -> \"Action not allowed in the current tournament state.\"",
+        "                    422 -> context.getString(R.string.champ_action_not_allowed)"
+      ],
+      [
+        "                    else -> \"Action failed (${response.code()}).\"",
+        "                    else -> context.getString(R.string.champ_action_failed_code, response.code())"
+      ]
+    ]
+  },
+  {
+    "section": "Tournament list — ViewModel copy",
+    "file": "presentation/championship/ChampionshipListViewModel.kt",
+    "strings": {
+      "champ_list_load_failed_code": "Failed to load tournaments (%1$d)",
+      "champ_registered": "Successfully registered!",
+      "champ_registration_failed_code": "Registration failed (%1$d)",
+      "champ_created": "Tournament created!",
+      "champ_create_failed_code": "Failed to create tournament (%1$d)"
+    },
+    "edits": [
+      [
+        "error = \"Failed to load tournaments (${response.code()})\",",
+        "error = context.getString(R.string.champ_list_load_failed_code, response.code()),"
+      ],
+      [
+        "snackbarMessage = \"Successfully registered!\",",
+        "snackbarMessage = context.getString(R.string.champ_registered),"
+      ],
+      [
+        "error = message ?: \"Registration failed (${response.code()})\",",
+        "error = message ?: context.getString(R.string.champ_registration_failed_code, response.code()),"
+      ],
+      [
+        "snackbarMessage = \"Tournament created!\",",
+        "snackbarMessage = context.getString(R.string.champ_created),"
+      ],
+      [
+        "error = \"Failed to create tournament (${response.code()})\",",
+        "error = context.getString(R.string.champ_create_failed_code, response.code()),"
+      ]
+    ]
+  },
+  {
+    "section": "Tournament invitations — ViewModel copy",
+    "file": "presentation/championship/ChampionshipInvitationsViewModel.kt",
+    "strings": {
+      "champ_invite_accepted": "Invitation accepted!",
+      "champ_invite_declined": "Invitation declined."
+    },
+    "edits": [
+      [
+        "snackbarMessage = \"Invitation accepted!\",",
+        "snackbarMessage = context.getString(R.string.champ_invite_accepted),"
+      ],
+      [
+        "snackbarMessage = \"Invitation declined.\",",
+        "snackbarMessage = context.getString(R.string.champ_invite_declined),"
+      ],
+      [
+        "    private val championshipApi: ChampionshipApi,\n) : ViewModel() {",
+        "    private val championshipApi: ChampionshipApi,\n    // Injected so the snackbar copy below can come from strings.xml.\n    @ApplicationContext private val context: Context,\n) : ViewModel() {"
+      ]
+    ]
+  },
+  {
+    "section": "Profile — ViewModel copy",
+    "file": "presentation/profile/ProfileViewModel.kt",
+    "strings": {
+      "profile_load_failed": "Failed to load profile",
+      "profile_stats_failed": "Couldn't load your stats.",
+      "profile_updated": "Profile updated",
+      "profile_save_failed": "Failed to save profile",
+      "profile_file_read_failed": "Could not read file",
+      "profile_avatar_updated": "Avatar updated",
+      "profile_avatar_upload_failed": "Upload failed",
+      "profile_avatar_set_failed": "Failed to set avatar"
+    },
+    "edits": [
+      [
+        "error = \"Failed to load profile\",",
+        "error = context.getString(R.string.profile_load_failed),"
+      ],
+      [
+        "statsError = \"Couldn't load your stats.\",",
+        "statsError = context.getString(R.string.profile_stats_failed),"
+      ],
+      [
+        "snackbarMessage = \"Profile updated\",",
+        "snackbarMessage = context.getString(R.string.profile_updated),"
+      ],
+      [
+        "error = \"Failed to save profile\",",
+        "error = context.getString(R.string.profile_save_failed),"
+      ],
+      [
+        "error = \"Could not read file\",",
+        "error = context.getString(R.string.profile_file_read_failed),"
+      ],
+      [
+        "snackbarMessage = \"Avatar updated\",",
+        "snackbarMessage = context.getString(R.string.profile_avatar_updated),"
+      ],
+      [
+        "error = \"Upload failed\",",
+        "error = context.getString(R.string.profile_avatar_upload_failed),"
+      ],
+      [
+        "error = \"Failed to set avatar\",",
+        "error = context.getString(R.string.profile_avatar_set_failed),"
+      ]
+    ]
+  },
+  {
+    "section": "Referral — ViewModel copy",
+    "file": "presentation/referral/ReferralViewModel.kt",
+    "strings": {
+      "referral_stats_failed": "Couldn't load your referral stats.",
+      "referral_payout_bank_transfer": "Bank Transfer",
+      "referral_application_submitted": "Application submitted. We'll review and get back to you.",
+      "referral_application_invalid": "Please check your details and try again.",
+      "referral_application_duplicate": "You've already applied.",
+      "referral_application_failed": "Failed to submit application.",
+      "referral_code_generated": "New referral code generated!",
+      "referral_code_failed": "Failed to generate code."
+    },
+    "edits": [
+      [
+        "error = \"Couldn't load your referral stats.\",",
+        "error = context.getString(R.string.referral_stats_failed),"
+      ],
+      [
+        "name = u.get(\"name\")?.asString ?: \"Unknown\",",
+        "name = u.get(\"name\")?.asString ?: context.getString(R.string.player_unknown),"
+      ],
+      [
+        "method = p.get(\"method\")?.asString ?: \"Bank Transfer\",",
+        "method = p.get(\"method\")?.asString ?: context.getString(R.string.referral_payout_bank_transfer),"
+      ],
+      [
+        "snackbarMessage = \"Application submitted. We'll review and get back to you.\",",
+        "snackbarMessage = context.getString(R.string.referral_application_submitted),"
+      ],
+      [
+        "                    422 -> \"Please check your details and try again.\"",
+        "                    422 -> context.getString(R.string.referral_application_invalid)"
+      ],
+      [
+        "                    409 -> \"You've already applied.\"",
+        "                    409 -> context.getString(R.string.referral_application_duplicate)"
+      ],
+      [
+        "                    else -> \"Failed to submit application.\"",
+        "                    else -> context.getString(R.string.referral_application_failed)"
+      ],
+      [
+        "snackbarMessage = \"New referral code generated!\",",
+        "snackbarMessage = context.getString(R.string.referral_code_generated),"
+      ],
+      [
+        "snackbarMessage = \"Failed to generate code.\",",
+        "snackbarMessage = context.getString(R.string.referral_code_failed),"
+      ]
+    ]
+  },
+  {
+    "section": "Tutorial lesson — ViewModel copy",
+    "file": "presentation/learn/TutorialLessonScreen.kt",
+    "strings": {
+      "lesson_load_failed": "Couldn't load this lesson. Pull to retry.",
+      "lesson_feedback_wrong": "Not quite. Try again!",
+      "lesson_feedback_invalid": "Invalid move",
+      "lesson_feedback_correct": "Correct!",
+      "lesson_feedback_complete": "Lesson complete!"
+    },
+    "edits": [
+      [
+        "error = \"Couldn't load this lesson. Pull to retry.\")",
+        "error = context.getString(R.string.lesson_load_failed))"
+      ],
+      [
+        "val title = plainData.str(\"title\") ?: \"Lesson\"",
+        "val title = plainData.str(\"title\") ?: context.getString(R.string.lesson_default_title)"
+      ],
+      [
+        "feedbackMessage = \"Not quite. Try again!\",",
+        "feedbackMessage = context.getString(R.string.lesson_feedback_wrong),"
+      ],
+      [
+        "it.copy(feedbackMessage = \"Invalid move\", feedbackIsCorrect = false)",
+        "it.copy(feedbackMessage = context.getString(R.string.lesson_feedback_invalid), feedbackIsCorrect = false)"
+      ],
+      [
+        "feedbackMessage = \"Correct!\",",
+        "feedbackMessage = context.getString(R.string.lesson_feedback_correct),"
+      ],
+      [
+        "feedbackMessage = \"Lesson complete!\",",
+        "feedbackMessage = context.getString(R.string.lesson_feedback_complete),"
+      ]
+    ]
+  },
+  {
+    "section": "Game history — ViewModel copy",
+    "file": "presentation/history/GameHistoryViewModel.kt",
+    "strings": {
+      "history_load_failed": "Couldn't load your games. Please try again.",
+      "history_load_game_failed_code": "Failed to load game (%1$d)",
+      "history_load_moves_failed": "Failed to load moves",
+      "history_no_moves_loaded": "No moves loaded for analysis",
+      "history_no_moves_to_analyze": "No moves to analyze",
+      "history_analysis_failed": "We couldn't finish analyzing this game. Please try again."
+    },
+    "edits": [
+      [
+        "error = \"Couldn't load your games. Please try again.\",",
+        "error = context.getString(R.string.history_load_failed),"
+      ],
+      [
+        "error = \"Failed to load game (${response.code()})\",",
+        "error = context.getString(R.string.history_load_game_failed_code, response.code()),"
+      ],
+      [
+        "error = \"Failed to load moves\",",
+        "error = context.getString(R.string.history_load_moves_failed),"
+      ],
+      [
+        "            ?: \"Unknown\"\n\n        val playerColor = json.str(\"player_color\")",
+        "            ?: context.getString(R.string.player_unknown)\n\n        val playerColor = json.str(\"player_color\")"
+      ],
+      [
+        "error = \"No moves loaded for analysis\",",
+        "error = context.getString(R.string.history_no_moves_loaded),"
+      ],
+      [
+        "error = \"No moves to analyze\",",
+        "error = context.getString(R.string.history_no_moves_to_analyze),"
+      ],
+      [
+        "error = \"We couldn't finish analyzing this game. Please try again.\",",
+        "error = context.getString(R.string.history_analysis_failed),"
+      ]
+    ]
+  },
+  {
+    "section": "Game detail — ViewModel copy",
+    "file": "presentation/history/GameDetailViewModel.kt",
+    "strings": {
+      "detail_load_failed": "Failed to load game",
+      "detail_empty_response": "Empty response",
+      "player_white": "White",
+      "player_black": "Black"
+    },
+    "edits": [
+      [
+        "error = \"Failed to load game\") }",
+        "error = context.getString(R.string.detail_load_failed)) }"
+      ],
+      [
+        "error = \"Empty response\") }",
+        "error = context.getString(R.string.detail_empty_response)) }"
+      ],
+      [
+        "whiteName = whitePlayer?.get(\"name\")?.asString ?: \"White\",",
+        "whiteName = whitePlayer?.get(\"name\")?.asString ?: context.getString(R.string.player_white),"
+      ],
+      [
+        "blackName = blackPlayer?.get(\"name\")?.asString ?: \"Black\",",
+        "blackName = blackPlayer?.get(\"name\")?.asString ?: context.getString(R.string.player_black),"
+      ]
+    ]
+  },
+  {
+    "section": "Payments — ViewModel copy",
+    "file": "presentation/payment/PaymentViewModel.kt",
+    "strings": {
+      "payment_tier_free": "Free",
+      "payment_plan_check_failed": "Couldn't check your plan — you're on the Free plan for now.",
+      "payment_cancelled": "Subscription cancelled. It remains active until the end of the billing period.",
+      "payment_cancel_failed": "Failed to cancel subscription.",
+      "payment_restored": "Purchases restored successfully.",
+      "payment_nothing_to_restore": "No purchases found to restore."
+    },
+    "edits": [
+      [
+        "?: sub.get(\"tier\")?.asString ?: \"Free\"",
+        "?: sub.get(\"tier\")?.asString ?: context.getString(R.string.payment_tier_free)"
+      ],
+      [
+        "planCheckNotice = \"Couldn't check your plan — you're on the Free plan for now.\",",
+        "planCheckNotice = context.getString(R.string.payment_plan_check_failed),"
+      ],
+      [
+        "snackbarMessage = \"Subscription cancelled. It remains active until the end of the billing period.\",",
+        "snackbarMessage = context.getString(R.string.payment_cancelled),"
+      ],
+      [
+        "error = \"Failed to cancel subscription.\",",
+        "error = context.getString(R.string.payment_cancel_failed),"
+      ],
+      [
+        "snackbarMessage = \"Purchases restored successfully.\",",
+        "snackbarMessage = context.getString(R.string.payment_restored),"
+      ],
+      [
+        "error = \"No purchases found to restore.\",",
+        "error = context.getString(R.string.payment_nothing_to_restore),"
+      ]
+    ]
+  },
+  {
+    "section": "Dashboard — ViewModel copy",
+    "file": "presentation/dashboard/DashboardViewModel.kt",
+    "strings": {
+      "dashboard_load_failed": "Couldn't load your dashboard. Please try again.",
+      "dashboard_stats_failed": "Couldn't load your stats."
+    },
+    "edits": [
+      [
+        "error = \"Couldn't load your dashboard. Please try again.\",",
+        "error = context.getString(R.string.dashboard_load_failed),"
+      ],
+      [
+        "statsError = \"Couldn't load your stats.\",",
+        "statsError = context.getString(R.string.dashboard_stats_failed),"
+      ],
+      [
+        "                ?: \"Unknown\",",
+        "                ?: context.getString(R.string.player_unknown),"
+      ],
+      [
+        "opponentName = g.str(\"opponent_name\") ?: \"Unknown\",",
+        "opponentName = g.str(\"opponent_name\") ?: context.getString(R.string.player_unknown),"
+      ],
+      [
+        "opponentName = opponent.str(\"name\") ?: \"Opponent\",",
+        "opponentName = opponent.str(\"name\") ?: context.getString(R.string.player_opponent),"
+      ],
+      [
+        "playerColor = if (playerIsWhite) \"White\" else \"Black\",",
+        "playerColor = context.getString(if (playerIsWhite) R.string.player_white else R.string.player_black),"
+      ]
+    ]
+  },
+  {
+    "section": "Public game viewer — ViewModel copy",
+    "file": "presentation/game/PublicGameViewerScreen.kt",
+    "strings": {
+      "public_game_not_shared": "Game not found or not publicly shared.",
+      "public_game_empty_response": "Empty response"
+    },
+    "edits": [
+      [
+        "error = \"Game not found or not publicly shared.\") }",
+        "error = context.getString(R.string.public_game_not_shared)) }"
+      ],
+      [
+        "error = \"Empty response\") }",
+        "error = context.getString(R.string.public_game_empty_response)) }"
+      ],
+      [
+        "whiteName = wp?.get(\"name\")?.asString ?: \"White\",",
+        "whiteName = wp?.get(\"name\")?.asString ?: context.getString(R.string.player_white),"
+      ],
+      [
+        "blackName = bp?.get(\"name\")?.asString ?: \"Black\",",
+        "blackName = bp?.get(\"name\")?.asString ?: context.getString(R.string.player_black),"
+      ]
+    ]
+  },
+  {
+    "section": "Learn — ViewModel copy",
+    "file": "presentation/learn/LearnViewModel.kt",
+    "strings": {
+      "learn_lessons_failed": "Couldn't load lessons. Pull to retry.",
+      "learn_daily_challenge_default": "Daily Challenge",
+      "learn_module_failed": "Couldn't load this module. Pull to retry.",
+      "learn_lesson_completed": "Lesson completed!"
+    },
+    "edits": [
+      [
+        "error = \"Couldn't load lessons. Pull to retry.\",",
+        "error = context.getString(R.string.learn_lessons_failed),"
+      ],
+      [
+        "?: challenge.str(\"title\") ?: \"Daily Challenge\",",
+        "?: challenge.str(\"title\") ?: context.getString(R.string.learn_daily_challenge_default),"
+      ],
+      [
+        "error = body?.str(\"message\") ?: \"Couldn't load this module. Pull to retry.\",",
+        "error = body?.str(\"message\") ?: context.getString(R.string.learn_module_failed),"
+      ],
+      [
+        "error = \"Couldn't load this module. Pull to retry.\",",
+        "error = context.getString(R.string.learn_module_failed),"
+      ],
+      [
+        "snackbarMessage = \"Lesson completed!\",",
+        "snackbarMessage = context.getString(R.string.learn_lesson_completed),"
+      ]
+    ]
+  },
+  {
+    "section": "Puzzles — ViewModel copy",
+    "file": "presentation/learn/PuzzleViewModel.kt",
+    "strings": {
+      "puzzle_instruction_default": "Find the best move",
+      "puzzle_difficulty_medium": "Medium",
+      "puzzle_hint_from_square": "Try moving from %1$s"
+    },
+    "edits": [
+      [
+        "    val instruction: String = \"Find the best move\",\n    val difficulty: String = \"Medium\",",
+        "    // Placeholders only: the ViewModel fills both from strings.xml, because a\n    // data-class default has no Context.\n    val instruction: String = \"\",\n    val difficulty: String = \"\","
+      ],
+      [
+        "difficulty = challenge.get(\"difficulty\")?.asString ?: \"Medium\",",
+        "difficulty = challenge.get(\"difficulty\")?.asString ?: appContext.getString(R.string.puzzle_difficulty_medium),"
+      ],
+      [
+        "instruction = \"Find the best move\",",
+        "instruction = appContext.getString(R.string.puzzle_instruction_default),"
+      ],
+      [
+        "        val hint = \"Try moving from ${nextMove.take(2)}\"",
+        "        val hint = appContext.getString(R.string.puzzle_hint_from_square, nextMove.take(2))"
+      ]
+    ]
+  },
+  {
+    "section": "Shared result — ViewModel copy",
+    "file": "presentation/social/SharedResultViewModel.kt",
+    "strings": {
+      "shared_result_game_over": "Game Over",
+      "shared_result_not_found": "Result not found"
+    },
+    "edits": [
+      [
+        "?.asString ?: \"White\"",
+        "?.asString ?: context.getString(R.string.player_white)"
+      ],
+      [
+        "?.asString ?: \"Black\"",
+        "?.asString ?: context.getString(R.string.player_black)"
+      ],
+      [
+        "                    \"draw\" -> \"Draw\"",
+        "                    \"draw\" -> context.getString(R.string.share_result_draw)"
+      ],
+      [
+        "                    else -> \"Game Over\"",
+        "                    else -> context.getString(R.string.shared_result_game_over)"
+      ],
+      [
+        "error = \"Result not found\")",
+        "error = context.getString(R.string.shared_result_not_found))"
+      ]
+    ]
+  },
+  {
+    "section": "Rating history — ViewModel copy",
+    "file": "presentation/profile/RatingHistoryScreen.kt",
+    "strings": {
+      "rating_history_load_failed": "Failed to load",
+      "rating_history_computer_level": "Computer Lv %1$s"
+    },
+    "edits": [
+      [
+        "error = \"Failed to load\") }",
+        "error = context.getString(R.string.rating_history_load_failed)) }"
+      ],
+      [
+        "                \"Computer Lv ${obj.get(\"computer_level\")?.asInt ?: \"?\"}\"",
+        "                context.getString(\n                    R.string.rating_history_computer_level,\n                    (obj.get(\"computer_level\")?.asInt ?: \"?\").toString(),\n                )"
+      ],
+      [
+        "?.get(\"name\")?.asString ?: \"Unknown\"",
+        "?.get(\"name\")?.asString ?: context.getString(R.string.player_unknown)"
+      ]
+    ]
+  },
+  {
+    "section": "Reset / forgot password — ViewModel copy",
+    "file": "presentation/auth/ResetPasswordViewModel.kt",
+    "strings": {
+      "auth_passwords_mismatch": "Passwords do not match.",
+      "auth_password_too_short": "Password must be at least 8 characters.",
+      "auth_generic_failure": "Something went wrong. Please try again."
+    },
+    "edits": [
+      [
+        "error = \"Passwords do not match.\")",
+        "error = context.getString(R.string.auth_passwords_mismatch))"
+      ],
+      [
+        "error = \"Password must be at least 8 characters.\")",
+        "error = context.getString(R.string.auth_password_too_short))"
+      ],
+      [
+        "error = msg ?: \"Something went wrong. Please try again.\",",
+        "error = msg ?: context.getString(R.string.auth_generic_failure),"
+      ]
+    ]
+  },
+  {
+    "section": "Forgot password — ViewModel copy",
+    "file": "presentation/auth/ForgotPasswordViewModel.kt",
+    "strings": {
+      "auth_invalid_email": "Please enter a valid email address."
+    },
+    "edits": [
+      [
+        "error = \"Please enter a valid email address.\",",
+        "error = context.getString(R.string.auth_invalid_email),"
+      ],
+      [
+        "    private val authApi: AuthApi,\n) : ViewModel() {",
+        "    private val authApi: AuthApi,\n    // Injected so the validation copy below can come from strings.xml.\n    @ApplicationContext private val context: Context,\n) : ViewModel() {"
+      ]
+    ]
+  },
+  {
+    "section": "Daily challenges — ViewModel copy",
+    "file": "presentation/daily/DailyChallengesViewModel.kt",
+    "strings": {
+      "daily_challenge_description": "Solve today's %1$s to keep your streak alive."
+    },
+    "edits": [
+      [
+        "                ?: \"Daily Challenge\",",
+        "                ?: context.getString(R.string.learn_daily_challenge_default),"
+      ],
+      [
+        "description = \"Solve today's ${typeDisplay.lowercase()} to keep your streak alive.\",",
+        "description = context.getString(R.string.daily_challenge_description, typeDisplay.lowercase()),"
+      ],
+      [
+        "?: o.get(\"username\")?.asString ?: \"Player\",",
+        "?: o.get(\"username\")?.asString ?: context.getString(R.string.player_generic),"
+      ]
+    ]
+  },
+  {
+    "section": "Global invitations — ViewModel copy",
+    "file": "presentation/common/GlobalInvitationManager.kt",
+    "strings": {},
+    "edits": [
+      [
+        "?.get(\"name\")?.asString ?: \"Unknown\",",
+        "?.get(\"name\")?.asString ?: context.getString(R.string.player_unknown),"
+      ],
+      [
+        "    private val pusherManager: PusherManager,\n) : ViewModel() {",
+        "    private val pusherManager: PusherManager,\n    // Injected so the name fallback below can come from strings.xml.\n    @ApplicationContext private val context: Context,\n) : ViewModel() {"
+      ]
+    ]
+  },
+  {
+    "section": "Leaderboard — ViewModel copy",
+    "file": "presentation/social/LeaderboardViewModel.kt",
+    "strings": {
+      "leaderboard_load_failed_code": "Failed to load leaderboard (%1$d)"
+    },
+    "edits": [
+      [
+        "error = \"Failed to load leaderboard (${response.code()})\",",
+        "error = context.getString(R.string.leaderboard_load_failed_code, response.code()),"
+      ]
+    ]
+  },
+  {
+    "section": "User progress — ViewModel copy",
+    "file": "presentation/profile/UserProgressCharts.kt",
+    "strings": {
+      "progress_load_failed": "We couldn't load your progress. Please try again."
+    },
+    "edits": [
+      [
+        "error = \"We couldn't load your progress. Please try again.\") }",
+        "error = context.getString(R.string.progress_load_failed)) }"
+      ]
+    ]
+  },
+  {
+    "section": "Tactical trainer — ViewModel copy",
+    "file": "presentation/learn/tactical/TacticalTrainerViewModel.kt",
+    "strings": {},
+    "edits": [
+      [
+        "        val colorName = if (newColor == \"w\") \"White\" else \"Black\"\n        val wrongName = if (newColor == \"w\") \"Black\" else \"White\"",
+        "        val white = appContext.getString(R.string.player_white)\n        val black = appContext.getString(R.string.player_black)\n        val colorName = if (newColor == \"w\") white else black\n        val wrongName = if (newColor == \"w\") black else white"
+      ]
+    ]
+  },
+  {
+    "section": "Push message handling",
+    "file": "data/push/Chess99FirebaseMessagingService.kt",
+    "strings": {
+      "notif_someone": "Someone",
+      "notif_tournament_title": "Tournament Update",
+      "notif_tournament_body": "Check your tournament for updates."
+    },
+    "edits": [
+      [
+        "data[\"opponent_name\"] ?: \"Opponent\"",
+        "data[\"opponent_name\"] ?: getString(R.string.player_opponent)"
+      ],
+      [
+        "?: data[\"sender_name\"] ?: \"Someone\"",
+        "?: data[\"sender_name\"] ?: getString(R.string.notif_someone)"
+      ],
+      [
+        "data[\"title\"] ?: \"Tournament Update\"",
+        "data[\"title\"] ?: getString(R.string.notif_tournament_title)"
+      ],
+      [
+        "data[\"message\"] ?: \"Check your tournament for updates.\"",
+        "data[\"message\"] ?: getString(R.string.notif_tournament_body)"
+      ],
+      [
+        "message.data[\"title\"] ?: \"Chess99\"",
+        "message.data[\"title\"] ?: getString(R.string.app_name)"
+      ]
+    ]
+  },
+  {
+    "section": "Bottom navigation",
+    "file": "presentation/navigation/NavGraph.kt",
+    "strings": {
+      "nav_play": "Play",
+      "nav_learn": "Learn",
+      "nav_compete": "Compete",
+      "nav_you": "You"
+    },
+    "edits": [
+      [
+        "internal enum class MainDestination(val label: String, val route: String) {",
+        "internal enum class MainDestination(@StringRes val label: Int, val route: String) {"
+      ],
+      [
+        "    Play(\"Play\", Screen.Home.route),\n    Learn(\"Learn\", Screen.Learn.route),\n    Compete(\"Compete\", Screen.ChampionshipList.route),\n    You(\"You\", Screen.Profile.route),",
+        "    Play(R.string.nav_play, Screen.Home.route),\n    Learn(R.string.nav_learn, Screen.Learn.route),\n    Compete(R.string.nav_compete, Screen.ChampionshipList.route),\n    You(R.string.nav_you, Screen.Profile.route),"
+      ],
+      [
+        "label = { Text(destination.label) },",
+        "label = { Text(stringResource(destination.label)) },"
+      ],
+      [
+        "import com.chess99.presentation.daily.DailyChallengesScreen",
+        "import androidx.annotation.StringRes\nimport com.chess99.presentation.daily.DailyChallengesScreen"
+      ]
+    ]
+  },
+  {
+    "section": "Companion difficulty labels",
+    "file": "domain/model/SyntheticPlayer.kt",
+    "strings": {
+      "companion_difficulty_beginner": "Beginner Friendly",
+      "companion_difficulty_intermediate": "Intermediate",
+      "companion_difficulty_advanced": "Advanced"
+    },
+    "edits": [
+      [
+        "enum class SkillGroup(val label: String) {",
+        "enum class SkillGroup(@StringRes val label: Int) {"
+      ],
+      [
+        "    BEGINNER(\"Beginner Friendly\"),\n    INTERMEDIATE(\"Intermediate\"),\n    ADVANCED(\"Advanced\"),",
+        "    BEGINNER(R.string.companion_difficulty_beginner),\n    INTERMEDIATE(R.string.companion_difficulty_intermediate),\n    ADVANCED(R.string.companion_difficulty_advanced),"
+      ]
+    ]
+  },
+  {
+    "section": "Companion picker",
+    "file": "presentation/game/CompanionControls.kt",
+    "strings": {},
+    "edits": [
+      [
+        "                                group.label,",
+        "                                stringResource(group.label),"
+      ]
+    ]
+  }
+]

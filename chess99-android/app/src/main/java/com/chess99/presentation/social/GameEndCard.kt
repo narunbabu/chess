@@ -16,12 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.chess99.R
 import kotlinx.coroutines.delay
 
 /**
@@ -109,7 +111,7 @@ fun GameEndCard(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "Checkmate!",
+                        text = stringResource(R.string.gameend_checkmate),
                         style = MaterialTheme.typography.titleMedium,
                         color = Color(0xFF4CAF50),
                         fontWeight = FontWeight.Bold,
@@ -119,11 +121,12 @@ fun GameEndCard(
             }
 
             // ── Result Header ───────────────────────────────────────────
-            val (resultText, resultColor) = when (data.result) {
-                GameEndResult.WIN -> "Victory!" to Color(0xFF4CAF50)
-                GameEndResult.LOSS -> "Defeat" to Color(0xFFF44336)
-                GameEndResult.DRAW -> "Draw" to Color(0xFFFF9800)
+            val (resultTextRes, resultColor) = when (data.result) {
+                GameEndResult.WIN -> R.string.game_result_victory to Color(0xFF4CAF50)
+                GameEndResult.LOSS -> R.string.game_result_defeat to Color(0xFFF44336)
+                GameEndResult.DRAW -> R.string.game_result_draw to Color(0xFFFF9800)
             }
+            val resultText = stringResource(resultTextRes)
 
             Text(
                 text = resultText,
@@ -158,7 +161,7 @@ fun GameEndCard(
                 )
 
                 Text(
-                    text = "vs",
+                    text = stringResource(R.string.gameend_vs),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium,
@@ -191,16 +194,19 @@ fun GameEndCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                StatChip(label = "Moves", value = "${data.totalMoves}")
+                StatChip(label = stringResource(R.string.gameend_stat_moves), value = "${data.totalMoves}")
                 StatChip(
-                    label = "Time",
+                    label = stringResource(R.string.gameend_stat_time),
                     value = data.timeControl.replace("|", "+"),
                 )
                 if (data.timeUsed.isNotBlank()) {
-                    StatChip(label = "Used", value = data.timeUsed)
+                    StatChip(label = stringResource(R.string.gameend_stat_used), value = data.timeUsed)
                 }
                 data.accuracy?.let { acc ->
-                    StatChip(label = "Accuracy", value = "${acc.toInt()}%")
+                    StatChip(
+                        label = stringResource(R.string.gameend_stat_accuracy),
+                        value = stringResource(R.string.gameend_accuracy_value, acc.toInt()),
+                    )
                 }
             }
 
@@ -210,7 +216,7 @@ fun GameEndCard(
 
             // ── Share Buttons ───────────────────────────────────────────
             Text(
-                text = "Share Result",
+                text = stringResource(R.string.gameend_share_result),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Medium,
             )
@@ -222,31 +228,31 @@ fun GameEndCard(
             ) {
                 ShareIconButton(
                     icon = Icons.AutoMirrored.Filled.Chat,
-                    label = "WhatsApp",
+                    label = stringResource(R.string.gameend_share_whatsapp),
                     color = Color(0xFF25D366),
                     onClick = { onShareClick(SharePlatform.WHATSAPP) },
                 )
                 ShareIconButton(
                     icon = Icons.Default.Tag,
-                    label = "Twitter",
+                    label = stringResource(R.string.gameend_share_twitter),
                     color = Color(0xFF1DA1F2),
                     onClick = { onShareClick(SharePlatform.TWITTER) },
                 )
                 ShareIconButton(
                     icon = Icons.Default.Facebook,
-                    label = "Facebook",
+                    label = stringResource(R.string.gameend_share_facebook),
                     color = Color(0xFF4267B2),
                     onClick = { onShareClick(SharePlatform.FACEBOOK) },
                 )
                 ShareIconButton(
                     icon = Icons.Default.ContentCopy,
-                    label = "Copy",
+                    label = stringResource(R.string.gameend_share_copy),
                     color = MaterialTheme.colorScheme.primary,
                     onClick = { onShareClick(SharePlatform.COPY_LINK) },
                 )
                 ShareIconButton(
                     icon = Icons.Default.Share,
-                    label = "More",
+                    label = stringResource(R.string.gameend_share_more),
                     color = MaterialTheme.colorScheme.secondary,
                     onClick = { onShareClick(SharePlatform.MORE) },
                 )
@@ -269,7 +275,7 @@ fun GameEndCard(
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Review")
+                    Text(stringResource(R.string.gameend_review))
                 }
 
                 Button(
@@ -282,14 +288,14 @@ fun GameEndCard(
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Play Again")
+                    Text(stringResource(R.string.gameend_play_again))
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
             TextButton(onClick = onDismiss) {
-                Text("Dismiss")
+                Text(stringResource(R.string.gameend_dismiss))
             }
         }
     }
@@ -342,7 +348,7 @@ private fun PlayerInfo(
             if (isWinner) {
                 Icon(
                     Icons.Default.EmojiEvents,
-                    contentDescription = "Winner",
+                    contentDescription = stringResource(R.string.a11y_winner),
                     tint = Color(0xFFDAA520),
                     modifier = Modifier
                         .size(20.dp)
@@ -415,7 +421,7 @@ private fun AnimatedRatingChange(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Rating: ",
+                text = stringResource(R.string.gameend_rating_label),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )

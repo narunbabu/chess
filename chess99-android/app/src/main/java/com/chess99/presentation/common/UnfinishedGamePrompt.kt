@@ -6,8 +6,10 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.chess99.R
 
 /**
  * Dialog prompting the user to resume or discard an unfinished game.
@@ -27,22 +29,22 @@ fun UnfinishedGamePrompt(
         icon = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
         title = {
             Text(
-                text = "Unfinished Game",
+                text = stringResource(R.string.unfinished_title),
                 fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Column {
-                Text("You have an unfinished game:")
+                Text(stringResource(R.string.unfinished_intro))
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "vs $opponentName \u2022 $timeControl",
+                    text = stringResource(R.string.unfinished_summary, opponentName, timeControl),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Would you like to resume or discard it?",
+                    text = stringResource(R.string.unfinished_question),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -50,12 +52,12 @@ fun UnfinishedGamePrompt(
         },
         confirmButton = {
             Button(onClick = { onResume(gameId) }) {
-                Text("Resume")
+                Text(stringResource(R.string.action_resume))
             }
         },
         dismissButton = {
             OutlinedButton(onClick = { onDiscard(gameId) }) {
-                Text("Discard")
+                Text(stringResource(R.string.home_discard))
             }
         },
     )

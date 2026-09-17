@@ -1,5 +1,7 @@
 package com.chess99.presentation.profile
 
+import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -19,20 +21,22 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.ProfileApi
 import com.chess99.data.api.arrOrNull
 import com.chess99.data.api.dbl
@@ -41,12 +45,13 @@ import com.chess99.data.api.objOrNull
 import com.chess99.data.api.str
 import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 // ── Data models ──────────────────────────────────────────────────────────────
 
@@ -63,10 +68,10 @@ data class GamesDay(
 )
 
 /** Progress time-range toggle. Values match the backend `period` param. */
-enum class ProgressRange(val label: String, val period: String) {
-    WEEK("7 days", "7d"),
-    MONTH("30 days", "30d"),
-    ALL("All time", "all"),
+enum class ProgressRange(@StringRes val label: Int, val period: String) {
+    WEEK(R.string.progress_range_week, "7d"),
+    MONTH(R.string.progress_range_month, "30d"),
+    ALL(R.string.progress_range_all, "all"),
 }
 
 // ── ViewModel ────────────────────────────────────────────────────────────────
@@ -74,6 +79,8 @@ enum class ProgressRange(val label: String, val period: String) {
 @HiltViewModel
 class UserProgressViewModel @Inject constructor(
     private val profileApi: ProfileApi,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     data class State(
@@ -102,7 +109,7 @@ class UserProgressViewModel @Inject constructor(
             try {
                 val response = profileApi.getUserProgress(range.period)
                 if (!response.isSuccessful) {
-                    _state.update { it.copy(isLoading = false, error = "We couldn't load your progress. Please try again.") }
+                    _state.update { it.copy(isLoading = false, error = context.getString(R.string.progress_load_failed)) }
                     return@launch
                 }
 
@@ -134,7 +141,7 @@ class UserProgressViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = friendlyError(e, "your progress")) }
+                _state.update { it.copy(isLoading = false, error = friendlyError(context, e, R.string.error_subject_your_progress)) }
             }
         }
     }
@@ -163,7 +170,7 @@ fun UserProgressSection(
                 FilterChip(
                     selected = state.range == range,
                     onClick = { onRangeSelected(range) },
-                    label = { Text(range.label) },
+                    label = { Text(stringResource(range.label)) },
                 )
             }
         }
@@ -183,14 +190,14 @@ fun UserProgressSection(
             state.error != null -> {
                 ProgressMessageCard(
                     message = state.error,
-                    actionLabel = "Tap to retry",
+                    actionLabel = stringResource(R.string.progress_tap_to_retry),
                     onAction = onRetry,
                 )
             }
 
             state.isEmpty -> {
                 ProgressMessageCard(
-                    message = "No games in this period yet. Play a few games and your progress will show up here!",
+                    message = stringResource(R.string.progress_empty),
                 )
             }
 
@@ -238,14 +245,14 @@ private fun RatingLineChartCard(points: List<RatingPoint>) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Rating Progression",
+                stringResource(R.string.progress_rating_progression),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.height(4.dp))
             if (points.isEmpty()) {
                 Text(
-                    "No rating changes in this period.",
+                    stringResource(R.string.progress_no_rating_changes),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 24.dp),
@@ -263,7 +270,7 @@ private fun RatingLineChartCard(points: List<RatingPoint>) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        "Peak $maxRating",
+                        stringResource(R.string.progress_peak, maxRating),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
@@ -334,7 +341,7 @@ private fun GamesBarChartCard(days: List<GamesDay>) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Games Played Per Day",
+                stringResource(R.string.progress_games_per_day),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -343,7 +350,7 @@ private fun GamesBarChartCard(days: List<GamesDay>) {
             val nonEmpty = days.filter { it.total > 0 }
             if (nonEmpty.isEmpty()) {
                 Text(
-                    "No games in this period.",
+                    stringResource(R.string.progress_no_games),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 24.dp),
@@ -398,9 +405,9 @@ private fun GamesBarChartCard(days: List<GamesDay>) {
 
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    LegendDot("Wins", winColor)
-                    LegendDot("Draws", drawColor)
-                    LegendDot("Losses", lossColor)
+                    LegendDot(stringResource(R.string.progress_legend_wins), winColor)
+                    LegendDot(stringResource(R.string.progress_legend_draws), drawColor)
+                    LegendDot(stringResource(R.string.progress_legend_losses), lossColor)
                 }
             }
         }

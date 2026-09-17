@@ -1,7 +1,9 @@
 package com.chess99.presentation.game
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.MatchmakingApi
 import com.chess99.domain.model.SyntheticPlayer
@@ -10,12 +12,13 @@ import com.chess99.presentation.history.LocalGameReviewRecord
 import com.chess99.presentation.history.LocalGameReviewStore
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * ViewModel for PlayComputer screen.
@@ -31,6 +34,8 @@ class PlayComputerViewModel @Inject constructor(
     private val gameApi: GameApi,
     val shareManager: com.chess99.presentation.social.ShareManager,
     private val localGameReviewStore: LocalGameReviewStore,
+    // Injected so the game-end and failure copy below can come from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     companion object {
@@ -135,7 +140,7 @@ class PlayComputerViewModel @Inject constructor(
                     val obj = el.asJsonObject
                     SyntheticPlayer(
                         id = obj.get("id")?.asInt ?: 0,
-                        name = obj.get("name")?.asString ?: "Companion",
+                        name = obj.get("name")?.asString ?: context.getString(R.string.companion_default_name),
                         rating = obj.get("rating")?.asInt ?: 1200,
                         computerLevel = obj.get("computer_level")?.asInt ?: StockfishEngine.DEFAULT_DEPTH,
                         personality = obj.get("personality")?.asString ?: "Balanced",
@@ -229,7 +234,7 @@ class PlayComputerViewModel @Inject constructor(
         // a rated game locally after a failed persona request.
         if (_uiState.value.isRated) {
             _uiState.value = _uiState.value.copy(
-                error = "Rated play needs a named online opponent and a server connection. Choose an opponent and retry, or select Casual to play offline.",
+                error = context.getString(R.string.pc_rated_needs_online),
             )
             return
         }
@@ -244,7 +249,7 @@ class PlayComputerViewModel @Inject constructor(
             } catch (e: EngineInitException) {
                 if (expectedGeneration == gameGeneration && _uiState.value.gamePhase == GamePhase.SETUP) {
                     _uiState.value = _uiState.value.copy(
-                        error = EngineFailureCopy.MESSAGE,
+                        error = context.getString(EngineFailureCopy.MESSAGE),
                         engineInitFailed = true,
                     )
                 }
@@ -255,7 +260,7 @@ class PlayComputerViewModel @Inject constructor(
                 // unusable for this session either way.
                 if (expectedGeneration == gameGeneration && _uiState.value.gamePhase == GamePhase.SETUP) {
                     _uiState.value = _uiState.value.copy(
-                        error = EngineFailureCopy.MESSAGE,
+                        error = context.getString(EngineFailureCopy.MESSAGE),
                         engineInitFailed = true,
                     )
                 }
@@ -309,6 +314,8 @@ class PlayComputerViewModel @Inject constructor(
             fen = game.fen(),
             playerColor = state.playerColor,
             captured = move.captured != Piece.NONE,
+            lifelines = if (state.bestMoveUci != null) listOf("best-move") else emptyList(),
+            promotion = promotion?.toString(),
         )
 
         _uiState.value = state.copy(
@@ -403,7 +410,7 @@ class PlayComputerViewModel @Inject constructor(
                 // Never surface e.message — kid-safe copy (master plan rule 6).
                 _uiState.value = _uiState.value.copy(
                     computerMoveInProgress = false,
-                    error = "The computer couldn't make a move. Please try again.",
+                    error = context.getString(R.string.pc_engine_move_failed),
                 )
             }
         }
@@ -477,9 +484,9 @@ class PlayComputerViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         bestMoveInProgress = false,
                         error = if (_uiState.value.learningMode) {
-                            "A best move isn't available right now. Your help chance was not used."
+                            context.getString(R.string.pc_best_move_unavailable_free)
                         } else {
-                            "A best move isn't available right now. Please try again."
+                            context.getString(R.string.pc_best_move_unavailable)
                         },
                     )
                 }
@@ -529,7 +536,7 @@ class PlayComputerViewModel @Inject constructor(
                 status = ResultStatus.LOST,
                 endReason = EndReason.RESIGNATION,
                 winner = Winner.OPPONENT,
-                details = "You resigned",
+                details = context.getString(R.string.end_resign_you),
             ),
         )
     }
@@ -549,14 +556,14 @@ class PlayComputerViewModel @Inject constructor(
                         status = ResultStatus.WON,
                         endReason = EndReason.CHECKMATE,
                         winner = Winner.PLAYER,
-                        details = "Checkmate! You win!",
+                        details = context.getString(R.string.end_checkmate_win),
                     )
                 } else {
                     GameResultState(
                         status = ResultStatus.LOST,
                         endReason = EndReason.CHECKMATE,
                         winner = Winner.OPPONENT,
-                        details = "Checkmate! Computer wins.",
+                        details = context.getString(R.string.end_checkmate_computer_wins),
                     )
                 }
             }
@@ -564,31 +571,31 @@ class PlayComputerViewModel @Inject constructor(
                 status = ResultStatus.DRAW,
                 endReason = EndReason.STALEMATE,
                 winner = Winner.NONE,
-                details = "Draw by stalemate",
+                details = context.getString(R.string.end_draw_stalemate),
             )
             game.isInsufficientMaterial() -> GameResultState(
                 status = ResultStatus.DRAW,
                 endReason = EndReason.INSUFFICIENT_MATERIAL,
                 winner = Winner.NONE,
-                details = "Draw by insufficient material",
+                details = context.getString(R.string.end_draw_insufficient),
             )
             game.isThreefoldRepetition() -> GameResultState(
                 status = ResultStatus.DRAW,
                 endReason = EndReason.THREEFOLD_REPETITION,
                 winner = Winner.NONE,
-                details = "Draw by threefold repetition",
+                details = context.getString(R.string.end_draw_threefold),
             )
             game.isFiftyMoveRule() -> GameResultState(
                 status = ResultStatus.DRAW,
                 endReason = EndReason.FIFTY_MOVE_RULE,
                 winner = Winner.NONE,
-                details = "Draw by 50-move rule",
+                details = context.getString(R.string.end_draw_fifty_move),
             )
             else -> GameResultState(
                 status = ResultStatus.DRAW,
                 endReason = EndReason.UNKNOWN,
                 winner = Winner.NONE,
-                details = "Game over",
+                details = context.getString(R.string.end_game_over),
             )
         }
 
@@ -620,7 +627,7 @@ class PlayComputerViewModel @Inject constructor(
                 moves = state.moveHistory,
                 result = result,
                 playerColor = state.playerColor,
-                opponentName = state.opponentDisplayName ?: "Computer",
+                opponentName = state.opponentDisplayName ?: context.getString(R.string.pc_opponent_computer),
                 difficulty = state.difficulty,
                 gameMode = state.gameMode,
                 completedAtEpochMillis = System.currentTimeMillis(),
@@ -647,7 +654,7 @@ class PlayComputerViewModel @Inject constructor(
                                 status = ResultStatus.LOST,
                                 endReason = EndReason.TIMEOUT,
                                 winner = Winner.OPPONENT,
-                                details = "You ran out of time",
+                                details = context.getString(R.string.end_timeout_you),
                             )
                         )
                         return@launch
@@ -662,7 +669,7 @@ class PlayComputerViewModel @Inject constructor(
                                 status = ResultStatus.WON,
                                 endReason = EndReason.TIMEOUT,
                                 winner = Winner.PLAYER,
-                                details = "Computer ran out of time",
+                                details = context.getString(R.string.end_timeout_computer),
                             )
                         )
                         return@launch
@@ -711,10 +718,11 @@ class PlayComputerViewModel @Inject constructor(
      */
     fun buildShareableGame(): com.chess99.presentation.social.ShareManager.ShareableGame {
         val state = _uiState.value
-        val opponentLabel = state.opponentDisplayName ?: "Computer"
+        val opponentLabel = state.opponentDisplayName ?: context.getString(R.string.pc_opponent_computer)
         val playerIsWhite = state.playerColor == Color.WHITE
-        val whiteName = if (playerIsWhite) "You" else opponentLabel
-        val blackName = if (playerIsWhite) opponentLabel else "You"
+        val you = context.getString(R.string.player_you)
+        val whiteName = if (playerIsWhite) you else opponentLabel
+        val blackName = if (playerIsWhite) opponentLabel else you
 
         // Map result to white/black/draw from the player's perspective.
         val result = when (state.gameResult?.status) {
@@ -816,6 +824,9 @@ data class GameMoveRecord(
     val fen: String,
     val playerColor: Color,
     val captured: Boolean,
+    /** Lifelines shown or used for this move (for example best-move/review). */
+    val lifelines: List<String> = emptyList(),
+    val promotion: String? = null,
 )
 
 data class GameResultState(

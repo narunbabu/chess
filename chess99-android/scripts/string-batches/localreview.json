@@ -1,0 +1,32 @@
+{
+  "section": "Local (offline) game review",
+  "file": "presentation/history/LocalGameReviewScreen.kt",
+  "strings": {
+    "local_review_title": "Game review",
+    "local_review_unavailable": "This local game is no longer available.",
+    "local_review_go_back": "Go back",
+    "local_review_summary": "You vs %1$s • %2$s",
+    "local_review_move": "Move %1$d: %2$s",
+    "local_review_first": "First",
+    "local_review_previous": "Previous",
+    "local_review_next": "Next",
+    "local_review_last": "Last",
+    "local_review_move_san": "%1$d. %2$s"
+  },
+  "edits": [
+    ["title = { Text(\"Game review\") },", "title = { Text(stringResource(R.string.local_review_title)) },"],
+    ["Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = \"Back\")", "Icon(\n                            Icons.AutoMirrored.Filled.ArrowBack,\n                            contentDescription = stringResource(R.string.action_back),\n                        )"],
+    ["                Text(\"This local game is no longer available.\")", "                Text(stringResource(R.string.local_review_unavailable))"],
+    ["                    Text(\"Go back\")", "                    Text(stringResource(R.string.local_review_go_back))"],
+    ["                        text = \"You vs ${review.opponentName} • ${review.gameMode.name.lowercase().replaceFirstChar { it.uppercase() }}\",",
+     "                        text = stringResource(\n                            R.string.local_review_summary,\n                            review.opponentName,\n                            review.gameMode.name.lowercase().replaceFirstChar { it.uppercase() },\n                        ),"],
+    ["                text = currentMove?.let { \"Move $moveIndex: ${it.san}\" } ?: \"Starting position\",",
+     "                text = currentMove?.let {\n                    stringResource(R.string.local_review_move, moveIndex, it.san)\n                } ?: stringResource(R.string.review_starting_position),"],
+    ["                ReviewButton(\"First\", enabled = moveIndex > 0, onClick = { moveIndex = 0 }) {", "                ReviewButton(stringResource(R.string.local_review_first), enabled = moveIndex > 0, onClick = { moveIndex = 0 }) {"],
+    ["                ReviewButton(\"Previous\", enabled = moveIndex > 0, onClick = { moveIndex-- }) {", "                ReviewButton(stringResource(R.string.local_review_previous), enabled = moveIndex > 0, onClick = { moveIndex-- }) {"],
+    ["                ReviewButton(\"Next\", enabled = moveIndex < review.moves.size, onClick = { moveIndex++ }) {", "                ReviewButton(stringResource(R.string.local_review_next), enabled = moveIndex < review.moves.size, onClick = { moveIndex++ }) {"],
+    ["                ReviewButton(\"Last\", enabled = moveIndex < review.moves.size, onClick = { moveIndex = review.moves.size }) {", "                ReviewButton(stringResource(R.string.local_review_last), enabled = moveIndex < review.moves.size, onClick = { moveIndex = review.moves.size }) {"],
+    ["                                Text(\"${index + 1}. ${move.san}\")", "                                Text(\n                                    stringResource(\n                                        R.string.local_review_move_san,\n                                        index + 1,\n                                        move.san,\n                                    )\n                                )"],
+    ["                                        LifelineMarkers.label(marker),", "                                        stringResource(LifelineMarkers.labelRes(marker)),"]
+  ]
+}

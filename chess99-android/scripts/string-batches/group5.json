@@ -1,0 +1,348 @@
+[
+  {
+    "section": "Play vs computer — ViewModel copy",
+    "file": "presentation/game/PlayComputerViewModel.kt",
+    "strings": {
+      "pc_rated_needs_online": "Rated play needs a named online opponent and a server connection. Choose an opponent and retry, or select Casual to play offline.",
+      "pc_engine_move_failed": "The computer couldn't make a move. Please try again.",
+      "pc_best_move_unavailable_free": "A best move isn't available right now. Your help chance was not used.",
+      "pc_best_move_unavailable": "A best move isn't available right now. Please try again.",
+      "pc_opponent_computer": "Computer",
+      "end_checkmate_computer_wins": "Checkmate! Computer wins.",
+      "end_draw_threefold": "Draw by threefold repetition",
+      "end_game_over": "Game over",
+      "end_timeout_computer": "Computer ran out of time"
+    },
+    "edits": [
+      [
+        "                        name = obj.get(\"name\")?.asString ?: \"Companion\",",
+        "                        name = obj.get(\"name\")?.asString ?: context.getString(R.string.companion_default_name),"
+      ],
+      [
+        "                error = \"Rated play needs a named online opponent and a server connection. Choose an opponent and retry, or select Casual to play offline.\",",
+        "                error = context.getString(R.string.pc_rated_needs_online),"
+      ],
+      [
+        "                    error = \"The computer couldn't make a move. Please try again.\",",
+        "                    error = context.getString(R.string.pc_engine_move_failed),"
+      ],
+      [
+        "                \"A best move isn't available right now. Your help chance was not used.\"",
+        "                context.getString(R.string.pc_best_move_unavailable_free)"
+      ],
+      [
+        "                \"A best move isn't available right now. Please try again.\"",
+        "                context.getString(R.string.pc_best_move_unavailable)"
+      ],
+      [
+        "                details = \"You resigned\",",
+        "                details = context.getString(R.string.end_resign_you),"
+      ],
+      [
+        "                    details = \"Checkmate! You win!\",",
+        "                    details = context.getString(R.string.end_checkmate_win),"
+      ],
+      [
+        "                    details = \"Checkmate! Computer wins.\",",
+        "                    details = context.getString(R.string.end_checkmate_computer_wins),"
+      ],
+      [
+        "                details = \"Draw by stalemate\",",
+        "                details = context.getString(R.string.end_draw_stalemate),"
+      ],
+      [
+        "                details = \"Draw by insufficient material\",",
+        "                details = context.getString(R.string.end_draw_insufficient),"
+      ],
+      [
+        "                details = \"Draw by threefold repetition\",",
+        "                details = context.getString(R.string.end_draw_threefold),"
+      ],
+      [
+        "                details = \"Draw by 50-move rule\",",
+        "                details = context.getString(R.string.end_draw_fifty_move),"
+      ],
+      [
+        "                details = \"Game over\",",
+        "                details = context.getString(R.string.end_game_over),"
+      ],
+      [
+        "                opponentName = state.opponentDisplayName ?: \"Computer\",",
+        "                opponentName = state.opponentDisplayName ?: context.getString(R.string.pc_opponent_computer),"
+      ],
+      [
+        "                    details = \"You ran out of time\",",
+        "                    details = context.getString(R.string.end_timeout_you),"
+      ],
+      [
+        "                    details = \"Computer ran out of time\",",
+        "                    details = context.getString(R.string.end_timeout_computer),"
+      ],
+      [
+        "        val opponentLabel = state.opponentDisplayName ?: \"Computer\"",
+        "        val opponentLabel = state.opponentDisplayName ?: context.getString(R.string.pc_opponent_computer)"
+      ],
+      [
+        "        val whiteName = if (playerIsWhite) \"You\" else opponentLabel\n        val blackName = if (playerIsWhite) opponentLabel else \"You\"",
+        "        val you = context.getString(R.string.player_you)\n        val whiteName = if (playerIsWhite) you else opponentLabel\n        val blackName = if (playerIsWhite) opponentLabel else you"
+      ],
+      [
+        "    private val localGameReviewStore: LocalGameReviewStore,\n) : ViewModel() {",
+        "    private val localGameReviewStore: LocalGameReviewStore,\n    // Injected so the game-end and failure copy below can come from strings.xml.\n    @ApplicationContext private val context: Context,\n) : ViewModel() {"
+      ]
+    ]
+  },
+  {
+    "section": "Lobby — ViewModel copy",
+    "file": "presentation/lobby/LobbyViewModel.kt",
+    "strings": {
+      "lobby_join_queue_failed": "Failed to join queue",
+      "lobby_no_opponents": "No opponents found. Try again later.",
+      "lobby_start_game_failed": "Couldn't start that game. Please try again.",
+      "lobby_challenge_sent": "Challenge sent!",
+      "lobby_challenge_failed": "Failed to send challenge",
+      "lobby_friend_request_sent": "Friend request sent!",
+      "lobby_friend_request_accepted": "Friend request accepted!",
+      "lobby_friend_accept_failed": "Couldn't accept this request. Please try again.",
+      "lobby_friend_decline_failed": "Couldn't decline this request. Please try again.",
+      "lobby_friend_removed": "Friend removed",
+      "lobby_friend_remove_failed": "Couldn't remove this friend. Please try again.",
+      "player_unknown": "Unknown"
+    },
+    "edits": [
+      [
+        "name = p.str(\"name\") ?: \"Player\",",
+        "name = p.str(\"name\") ?: context.getString(R.string.player_generic),"
+      ],
+      [
+        "opponentName = g.get(\"opponent_name\")?.asString ?: \"Unknown\",",
+        "opponentName = g.get(\"opponent_name\")?.asString ?: context.getString(R.string.player_unknown),"
+      ],
+      [
+        "                error = \"Failed to join queue\",",
+        "                error = context.getString(R.string.lobby_join_queue_failed),"
+      ],
+      [
+        "                snackbarMessage = \"No opponents found. Try again later.\",",
+        "                snackbarMessage = context.getString(R.string.lobby_no_opponents),"
+      ],
+      [
+        "snackbarMessage = \"Couldn't start that game. Please try again.\",",
+        "snackbarMessage = context.getString(R.string.lobby_start_game_failed),"
+      ],
+      [
+        "snackbarMessage = \"Challenge sent!\")",
+        "snackbarMessage = context.getString(R.string.lobby_challenge_sent))"
+      ],
+      [
+        "error = \"Failed to send challenge\")",
+        "error = context.getString(R.string.lobby_challenge_failed))"
+      ],
+      [
+        "snackbarMessage = \"Friend request sent!\")",
+        "snackbarMessage = context.getString(R.string.lobby_friend_request_sent))"
+      ],
+      [
+        "snackbarMessage = \"Friend request accepted!\")",
+        "snackbarMessage = context.getString(R.string.lobby_friend_request_accepted))"
+      ],
+      [
+        "error = \"Couldn't accept this request. Please try again.\")",
+        "error = context.getString(R.string.lobby_friend_accept_failed))"
+      ],
+      [
+        "error = \"Couldn't decline this request. Please try again.\")",
+        "error = context.getString(R.string.lobby_friend_decline_failed))"
+      ],
+      [
+        "snackbarMessage = \"Friend removed\")",
+        "snackbarMessage = context.getString(R.string.lobby_friend_removed))"
+      ],
+      [
+        "error = \"Couldn't remove this friend. Please try again.\")",
+        "error = context.getString(R.string.lobby_friend_remove_failed))"
+      ],
+      [
+        "                ?: json.getAsJsonObject(\"sender\")?.get(\"name\")?.asString ?: \"Unknown\",",
+        "                ?: json.getAsJsonObject(\"sender\")?.get(\"name\")?.asString ?: context.getString(R.string.player_unknown),"
+      ],
+      [
+        "                ?: json.getAsJsonObject(\"receiver\")?.get(\"name\")?.asString ?: \"Unknown\",",
+        "                ?: json.getAsJsonObject(\"receiver\")?.get(\"name\")?.asString ?: context.getString(R.string.player_unknown),"
+      ]
+    ]
+  },
+  {
+    "section": "My Kids — ViewModel copy",
+    "file": "presentation/parent/MyKidsViewModel.kt",
+    "strings": {
+      "kids_invite_sent": "Invitation sent. Your child confirms it from their own account.",
+      "kids_invite_no_account": "No Chess99 child account was found for that email.",
+      "kids_invite_failed": "Could not send the invitation.",
+      "kids_link_accepted": "Guardian link accepted.",
+      "kids_link_accept_failed": "Could not accept the link.",
+      "kids_link_remove_failed": "Could not remove the link.",
+      "kids_report_emailed": "Weekly report card emailed.",
+      "kids_report_failed": "Could not send the report email.",
+      "kids_account_updated": "Account updated.",
+      "kids_account_invalid": "Please check the details and try again.",
+      "kids_account_update_failed": "Could not update the account.",
+      "kids_guardian_fallback": "A guardian",
+      "kids_child_fallback": "Child"
+    },
+    "edits": [
+      [
+        "linkNotice = \"Invitation sent. Your child confirms it from their own account.\",",
+        "linkNotice = context.getString(R.string.kids_invite_sent),"
+      ],
+      [
+        "                    422 -> \"No Chess99 child account was found for that email.\"",
+        "                    422 -> context.getString(R.string.kids_invite_no_account)"
+      ],
+      [
+        "                    else -> \"Could not send the invitation.\"",
+        "                    else -> context.getString(R.string.kids_invite_failed)"
+      ],
+      [
+        "snackbarMessage = \"Guardian link accepted.\")",
+        "snackbarMessage = context.getString(R.string.kids_link_accepted))"
+      ],
+      [
+        "snackbarMessage = \"Could not accept the link.\")",
+        "snackbarMessage = context.getString(R.string.kids_link_accept_failed))"
+      ],
+      [
+        "snackbarMessage = \"Could not remove the link.\")",
+        "snackbarMessage = context.getString(R.string.kids_link_remove_failed))"
+      ],
+      [
+        "                    \"Weekly report card emailed.\"",
+        "                    context.getString(R.string.kids_report_emailed)"
+      ],
+      [
+        "                    \"Could not send the report email.\"",
+        "                    context.getString(R.string.kids_report_failed)"
+      ],
+      [
+        "                    snackbarMessage = \"Account updated.\",",
+        "                    snackbarMessage = context.getString(R.string.kids_account_updated),"
+      ],
+      [
+        "                    \"Please check the details and try again.\"",
+        "                    context.getString(R.string.kids_account_invalid)"
+      ],
+      [
+        "                    \"Could not update the account.\"",
+        "                    context.getString(R.string.kids_account_update_failed)"
+      ],
+      [
+        "opponentName = g.str(\"opponent_name\") ?: \"Opponent\",",
+        "opponentName = g.str(\"opponent_name\") ?: context.getString(R.string.player_opponent),"
+      ],
+      [
+        "name = child.str(\"name\") ?: \"Player\",",
+        "name = child.str(\"name\") ?: context.getString(R.string.player_generic),"
+      ],
+      [
+        "            ?: if (useGuardianName) \"A guardian\" else \"Child\",",
+        "            ?: context.getString(if (useGuardianName) R.string.kids_guardian_fallback else R.string.kids_child_fallback),"
+      ]
+    ]
+  },
+  {
+    "section": "Home — ViewModel copy",
+    "file": "presentation/home/HomeViewModel.kt",
+    "strings": {
+      "home_discard_failed": "Couldn't discard that game. Please try again.",
+      "home_start_game_failed": "Couldn't start that game. Please try again."
+    },
+    "edits": [
+      [
+        "snackbarMessage = \"Couldn't discard that game. Please try again.\",",
+        "snackbarMessage = context.getString(R.string.home_discard_failed),"
+      ],
+      [
+        "snackbarMessage = \"Couldn't start that game. Please try again.\",",
+        "snackbarMessage = context.getString(R.string.home_start_game_failed),"
+      ],
+      [
+        "            ?: \"Opponent\"\n        val status = json.str(\"status\")",
+        "            ?: context.getString(R.string.player_opponent)\n        val status = json.str(\"status\")"
+      ],
+      [
+        "        val opponentName = json.str(\"opponent_name\") ?: \"Opponent\"",
+        "        val opponentName = json.str(\"opponent_name\") ?: context.getString(R.string.player_opponent)"
+      ],
+      [
+        "            name = json.str(\"name\") ?: \"Player\",",
+        "            name = json.str(\"name\") ?: context.getString(R.string.player_generic),"
+      ],
+      [
+        "    private val pendingDeepLinkStore: PendingDeepLinkStore,\n) : ViewModel() {",
+        "    private val pendingDeepLinkStore: PendingDeepLinkStore,\n    // Injected so the snackbar and fallback copy below can come from strings.xml.\n    @ApplicationContext private val context: Context,\n) : ViewModel() {"
+      ]
+    ]
+  },
+  {
+    "section": "Organizations — ViewModel copy",
+    "file": "presentation/profile/OrganizationsViewModel.kt",
+    "strings": {
+      "org_load_failed": "Failed to load organizations",
+      "org_created": "Organization created.",
+      "org_create_invalid": "Please check the name and email.",
+      "org_create_forbidden": "You don't have permission to create organizations.",
+      "org_create_failed": "Failed to create organization.",
+      "org_invite_sent": "Invitation sent to %1$s.",
+      "org_invite_forbidden": "Only organization admins can invite members.",
+      "org_invite_invalid": "Please enter a valid email.",
+      "org_invite_failed": "Failed to send invitation.",
+      "org_member_fallback": "Member"
+    },
+    "edits": [
+      [
+        "                    name = o.get(\"name\")?.asString ?: \"Unknown\",",
+        "                    name = o.get(\"name\")?.asString ?: context.getString(R.string.player_unknown),"
+      ],
+      [
+        "error = \"Failed to load organizations\")",
+        "error = context.getString(R.string.org_load_failed))"
+      ],
+      [
+        "                    snackbarMessage = \"Organization created.\",",
+        "                    snackbarMessage = context.getString(R.string.org_created),"
+      ],
+      [
+        "                    422 -> \"Please check the name and email.\"",
+        "                    422 -> context.getString(R.string.org_create_invalid)"
+      ],
+      [
+        "                    403 -> \"You don't have permission to create organizations.\"",
+        "                    403 -> context.getString(R.string.org_create_forbidden)"
+      ],
+      [
+        "                    else -> \"Failed to create organization.\"",
+        "                    else -> context.getString(R.string.org_create_failed)"
+      ],
+      [
+        "                        name = o.get(\"name\")?.asString ?: \"Member\",",
+        "                        name = o.get(\"name\")?.asString ?: context.getString(R.string.org_member_fallback),"
+      ],
+      [
+        "                    \"Invitation sent to ${email.trim()}.\"",
+        "                    context.getString(R.string.org_invite_sent, email.trim())"
+      ],
+      [
+        "                    403 -> \"Only organization admins can invite members.\"",
+        "                    403 -> context.getString(R.string.org_invite_forbidden)"
+      ],
+      [
+        "                    422 -> \"Please enter a valid email.\"",
+        "                    422 -> context.getString(R.string.org_invite_invalid)"
+      ],
+      [
+        "                    else -> \"Failed to send invitation.\"",
+        "                    else -> context.getString(R.string.org_invite_failed)"
+      ]
+    ]
+  }
+]

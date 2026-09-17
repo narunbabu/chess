@@ -1,8 +1,10 @@
 package com.chess99.presentation.game
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.MatchmakingApi
 import com.chess99.data.api.WebSocketApi
@@ -24,8 +26,12 @@ import com.chess99.presentation.common.ActiveGameType
 import com.chess99.presentation.common.BoardArrow
 import com.chess99.presentation.common.FeatureFlagManager
 import com.chess99.presentation.common.friendlyError
+import com.chess99.presentation.history.LifelineMarkers
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -36,7 +42,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * ViewModel for real-time multiplayer game.
@@ -53,11 +58,17 @@ class PlayMultiplayerViewModel @Inject constructor(
     private val featureFlagManager: FeatureFlagManager,
     private val stockfishEngine: StockfishEngine,
     val shareManager: com.chess99.presentation.social.ShareManager,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     val gameId: Int = savedStateHandle.get<Int>("gameId") ?: 0
 
-    private val _uiState = MutableStateFlow(MultiplayerUiState())
+    // The opponent name placeholder is resolved here rather than defaulted in
+    // [MultiplayerUiState], which has no Context to read strings.xml from.
+    private val _uiState = MutableStateFlow(
+        MultiplayerUiState(opponentName = context.getString(R.string.player_opponent)),
+    )
     val uiState: StateFlow<MultiplayerUiState> = _uiState.asStateFlow()
 
     private val _companionState = MutableStateFlow(CompanionState())
@@ -76,6 +87,14 @@ class PlayMultiplayerViewModel @Inject constructor(
     private var lastAppliedUndoSnapshot: AuthoritativeUndoSnapshot? = null
     private var companionContinuousJob: Job? = null
     private var syntheticOpponentJob: Job? = null
+    private var reviewJob: Job? = null
+
+    /**
+     * The FEN whose Best reveal has already been charged against the shared
+     * help pool. Re-toggling Best at the same position is free (web parity:
+     * CCTPanel's `bestRevealFen`); any new position charges again.
+     */
+    private var bestChargedFen: String? = null
 
     /** Engine level for the synthetic opponent (T3), null for human-vs-human games. */
     private var _syntheticOpponentLevel: Int? = null
@@ -119,6 +138,9 @@ class PlayMultiplayerViewModel @Inject constructor(
 
         /** GameRoomService::requestResume gives a resume request 30 s to be answered. */
         internal const val RESUME_REQUEST_WINDOW_SECONDS = 30
+
+        internal const val REVIEW_TOP_MOVES = 5
+        internal const val REVIEW_DEPTH = 12
     }
 
     // ── Load Game ───────────────────────────────────────────────────────
@@ -133,7 +155,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 if (!response.isSuccessful) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = "Failed to load game",
+                        error = context.getString(R.string.mp_error_load_game),
                     )
                     return@launch
                 }
@@ -184,7 +206,7 @@ class PlayMultiplayerViewModel @Inject constructor(
 
                 val opponentName = opponentObj?.get("name")?.takeIf { it.isJsonPrimitive }?.asString
                     ?: syntheticObj?.get("name")?.takeIf { it.isJsonPrimitive }?.asString
-                    ?: "Opponent"
+                    ?: context.getString(R.string.player_opponent)
                 val opponentRating = opponentObj?.get("rating")?.takeIf { it.isJsonPrimitive }?.asInt
                     ?: syntheticObj?.get("rating")?.takeIf { it.isJsonPrimitive }?.asInt
                     ?: 1200
@@ -196,6 +218,27 @@ class PlayMultiplayerViewModel @Inject constructor(
                 // no extra request needed to detect a bot game.
                 val computerLevel = gameObj.get("computer_level")?.takeIf { !it.isJsonNull }?.asInt
                 val isSyntheticGame = computerLevel != null
+
+                // Casual computer games have no authenticated opponent who
+                // can answer a resume request. Resume them during the open
+                // flow so returning from Home never strands the player on the
+                // request overlay. The backend applies the normal pause
+                // clocks/grace restoration and also auto-accepts manual
+                // requests for clients that do not use this fast path.
+                var effectiveStatus = status
+                if (isSyntheticGame && gameMode != "rated" && status == "paused") {
+                    val resumeResponse = runCatching {
+                        webSocketApi.requestResume(gameId, JsonObject())
+                    }.getOrNull()
+                    val resumed = resumeResponse?.isSuccessful == true &&
+                        resumeResponse.body()?.booleanOrNull("success") == true
+                    if (resumed) {
+                        effectiveStatus = "active"
+                        Timber.i("Automatically resumed casual computer game $gameId on open")
+                    } else {
+                        Timber.w("Casual computer game $gameId could not auto-resume; keeping pause overlay")
+                    }
+                }
 
                 // Parse time control
                 val parts = timeControl.split("|")
@@ -217,20 +260,44 @@ class PlayMultiplayerViewModel @Inject constructor(
                     // shapes) as a JSON-encoded string / absent — getAsJsonArray
                     // throws (ClassCastException) on a primitive, so guard it and
                     // treat anything non-array as an empty history.
-                    val movesArray = movesData?.get("moves")?.takeIf { it.isJsonArray }?.asJsonArray
-                    movesArray?.forEach { moveEl ->
-                        val m = moveEl.asJsonObject
-                        moveHistory.add(
-                            GameMoveRecord(
-                                moveNumber = m.get("move_number")?.asInt ?: moveHistory.size + 1,
-                                from = m.get("from")?.asString ?: "",
-                                to = m.get("to")?.asString ?: "",
-                                san = m.get("san")?.asString ?: "",
-                                fen = m.get("fen")?.asString ?: "",
-                                playerColor = if (m.get("color")?.asString == "w") Color.WHITE else Color.BLACK,
-                                captured = m.get("captured")?.asBoolean ?: false,
+                    val movesElement = movesData?.get("moves")
+                    if (movesElement?.isJsonArray == true) {
+                        movesElement.asJsonArray.forEach { moveEl ->
+                            if (!moveEl.isJsonObject) return@forEach
+                            val m = moveEl.asJsonObject
+                            moveHistory.add(
+                                GameMoveRecord(
+                                    moveNumber = m.get("move_number")?.asInt ?: moveHistory.size + 1,
+                                    from = m.get("from")?.asString ?: "",
+                                    to = m.get("to")?.asString ?: "",
+                                    san = m.get("san")?.asString ?: "",
+                                    fen = m.get("fen")?.asString ?: "",
+                                    playerColor = if (m.get("color")?.asString == "w") Color.WHITE else Color.BLACK,
+                                    captured = m.get("captured")?.asBoolean ?: false,
+                                    lifelines = LifelineMarkers.fromMoveJson(m),
+                                    promotion = m.get("promotion")?.takeIf { it.isJsonPrimitive }?.asString,
+                                )
                             )
-                        )
+                        }
+                    } else if (movesElement?.isJsonPrimitive == true) {
+                        movesElement.asString.split(';').forEachIndexed { index, compact ->
+                            val fields = compact.split(',')
+                            val san = fields.firstOrNull()?.trim().orEmpty()
+                            if (san.isNotEmpty()) {
+                                moveHistory.add(
+                                    GameMoveRecord(
+                                        moveNumber = index + 1,
+                                        from = "",
+                                        to = "",
+                                        san = san,
+                                        fen = "",
+                                        playerColor = if (index % 2 == 0) Color.WHITE else Color.BLACK,
+                                        captured = false,
+                                        lifelines = LifelineMarkers.fromCompactToken(fields.getOrNull(4)),
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -242,7 +309,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                     opponentName = opponentName,
                     opponentRating = opponentRating,
                     myRating = tokenManager.getUserName()?.let { 1200 } ?: 1200, // Will load actual
-                    gamePhase = when (status) {
+                    gamePhase = when (effectiveStatus) {
                         "active" -> MultiplayerPhase.PLAYING
                         "paused" -> MultiplayerPhase.PAUSED
                         "completed" -> MultiplayerPhase.COMPLETED
@@ -256,7 +323,10 @@ class PlayMultiplayerViewModel @Inject constructor(
                     // Web parity (PlayMultiplayer.js:960-967): rated games get no
                     // undos; otherwise take this colour's server-side remaining
                     // count, falling back to DEFAULT_UNDO_CHANCES when the payload
-                    // predates the column.
+                    // predates the column. The Best toggle shares this pool and the
+                    // server only counts takebacks against it, so the Best spends
+                    // persisted as per-move `best-move` markers are subtracted here
+                    // — a reload must neither refund nor double-charge them.
                     undoChancesRemaining = if (gameMode == "rated") {
                         0
                     } else {
@@ -265,15 +335,17 @@ class PlayMultiplayerViewModel @Inject constructor(
                         } else {
                             "undo_black_remaining"
                         }
-                        gameObj.get(key)?.takeIf { it.isJsonPrimitive }?.asInt
+                        val serverRemaining = gameObj.get(key)?.takeIf { it.isJsonPrimitive }?.asInt
                             ?.coerceAtLeast(0)
                             ?: DEFAULT_UNDO_CHANCES
+                        (serverRemaining - bestMoveSpend(moveHistory, playerColor)).coerceAtLeast(0)
                     },
                     moveHistory = moveHistory,
                     timeControl = timeControl,
                     isSyntheticGame = isSyntheticGame,
                     opponentUserId = opponentUserId,
                     isMinor = tokenManager.isMinor(),
+                    reviewEnabled = gameMode != "rated",
                     isChatFeatureEnabled = featureFlagManager.isEnabled(
                         FeatureFlagManager.FLAG_CHAT_ENABLED
                     ),
@@ -284,7 +356,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 if (!isSyntheticGame) loadChatHistory()
 
                 // Start timer if game is active
-                if (status == "active") {
+                if (effectiveStatus == "active") {
                     startTimer()
                 }
 
@@ -302,7 +374,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                         stockfishEngine.initialize()
                     } catch (e: Exception) {
                         Timber.e(e, "Failed to initialize Stockfish for synthetic opponent")
-                        _uiState.value = _uiState.value.copy(error = EngineFailureCopy.MESSAGE)
+                        _uiState.value = _uiState.value.copy(error = context.getString(EngineFailureCopy.MESSAGE))
                         return@launch
                     }
                     startSyntheticOpponentAutoPlay()
@@ -311,7 +383,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 Timber.e(e, "Failed to load game")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = friendlyError(e, "this game"),
+                    error = friendlyError(context, e, R.string.error_subject_this_game),
                 )
             }
         }
@@ -353,7 +425,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                     isWebSocketConnected = true,
                     undoRequestPending = if (recoveredPendingRequest) false else state.undoRequestPending,
                     snackbarMessage = if (recoveredPendingRequest) {
-                        "Connection restored — ask for a takeback again if you still need it."
+                        context.getString(R.string.mp_connection_restored_takeback)
                     } else {
                         state.snackbarMessage
                     },
@@ -429,7 +501,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     drawOfferedByOpponent = false,
                     drawOfferedByMe = false,
-                    snackbarMessage = "Draw offer declined",
+                    snackbarMessage = context.getString(R.string.mp_draw_offer_declined),
                 )
             }
 
@@ -454,7 +526,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     undoRequestedByOpponent = false,
                     undoRequestPending = false,
-                    snackbarMessage = "Undo request declined",
+                    snackbarMessage = context.getString(R.string.mp_undo_request_declined),
                 )
             }
 
@@ -484,7 +556,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                         status = ResultStatus.WON,
                         endReason = EndReason.RESIGNATION,
                         winner = Winner.PLAYER,
-                        details = "Opponent resigned",
+                        details = context.getString(R.string.end_resign_opponent),
                     ),
                     soundToPlay = MoveSound.GAME_END,
                 )
@@ -492,7 +564,7 @@ class PlayMultiplayerViewModel @Inject constructor(
             }
 
             is GameEvent.OpponentPinged -> {
-                _uiState.value = _uiState.value.copy(snackbarMessage = "Your opponent wants you to move!")
+                _uiState.value = _uiState.value.copy(snackbarMessage = context.getString(R.string.mp_opponent_pinged))
             }
 
             is GameEvent.PlayerConnected -> {
@@ -516,7 +588,7 @@ class PlayMultiplayerViewModel @Inject constructor(
     private fun sanitizeWebSocketErrorMessage(rawMessage: String): String {
         if (rawMessage !in KNOWN_WEBSOCKET_ERROR_MESSAGES) {
             Timber.w("Unrecognized WebSocket error event: $rawMessage")
-            return "Connection hiccup — trying to reconnect."
+            return context.getString(R.string.mp_connection_hiccup)
         }
         return rawMessage
     }
@@ -528,6 +600,7 @@ class PlayMultiplayerViewModel @Inject constructor(
         if (state.gamePhase != MultiplayerPhase.PLAYING) return
         if (game.turn != state.playerColor) return
 
+        val fenBefore = game.fen()
         val move = game.move(from, to, promotion) ?: return
 
         // Snapshot the post-move position once. These feed both the local move
@@ -552,6 +625,11 @@ class PlayMultiplayerViewModel @Inject constructor(
             fen = game.fen(),
             playerColor = state.playerColor,
             captured = move.captured != Piece.NONE,
+            lifelines = buildList {
+                if (state.reviewEnabled) add("review")
+                if (_cctState.value.hintLevel == 2) add("best-move")
+            },
+            promotion = promotion?.toString(),
         )
 
         // Apply increment to player's clock
@@ -572,6 +650,11 @@ class PlayMultiplayerViewModel @Inject constructor(
             blackTimeSeconds = newBlackTime,
             soundToPlay = sound,
         )
+
+        // The position changed, so a paid Best reveal is spent: clear it (web
+        // parity) so the next position needs a fresh — charged — reveal. The
+        // best-move marker above was captured while the reveal was showing.
+        clearBestReveal()
 
         // Send move to server
         viewModelScope.launch {
@@ -594,6 +677,11 @@ class PlayMultiplayerViewModel @Inject constructor(
                 addProperty("is_check", isCheck)
                 addProperty("is_mate_hint", isCheckmate)
                 addProperty("is_stalemate", isStalemate)
+                if (moveRecord.lifelines.isNotEmpty()) {
+                    add("learning_help", JsonArray().apply {
+                        moveRecord.lifelines.forEach { add(it) }
+                    })
+                }
                 // Persist remaining clocks so the server stays in sync (web
                 // parity) — reduces clock drift/desync on reconnect. The backend
                 // accepts these under move.* as nullable.
@@ -608,10 +696,79 @@ class PlayMultiplayerViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     fen = game.fen(),
                     moveHistory = state.moveHistory,
-                    error = "Failed to send move. Please try again.",
+                    error = context.getString(R.string.mp_error_send_move),
                 )
             }
         }
+
+        if (state.reviewEnabled) {
+            reviewJob?.cancel()
+            reviewJob = reviewMove(fenBefore, moveRecord)
+        }
+    }
+
+    /** Analyze the just-played position without delaying the move submission. */
+    private fun reviewMove(fenBefore: String, move: GameMoveRecord): Job = viewModelScope.launch(Dispatchers.Default) {
+        _uiState.value = _uiState.value.copy(reviewLoading = true)
+        try {
+            stockfishEngine.initialize()
+            val result = stockfishEngine.getBestMove(fenBefore, REVIEW_DEPTH)
+            val topMoves = result.rankedMoves
+                .sortedBy { it.rank }
+                .take(REVIEW_TOP_MOVES)
+                .mapNotNull { ranked ->
+                    if (ranked.uci.length < 4) return@mapNotNull null
+                    val from = ranked.uci.substring(0, 2)
+                    val to = ranked.uci.substring(2, 4)
+                    val san = runCatching {
+                        ChessGame(fenBefore).let { position ->
+                            position.moveUci(ranked.uci)?.san(position)
+                        }
+                    }.getOrNull() ?: ranked.uci
+                    BestMoveData(
+                        uci = ranked.uci,
+                        from = Square.fromAlgebraic(from),
+                        to = Square.fromAlgebraic(to),
+                        san = san,
+                        cp = ranked.score,
+                        isMate = ranked.isMate,
+                        tag = "",
+                    )
+                }
+            val userUci = move.from + move.to + (move.promotion ?: "")
+            val rank = topMoves.indexOfFirst { it.uci.equals(userUci, ignoreCase = true) }
+                .takeIf { it >= 0 }
+                ?.plus(1)
+            // Engine calls are blocking, so cancellation may arrive after a
+            // newer move has already started its review. Do not let a stale
+            // result replace the newest card or clear its loading state.
+            if (_uiState.value.reviewEnabled && _uiState.value.moveHistory.lastOrNull() == move) {
+                _uiState.value = _uiState.value.copy(
+                    reviewLoading = false,
+                    latestReview = LiveReviewResult(
+                        moveNumber = move.moveNumber,
+                        san = move.san,
+                        userMoveRank = rank,
+                        topMoves = topMoves,
+                    ),
+                )
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Live move review failed")
+            if (_uiState.value.reviewEnabled && _uiState.value.moveHistory.lastOrNull() == move) {
+                _uiState.value = _uiState.value.copy(reviewLoading = false)
+            }
+        }
+    }
+
+    fun setReviewEnabled(enabled: Boolean) {
+        val allowed = enabled && !_uiState.value.isRated
+        _uiState.value = _uiState.value.copy(
+            reviewEnabled = allowed,
+            latestReview = if (allowed) _uiState.value.latestReview else null,
+            reviewLoading = if (allowed) _uiState.value.reviewLoading else false,
+        )
+        if (!allowed) reviewJob?.cancel()
     }
 
     // ── Opponent Move ───────────────────────────────────────────────────
@@ -628,9 +785,13 @@ class PlayMultiplayerViewModel @Inject constructor(
         val move = game.move(from, to, promotion) ?: run {
             // If move doesn't apply, sync from server FEN
             if (event.fen.isNotEmpty()) {
+                val positionChanged = event.fen != _uiState.value.fen
                 game = ChessGame(event.fen)
+                _uiState.value = _uiState.value.copy(fen = event.fen)
+                // The resync changed the board, so a paid Best reveal for the
+                // old position must not survive it (same invariant as below).
+                if (positionChanged) clearBestReveal()
             }
-            _uiState.value = _uiState.value.copy(fen = event.fen)
             return
         }
 
@@ -649,6 +810,8 @@ class PlayMultiplayerViewModel @Inject constructor(
             fen = game.fen(),
             playerColor = state.playerColor.opposite(),
             captured = move.captured != Piece.NONE,
+            lifelines = LifelineMarkers.fromMoveJson(moveData),
+            promotion = promotion?.toString(),
         )
 
         // Sync clocks from server if available
@@ -664,6 +827,9 @@ class PlayMultiplayerViewModel @Inject constructor(
             blackTimeSeconds = newBlackTime,
             soundToPlay = sound,
         )
+
+        // A new position invalidates any paid Best reveal (see onPlayerMove).
+        clearBestReveal()
     }
 
     // ── Actions ─────────────────────────────────────────────────────────
@@ -678,14 +844,14 @@ class PlayMultiplayerViewModel @Inject constructor(
                         status = ResultStatus.LOST,
                         endReason = EndReason.RESIGNATION,
                         winner = Winner.OPPONENT,
-                        details = "You resigned",
+                        details = context.getString(R.string.end_resign_you),
                     ),
                     soundToPlay = MoveSound.GAME_END,
                 )
                 onGameCompleted()
             } else {
                 _uiState.value = _uiState.value.copy(
-                    error = "Couldn't record your resignation. Please try again.",
+                    error = context.getString(R.string.mp_error_resign),
                 )
             }
         }
@@ -717,7 +883,12 @@ class PlayMultiplayerViewModel @Inject constructor(
                     // abandonment cleanup cover a lost request).
                     ActiveGameType.CASUAL_MULTIPLAYER,
                     ActiveGameType.CASUAL_BOT -> viewModelScope.launch {
-                        runCatching { gameApi.pauseNavigation(state.gameId) }
+                        val pauseBody = JsonObject().apply {
+                            addProperty("white_time_remaining_ms", state.whiteTimeSeconds * 1000L)
+                            addProperty("black_time_remaining_ms", state.blackTimeSeconds * 1000L)
+                            addProperty("paused_reason", "navigation")
+                        }
+                        runCatching { gameApi.pauseNavigation(state.gameId, pauseBody) }
                     }
                     else -> Unit
                 }
@@ -751,7 +922,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(drawOfferedByMe = true)
             }
             result.onFailure { e ->
-                _uiState.value = _uiState.value.copy(error = friendlyError(e, "your draw offer"))
+                _uiState.value = _uiState.value.copy(error = friendlyError(context, e, R.string.error_subject_your_draw_offer))
             }
         }
     }
@@ -792,7 +963,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                     undoRequestExpiryJob?.cancel()
                     _uiState.value = _uiState.value.copy(
                         undoRequestPending = false,
-                        snackbarMessage = "Couldn't ask for a takeback. Please try again.",
+                        snackbarMessage = context.getString(R.string.mp_takeback_request_failed),
                     )
                 }
         }
@@ -806,7 +977,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                     incomingUndoExpiryJob?.cancel()
                     _uiState.value = _uiState.value.copy(
                         undoRequestedByOpponent = false,
-                        snackbarMessage = "That takeback request is no longer available.",
+                        snackbarMessage = context.getString(R.string.mp_takeback_gone),
                     )
                 }
         }
@@ -824,7 +995,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 incomingUndoExpiryJob?.cancel()
                 _uiState.value = _uiState.value.copy(
                     undoRequestedByOpponent = false,
-                    snackbarMessage = "That takeback request is no longer available.",
+                    snackbarMessage = context.getString(R.string.mp_takeback_gone),
                 )
             }
         }
@@ -837,7 +1008,7 @@ class PlayMultiplayerViewModel @Inject constructor(
             if (_uiState.value.undoRequestPending) {
                 _uiState.value = _uiState.value.copy(
                     undoRequestPending = false,
-                    snackbarMessage = "No response — takeback request expired.",
+                    snackbarMessage = context.getString(R.string.mp_takeback_expired),
                 )
             }
         }
@@ -918,7 +1089,7 @@ class PlayMultiplayerViewModel @Inject constructor(
             _uiState.value = state.copy(
                 undoRequestedByOpponent = false,
                 undoRequestPending = false,
-                snackbarMessage = "Game changed while the takeback was arriving. Re-syncing…",
+                snackbarMessage = context.getString(R.string.mp_takeback_resyncing),
             )
             reloadGameState()
             return
@@ -931,7 +1102,7 @@ class PlayMultiplayerViewModel @Inject constructor(
             _uiState.value = state.copy(
                 undoRequestedByOpponent = false,
                 undoRequestPending = false,
-                snackbarMessage = "Couldn't restore the takeback position. Reopen the game.",
+                snackbarMessage = context.getString(R.string.mp_takeback_restore_failed),
             )
             return
         }
@@ -941,19 +1112,28 @@ class PlayMultiplayerViewModel @Inject constructor(
         val lastMove = history.lastOrNull()
         lastAppliedUndoSnapshot = snapshot
 
+        // The server count covers the takeback only, so the Best spends still
+        // visible in the kept history are subtracted again to preserve the
+        // shared-pool invariant (budget = server remaining − persisted markers).
+        val serverRemaining = if (state.playerColor == Color.WHITE) {
+            snapshot.undoWhiteRemaining
+        } else {
+            snapshot.undoBlackRemaining
+        }
+
         _uiState.value = state.copy(
             fen = snapshot.fen,
             moveHistory = history,
             lastMoveFrom = lastMove?.from?.let(Square::fromAlgebraic) ?: -1,
             lastMoveTo = lastMove?.to?.let(Square::fromAlgebraic) ?: -1,
-            undoChancesRemaining = if (state.playerColor == Color.WHITE) {
-                snapshot.undoWhiteRemaining
-            } else {
-                snapshot.undoBlackRemaining
-            },
+            undoChancesRemaining = (serverRemaining - bestMoveSpend(history, state.playerColor))
+                .coerceAtLeast(0),
             undoRequestedByOpponent = false,
             undoRequestPending = false,
         )
+
+        // The rolled-back position invalidates any paid Best reveal.
+        clearBestReveal()
     }
 
     fun pauseGame() {
@@ -965,7 +1145,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(gamePhase = MultiplayerPhase.PAUSED)
             }
             result.onFailure { e ->
-                _uiState.value = _uiState.value.copy(error = friendlyError(e, "pausing the game"))
+                _uiState.value = _uiState.value.copy(error = friendlyError(context, e, R.string.error_subject_pausing_the_game))
             }
         }
     }
@@ -980,11 +1160,11 @@ class PlayMultiplayerViewModel @Inject constructor(
                     handleResumeRefusal(body)
                 } else {
                     startResumeRequestCountdown(RESUME_REQUEST_WINDOW_SECONDS)
-                    _uiState.value = _uiState.value.copy(snackbarMessage = "Resume request sent")
+                    _uiState.value = _uiState.value.copy(snackbarMessage = context.getString(R.string.mp_resume_request_sent))
                 }
             }
             result.onFailure { e ->
-                _uiState.value = _uiState.value.copy(error = friendlyError(e, "resuming the game"))
+                _uiState.value = _uiState.value.copy(error = friendlyError(context, e, R.string.error_subject_resuming_the_game))
             }
         }
     }
@@ -999,11 +1179,11 @@ class PlayMultiplayerViewModel @Inject constructor(
         val message = when {
             body.booleanOrNull("is_same_user") == true && secondsLeft > 0 -> {
                 startResumeRequestCountdown(secondsLeft)
-                "Your resume request is still pending. Waiting for your opponent."
+                context.getString(R.string.mp_resume_pending_mine)
             }
             body.booleanOrNull("is_same_user") == false && secondsLeft > 0 ->
-                "Your opponent already asked to resume. Accept their request to continue."
-            else -> "Couldn't send the resume request. Please try again."
+                context.getString(R.string.mp_resume_pending_theirs)
+            else -> context.getString(R.string.mp_resume_failed)
         }
         _uiState.value = _uiState.value.copy(snackbarMessage = message)
     }
@@ -1058,14 +1238,14 @@ class PlayMultiplayerViewModel @Inject constructor(
                         },
                         chatPolicy = policy,
                         chatNotice = if (body.get("filtered")?.asBoolean == true) {
-                            "Message was filtered before sending."
+                            context.getString(R.string.mp_chat_filtered)
                         } else null,
                     )
                 }
                 .onFailure { error ->
                     Timber.w(error, "Failed to send chat message")
                     _uiState.value = _uiState.value.copy(
-                        chatNotice = "Message could not be sent. Please try again."
+                        chatNotice = context.getString(R.string.mp_chat_send_failed)
                     )
                 }
         }
@@ -1090,13 +1270,13 @@ class PlayMultiplayerViewModel @Inject constructor(
                 .onSuccess {
                     _uiState.value = _uiState.value.copy(
                         reportedMessageIds = _uiState.value.reportedMessageIds + messageId,
-                        chatNotice = "Message reported for review.",
+                        chatNotice = context.getString(R.string.mp_chat_reported),
                     )
                 }
                 .onFailure { error ->
                     Timber.w(error, "Failed to report chat message")
                     _uiState.value = _uiState.value.copy(
-                        chatNotice = "Report could not be sent. Please try again."
+                        chatNotice = context.getString(R.string.mp_chat_report_failed)
                     )
                 }
         }
@@ -1112,13 +1292,13 @@ class PlayMultiplayerViewModel @Inject constructor(
                             enabled = false,
                             reason = "blocked",
                         ),
-                        chatNotice = "Chat blocked with this player.",
+                        chatNotice = context.getString(R.string.mp_chat_blocked),
                     )
                 }
                 .onFailure { error ->
                     Timber.w(error, "Failed to block chat user")
                     _uiState.value = _uiState.value.copy(
-                        chatNotice = "Player could not be blocked. Please try again."
+                        chatNotice = context.getString(R.string.mp_chat_block_failed)
                     )
                 }
         }
@@ -1156,7 +1336,7 @@ class PlayMultiplayerViewModel @Inject constructor(
             userId = senderId,
             userName = get("sender_name")?.takeIf { it.isJsonPrimitive }?.asString
                 ?: get("user_name")?.takeIf { it.isJsonPrimitive }?.asString
-                ?: "Player",
+                ?: context.getString(R.string.player_generic),
             message = get("message")?.takeIf { it.isJsonPrimitive }?.asString ?: "",
             timestamp = get("created_at")?.takeIf { it.isJsonPrimitive }?.asString ?: "",
             isMe = senderId == currentUserId,
@@ -1227,7 +1407,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 status = if (iWon) ResultStatus.WON else ResultStatus.LOST,
                 endReason = EndReason.TIMEOUT,
                 winner = if (iWon) Winner.PLAYER else Winner.OPPONENT,
-                details = if (iWon) "Opponent ran out of time" else "You ran out of time",
+                details = context.getString(if (iWon) R.string.end_timeout_opponent else R.string.end_timeout_you),
             ),
             soundToPlay = MoveSound.GAME_END,
         )
@@ -1257,14 +1437,14 @@ class PlayMultiplayerViewModel @Inject constructor(
     }
 
     private fun formatEndReason(reason: String, iWon: Boolean): String = when {
-        reason.contains("checkmate", ignoreCase = true) -> if (iWon) "Checkmate! You win!" else "Checkmate! You lose."
-        reason.contains("resign", ignoreCase = true) -> if (iWon) "Opponent resigned" else "You resigned"
-        reason.contains("timeout", ignoreCase = true) -> if (iWon) "Opponent ran out of time" else "You ran out of time"
-        reason.contains("stalemate", ignoreCase = true) -> "Draw by stalemate"
-        reason.contains("agreement", ignoreCase = true) -> "Draw by agreement"
-        reason.contains("repetition", ignoreCase = true) -> "Draw by repetition"
-        reason.contains("insufficient", ignoreCase = true) -> "Draw by insufficient material"
-        reason.contains("50", ignoreCase = true) || reason.contains("fifty", ignoreCase = true) -> "Draw by 50-move rule"
+        reason.contains("checkmate", ignoreCase = true) -> context.getString(if (iWon) R.string.end_checkmate_win else R.string.end_checkmate_loss)
+        reason.contains("resign", ignoreCase = true) -> context.getString(if (iWon) R.string.end_resign_opponent else R.string.end_resign_you)
+        reason.contains("timeout", ignoreCase = true) -> context.getString(if (iWon) R.string.end_timeout_opponent else R.string.end_timeout_you)
+        reason.contains("stalemate", ignoreCase = true) -> context.getString(R.string.end_draw_stalemate)
+        reason.contains("agreement", ignoreCase = true) -> context.getString(R.string.end_draw_agreement)
+        reason.contains("repetition", ignoreCase = true) -> context.getString(R.string.end_draw_repetition)
+        reason.contains("insufficient", ignoreCase = true) -> context.getString(R.string.end_draw_insufficient)
+        reason.contains("50", ignoreCase = true) || reason.contains("fifty", ignoreCase = true) -> context.getString(R.string.end_draw_fifty_move)
         else -> reason.replaceFirstChar { it.uppercase() }
     }
 
@@ -1290,7 +1470,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 if (!response.isSuccessful) {
                     _companionState.value = _companionState.value.copy(
                         isLoading = false,
-                        error = "Failed to load companions",
+                        error = context.getString(R.string.mp_companion_load_failed),
                     )
                     return@launch
                 }
@@ -1300,7 +1480,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                     val obj = el.asJsonObject
                     SyntheticPlayer(
                         id = obj.get("id")?.asInt ?: 0,
-                        name = obj.get("name")?.asString ?: "Companion",
+                        name = obj.get("name")?.asString ?: context.getString(R.string.companion_default_name),
                         rating = obj.get("rating")?.asInt ?: 1200,
                         computerLevel = obj.get("computer_level")?.asInt ?: 2,
                         personality = obj.get("personality")?.asString ?: "Balanced",
@@ -1318,7 +1498,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 Timber.e(e, "Failed to load companions")
                 _companionState.value = _companionState.value.copy(
                     isLoading = false,
-                    error = friendlyError(e, "companion players"),
+                    error = friendlyError(context, e, R.string.error_subject_companion_players),
                 )
             }
         }
@@ -1332,10 +1512,10 @@ class PlayMultiplayerViewModel @Inject constructor(
             } catch (e: EngineInitException) {
                 Timber.e(e, "Failed to initialize Stockfish for companion")
                 // Never surface e.message — honest, kid-safe copy (S2 T4).
-                _companionState.value = _companionState.value.copy(error = EngineFailureCopy.MESSAGE)
+                _companionState.value = _companionState.value.copy(error = context.getString(EngineFailureCopy.MESSAGE))
             } catch (e: Exception) {
                 Timber.e(e, "Failed to initialize Stockfish for companion")
-                _companionState.value = _companionState.value.copy(error = EngineFailureCopy.MESSAGE)
+                _companionState.value = _companionState.value.copy(error = context.getString(EngineFailureCopy.MESSAGE))
             }
         }
     }
@@ -1365,7 +1545,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 if (uci.length < 4) {
                     _companionState.value = _companionState.value.copy(
                         isThinking = false,
-                        error = "Companion could not find a move",
+                        error = context.getString(R.string.mp_companion_no_move),
                     )
                     return@launch
                 }
@@ -1378,7 +1558,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 if (move == null) {
                     _companionState.value = _companionState.value.copy(
                         isThinking = false,
-                        error = "Companion move was invalid",
+                        error = context.getString(R.string.mp_companion_invalid_move),
                     )
                     return@launch
                 }
@@ -1464,7 +1644,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 // Never surface e.message — kid-safe copy (master plan rule 6).
                 _companionState.value = _companionState.value.copy(
                     isThinking = false,
-                    error = "Your companion couldn't make a move. Please try again.",
+                    error = context.getString(R.string.mp_companion_move_failed),
                 )
             }
         }
@@ -1660,6 +1840,26 @@ class PlayMultiplayerViewModel @Inject constructor(
         // Rated games never get move hints or best moves; the sheet shows counts
         // only. Guarded here as well so no UI path can switch arrows on.
         val level = if (_uiState.value.isRated) 0 else requestedLevel
+        val fen = game.fen()
+
+        // Budgeted Best (web parity with the learning computer mode's shared
+        // helpline pool): a reveal at a position that has not been paid for yet
+        // consumes one takeback chance and is refused once the pool is empty.
+        // Same-position re-reveals stay free. When the position changes the
+        // charge is forgotten (clearBestReveal) so the next position pays again.
+        if (level == 2 && bestChargedFen != fen) {
+            val state = _uiState.value
+            if (state.gamePhase != MultiplayerPhase.PLAYING) return
+            if (state.undoChancesRemaining <= 0) {
+                _uiState.value = state.copy(
+                    snackbarMessage = context.getString(R.string.mp_best_no_chances),
+                )
+                return
+            }
+            bestChargedFen = fen
+            _uiState.value = _uiState.value.copy(undoChancesRemaining = state.undoChancesRemaining - 1)
+        }
+
         val current = _cctState.value
         _cctState.value = current.copy(
             hintLevel = level,
@@ -1671,6 +1871,21 @@ class PlayMultiplayerViewModel @Inject constructor(
 
         if (level == 2 && current.cct != null) {
             loadBestMoves(game.fen(), current.cct)
+        }
+    }
+
+    /**
+     * Clears the paid-Best reveal state. Called whenever the position changes
+     * (any move, or an authoritative takeback), so enabling Best at the new
+     * position charges the pool again — the one-shot-per-position model the
+     * web's budgeted CCTPanel implements.
+     */
+    private fun clearBestReveal() {
+        bestChargedFen = null
+        val cctStateVal = _cctState.value
+        if (cctStateVal.hintLevel == 2) {
+            _cctState.value = cctStateVal.copy(hintLevel = 0, bestMoves = null, loadingBest = false)
+            _uiState.value = _uiState.value.copy(cctArrows = emptyList())
         }
     }
 
@@ -1755,8 +1970,9 @@ class PlayMultiplayerViewModel @Inject constructor(
     fun buildShareableGame(): com.chess99.presentation.social.ShareManager.ShareableGame {
         val state = _uiState.value
         val playerIsWhite = state.playerColor == Color.WHITE
-        val whiteName = if (playerIsWhite) "You" else state.opponentName
-        val blackName = if (playerIsWhite) state.opponentName else "You"
+        val you = context.getString(R.string.player_you)
+        val whiteName = if (playerIsWhite) you else state.opponentName
+        val blackName = if (playerIsWhite) state.opponentName else you
 
         val result = when (state.gameResult?.status) {
             ResultStatus.WON -> if (playerIsWhite) "white" else "black"
@@ -1863,6 +2079,7 @@ class PlayMultiplayerViewModel @Inject constructor(
         syntheticOpponentJob?.cancel()
         cctAnalysisJob?.cancel()
         bestMovesJob?.cancel()
+        reviewJob?.cancel()
         stockfishEngine.shutdown()
         gameWebSocketService.disconnect()
     }
@@ -1882,7 +2099,8 @@ data class MultiplayerUiState(
     val gameId: Int = 0,
     val fen: String = ChessGame.STARTING_FEN,
     val playerColor: Color = Color.WHITE,
-    val opponentName: String = "Opponent",
+    /** Replaced with `R.string.player_opponent` by the ViewModel before first render. */
+    val opponentName: String = "",
     val opponentRating: Int = 1200,
     val myRating: Int = 1200,
     val gamePhase: MultiplayerPhase = MultiplayerPhase.CONNECTING,
@@ -1894,6 +2112,10 @@ data class MultiplayerUiState(
     val incrementSeconds: Int = 0,
     val isRated: Boolean = false,
     val timeControl: String = "10|0",
+    /** Post-move alternatives are available in casual and learning games. */
+    val reviewEnabled: Boolean = false,
+    val reviewLoading: Boolean = false,
+    val latestReview: LiveReviewResult? = null,
     val isWebSocketConnected: Boolean = false,
     val drawOfferedByOpponent: Boolean = false,
     val drawOfferedByMe: Boolean = false,
@@ -1958,6 +2180,26 @@ internal fun leaveGameType(isRated: Boolean, isSyntheticGame: Boolean): ActiveGa
 
 /** Web's useGameState.js:71 seeds multiplayer games with 9 takebacks. */
 const val DEFAULT_UNDO_CHANCES = 9
+
+/**
+ * How many chances the player's own persisted history says the Best toggle has
+ * already consumed. Each charged reveal is persisted as a `best-move` marker
+ * in the move's `learning_help` markers (the same marker set the Game Review
+ * lifeline summary reads), so the budget survives a reload:
+ * budget = server remaining − [this count].
+ */
+internal fun bestMoveSpend(history: List<GameMoveRecord>, playerColor: Color): Int =
+    history.count { record ->
+        record.playerColor == playerColor &&
+            record.lifelines.any { it.equals("best-move", ignoreCase = true) }
+    }
+
+data class LiveReviewResult(
+    val moveNumber: Int,
+    val san: String,
+    val userMoveRank: Int?,
+    val topMoves: List<BestMoveData>,
+)
 
 data class ChatMessageData(
     val id: Int,

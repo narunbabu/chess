@@ -5,8 +5,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.chess99.R
 
 /**
  * Detailed stats bottom sheet for profile drill-down.
@@ -23,35 +25,38 @@ fun DetailedStatsSheet(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             Text(
-                "Detailed Statistics",
+                stringResource(R.string.stats_detailed_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(16.dp))
 
             // Games section
-            StatsSection("Games") {
-                StatsRow("Total Games", stats["total_games"]?.toString() ?: "0")
-                StatsRow("Wins", stats["wins"]?.toString() ?: "0")
-                StatsRow("Losses", stats["losses"]?.toString() ?: "0")
-                StatsRow("Draws", stats["draws"]?.toString() ?: "0")
-                StatsRow("Win Rate", "${stats["win_rate"] ?: "0"}%")
+            StatsSection(stringResource(R.string.stats_section_games)) {
+                StatsRow(stringResource(R.string.stats_total_games), stats["total_games"]?.toString() ?: "0")
+                StatsRow(stringResource(R.string.stats_wins), stats["wins"]?.toString() ?: "0")
+                StatsRow(stringResource(R.string.stats_losses), stats["losses"]?.toString() ?: "0")
+                StatsRow(stringResource(R.string.stats_draws), stats["draws"]?.toString() ?: "0")
+                StatsRow(
+                    stringResource(R.string.stats_win_rate),
+                    stringResource(R.string.stats_percent, stats["win_rate"]?.toString() ?: "0"),
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             // Streaks section
-            StatsSection("Streaks") {
-                StatsRow("Current Streak", stats["current_streak"]?.toString() ?: "0")
-                StatsRow("Best Streak", stats["best_streak"]?.toString() ?: "0")
+            StatsSection(stringResource(R.string.stats_section_streaks)) {
+                StatsRow(stringResource(R.string.stats_current_streak), stats["current_streak"]?.toString() ?: "0")
+                StatsRow(stringResource(R.string.stats_best_streak), stats["best_streak"]?.toString() ?: "0")
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             // Rating section
-            StatsSection("Rating") {
-                StatsRow("Current", stats["rating"]?.toString() ?: "1200")
-                StatsRow("Peak", stats["peak_rating"]?.toString() ?: "1200")
+            StatsSection(stringResource(R.string.stats_section_rating)) {
+                StatsRow(stringResource(R.string.stats_rating_current), stats["rating"]?.toString() ?: "1200")
+                StatsRow(stringResource(R.string.stats_rating_peak), stats["peak_rating"]?.toString() ?: "1200")
             }
 
             Spacer(modifier = Modifier.height(24.dp))

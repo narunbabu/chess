@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,7 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import java.util.Locale
+import com.chess99.R
 
 /**
  * Profile screen with 3 tabs: Settings, Friends, Stats.
@@ -73,21 +74,21 @@ fun ProfileScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Profile") },
+                title = { Text(stringResource(R.string.profile_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = onNavigateToMyKids) {
-                        Icon(Icons.Default.FamilyRestroom, "My Kids")
+                        Icon(Icons.Default.FamilyRestroom, stringResource(R.string.a11y_my_kids))
                     }
                     IconButton(onClick = onNavigateToReferrals) {
-                        Icon(Icons.Default.Share, "Referrals")
+                        Icon(Icons.Default.Share, stringResource(R.string.a11y_referrals))
                     }
                     IconButton(onClick = { showAboutDialog = true }) {
-                        Icon(Icons.Default.Info, "About")
+                        Icon(Icons.Default.Info, stringResource(R.string.a11y_about))
                     }
                 },
             )
@@ -99,19 +100,19 @@ fun ProfileScreen(
                 Tab(
                     selected = state.selectedTab == ProfileTab.SETTINGS,
                     onClick = { viewModel.selectTab(ProfileTab.SETTINGS) },
-                    text = { Text("Settings") },
+                    text = { Text(stringResource(R.string.profile_tab_settings)) },
                     icon = { Icon(Icons.Default.Settings, null, modifier = Modifier.size(18.dp)) },
                 )
                 Tab(
                     selected = state.selectedTab == ProfileTab.FRIENDS,
                     onClick = { viewModel.selectTab(ProfileTab.FRIENDS) },
-                    text = { Text("Friends") },
+                    text = { Text(stringResource(R.string.profile_tab_friends)) },
                     icon = { Icon(Icons.Default.Group, null, modifier = Modifier.size(18.dp)) },
                 )
                 Tab(
                     selected = state.selectedTab == ProfileTab.STATS,
                     onClick = { viewModel.selectTab(ProfileTab.STATS) },
-                    text = { Text("Stats") },
+                    text = { Text(stringResource(R.string.profile_tab_stats)) },
                     icon = { Icon(Icons.Default.BarChart, null, modifier = Modifier.size(18.dp)) },
                 )
             }
@@ -139,10 +140,10 @@ fun ProfileScreen(
         state.error?.let { error ->
             AlertDialog(
                 onDismissRequest = { viewModel.clearError() },
-                title = { Text("Error") },
+                title = { Text(stringResource(R.string.error_title)) },
                 text = { Text(error) },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.clearError() }) { Text("OK") }
+                    TextButton(onClick = { viewModel.clearError() }) { Text(stringResource(R.string.action_ok)) }
                 },
             )
         }
@@ -172,7 +173,7 @@ private fun SettingsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        "Avatar",
+                        stringResource(R.string.profile_avatar),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.fillMaxWidth(),
@@ -190,7 +191,7 @@ private fun SettingsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
                         ) {
                             Icon(Icons.Default.Upload, null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Upload Photo")
+                            Text(stringResource(R.string.profile_upload_photo))
                         }
                         OutlinedButton(
                             onClick = { viewModel.toggleAvatarPicker() },
@@ -198,7 +199,7 @@ private fun SettingsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
                         ) {
                             Icon(Icons.Default.Face, null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Pick Avatar")
+                            Text(stringResource(R.string.profile_pick_avatar))
                         }
                     }
 
@@ -229,7 +230,7 @@ private fun SettingsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Profile Info",
+                        stringResource(R.string.profile_info),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -238,7 +239,7 @@ private fun SettingsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
                     OutlinedTextField(
                         value = state.name,
                         onValueChange = { viewModel.updateName(it) },
-                        label = { Text("Display Name") },
+                        label = { Text(stringResource(R.string.profile_display_name)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         leadingIcon = { Icon(Icons.Default.Person, null) },
@@ -249,7 +250,7 @@ private fun SettingsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
                     OutlinedTextField(
                         value = state.birthday,
                         onValueChange = { viewModel.updateBirthday(it) },
-                        label = { Text("Birthday (YYYY-MM-DD)") },
+                        label = { Text(stringResource(R.string.profile_birthday)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         leadingIcon = { Icon(Icons.Default.CalendarToday, null) },
@@ -260,7 +261,7 @@ private fun SettingsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
                     OutlinedTextField(
                         value = state.classOfStudy,
                         onValueChange = { viewModel.updateClassOfStudy(it) },
-                        label = { Text("Class / Grade (1-12)") },
+                        label = { Text(stringResource(R.string.profile_class_grade)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         leadingIcon = { Icon(Icons.Default.School, null) },
@@ -280,7 +281,7 @@ private fun SettingsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                         }
-                        Text("Save Changes")
+                        Text(stringResource(R.string.profile_save_changes))
                     }
                 }
             }
@@ -322,12 +323,15 @@ private fun SettingsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                "Game Sounds",
+                                stringResource(R.string.profile_game_sounds),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                if (state.isSoundMuted) "Muted" else "Enabled",
+                                stringResource(
+                                    if (state.isSoundMuted) R.string.profile_sound_muted
+                                    else R.string.profile_sound_enabled
+                                ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -360,14 +364,14 @@ private fun DiceBearAvatarPicker(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "Choose an Avatar",
+                    stringResource(R.string.profile_choose_avatar),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 TextButton(onClick = onRegenerate, enabled = !isLoading) {
                     Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("New Options")
+                    Text(stringResource(R.string.profile_new_options))
                 }
             }
 
@@ -405,7 +409,7 @@ private fun DiceBearAvatarPicker(
                                     .data(option.url)
                                     .crossfade(true)
                                     .build(),
-                                contentDescription = "${option.style} avatar",
+                                contentDescription = stringResource(R.string.a11y_dicebear_avatar, option.style),
                                 modifier = Modifier
                                     .size(56.dp)
                                     .clip(RoundedCornerShape(8.dp)),
@@ -431,7 +435,7 @@ private fun BoardThemePicker(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Board Theme",
+                stringResource(R.string.profile_board_theme),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -495,7 +499,7 @@ private fun BoardThemePicker(
 
                                 // Theme name
                                 Text(
-                                    text = theme.name,
+                                    text = stringResource(theme.nameRes),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = if (isSelected) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -528,7 +532,7 @@ private fun PieceStylePicker(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Piece Style",
+                stringResource(R.string.profile_piece_style),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -542,7 +546,7 @@ private fun PieceStylePicker(
                     FilterChip(
                         selected = selectedStyle == style.key,
                         onClick = { onSelect(style.key) },
-                        label = { Text(style.label) },
+                        label = { Text(stringResource(style.labelRes)) },
                         modifier = Modifier.weight(1f),
                         leadingIcon = if (selectedStyle == style.key) {
                             {
@@ -572,7 +576,7 @@ private fun FriendsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            placeholder = { Text("Search players...") },
+            placeholder = { Text(stringResource(R.string.lobby_search_players)) },
             leadingIcon = { Icon(Icons.Default.Search, null) },
             singleLine = true,
         )
@@ -580,7 +584,7 @@ private fun FriendsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
         // Search results
         if (state.friendSearchQuery.length >= 2 && state.friendSearchResults.isNotEmpty()) {
             Text(
-                "Search Results",
+                stringResource(R.string.lobby_search_results),
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
@@ -598,7 +602,7 @@ private fun FriendsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
 
         // Friends list header
         Text(
-            "Friends (${state.friends.size})",
+            stringResource(R.string.profile_friends_count, state.friends.size),
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
@@ -619,7 +623,7 @@ private fun FriendsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "No friends yet.\nSearch for players above!",
+                        stringResource(R.string.profile_no_friends),
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -670,7 +674,7 @@ private fun FriendCard(friend: FriendInfo, showOnlineIndicator: Boolean) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(friend.name, fontWeight = FontWeight.Medium)
                 Text(
-                    "Rating: ${friend.rating}",
+                    stringResource(R.string.profile_friend_rating, friend.rating),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -678,7 +682,7 @@ private fun FriendCard(friend: FriendInfo, showOnlineIndicator: Boolean) {
 
             if (friend.isOnline) {
                 Text(
-                    "Online",
+                    stringResource(R.string.profile_online),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFF4CAF50),
                 )
@@ -730,7 +734,7 @@ private fun StatsTab(state: ProfileUiState, viewModel: ProfileViewModel, onNavig
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = { viewModel.retryStats() }) {
-                    Text("Retry")
+                    Text(stringResource(R.string.action_retry))
                 }
             }
         }
@@ -754,7 +758,7 @@ private fun StatsTab(state: ProfileUiState, viewModel: ProfileViewModel, onNavig
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Play your first game to see stats!",
+                    text = stringResource(R.string.profile_stats_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -776,7 +780,7 @@ private fun StatsTab(state: ProfileUiState, viewModel: ProfileViewModel, onNavig
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Game Results",
+                        stringResource(R.string.profile_game_results),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -788,17 +792,17 @@ private fun StatsTab(state: ProfileUiState, viewModel: ProfileViewModel, onNavig
                     ) {
                         StatCircle(
                             value = stats.wins,
-                            label = "Wins",
+                            label = stringResource(R.string.profile_stat_wins),
                             color = Color(0xFF4CAF50),
                         )
                         StatCircle(
                             value = stats.losses,
-                            label = "Losses",
+                            label = stringResource(R.string.profile_stat_losses),
                             color = Color(0xFFE53935),
                         )
                         StatCircle(
                             value = stats.draws,
-                            label = "Draws",
+                            label = stringResource(R.string.profile_stat_draws),
                             color = Color(0xFF9E9E9E),
                         )
                     }
@@ -811,29 +815,42 @@ private fun StatsTab(state: ProfileUiState, viewModel: ProfileViewModel, onNavig
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Performance",
+                        stringResource(R.string.profile_performance),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    StatsRow(label = "Total Games", value = "${stats.totalGames}")
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                     StatsRow(
-                        label = "Win Rate",
-                        value = "${String.format(Locale.getDefault(), "%.1f", stats.winRate)}%",
+                        label = stringResource(R.string.profile_total_games),
+                        value = "${stats.totalGames}",
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-                    StatsRow(label = "Current Streak", value = "${stats.currentStreak}")
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-                    StatsRow(label = "Best Streak", value = "${stats.bestStreak}")
+                    StatsRow(
+                        label = stringResource(R.string.profile_win_rate),
+                        value = stringResource(R.string.profile_win_rate_value, stats.winRate),
+                    )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                     StatsRow(
-                        label = "Avg Game Duration",
+                        label = stringResource(R.string.profile_current_streak),
+                        value = "${stats.currentStreak}",
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+                    StatsRow(
+                        label = stringResource(R.string.profile_best_streak),
+                        value = "${stats.bestStreak}",
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+                    StatsRow(
+                        label = stringResource(R.string.profile_avg_game_duration),
                         value = if (stats.averageGameDuration > 0) {
-                            "${stats.averageGameDuration / 60}m ${stats.averageGameDuration % 60}s"
+                            stringResource(
+                                R.string.profile_duration_value,
+                                stats.averageGameDuration / 60,
+                                stats.averageGameDuration % 60,
+                            )
                         } else {
-                            "N/A"
+                            stringResource(R.string.profile_not_available)
                         },
                     )
                 }
@@ -845,7 +862,7 @@ private fun StatsTab(state: ProfileUiState, viewModel: ProfileViewModel, onNavig
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Rating History",
+                        stringResource(R.string.profile_rating_history),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -870,13 +887,13 @@ private fun StatsTab(state: ProfileUiState, viewModel: ProfileViewModel, onNavig
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    "View your full rating history",
+                                    stringResource(R.string.profile_view_rating_history_body),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 TextButton(onClick = onNavigateToRatingHistory) {
-                                    Text("View Rating History")
+                                    Text(stringResource(R.string.profile_view_rating_history))
                                 }
                             }
                         }
@@ -978,7 +995,7 @@ private fun ProfileAvatar(
                 .data(avatarUrl)
                 .crossfade(true)
                 .build(),
-            contentDescription = "Profile avatar",
+            contentDescription = stringResource(R.string.a11y_profile_avatar),
             modifier = modifier
                 .size(size.dp)
                 .clip(CircleShape)
@@ -995,7 +1012,7 @@ private fun ProfileAvatar(
         ) {
             Icon(
                 Icons.Default.Person,
-                contentDescription = "Default avatar",
+                contentDescription = stringResource(R.string.a11y_default_avatar),
                 modifier = Modifier.size((size * 0.6f).dp),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
             )

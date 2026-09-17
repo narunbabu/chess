@@ -1,5 +1,6 @@
 package com.chess99.presentation.learn
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,14 +38,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.TutorialApi
 import com.chess99.data.api.arrOrNull
+import com.chess99.data.api.int
 import com.chess99.data.api.objOrNull
 import com.chess99.data.api.str
 import com.chess99.engine.ChessGame
@@ -54,17 +58,20 @@ import com.chess99.presentation.common.MoveReplay
 import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 @HiltViewModel
 class TutorialLessonViewModel @Inject constructor(
     private val tutorialApi: TutorialApi,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     data class Stage(
@@ -72,6 +79,9 @@ class TutorialLessonViewModel @Inject constructor(
         val fen: String,
         val expectedMove: String?,
         val hint: String?,
+        // Server row id of the interactive stage (interactive_lesson_stages.id).
+        // Null for theory slides, which have nothing to validate server-side.
+        val stageId: Int? = null,
     )
 
     data class State(
@@ -90,6 +100,10 @@ class TutorialLessonViewModel @Inject constructor(
         val lastMoveFrom: Int = -1,
         val lastMoveTo: Int = -1,
         val lastMoveEffects: MoveEffects = MoveEffects.None,
+        // Server-side completion state: null = call still in flight,
+        // true = persisted, false = failed (offers a retry).
+        val completionPersisted: Boolean? = null,
+        val xpAwarded: Int = 0,
     )
 
     private val _state = MutableStateFlow(State())
@@ -105,11 +119,22 @@ class TutorialLessonViewModel @Inject constructor(
     // lesson." — verified live 2026-07-14, see S5-learn-tutorials-contract.md.
     private val INTERACTIVE_LESSON_TYPES = setOf("interactive", "puzzle", "practice_game")
 
+    // Identity of the lesson currently loaded; 0 only before the first
+    // successful load. Both server calls below must use the real id.
+    private var currentLessonId: Int = 0
+    private var isInteractiveLesson: Boolean = false
+    private var estimatedDurationMinutes: Int = 0
+    private var lessonStartedAtMs: Long = 0
+    private var wrongAttempts: Int = 0
+    private var correctMoves: Int = 0
+
     fun loadLesson(lessonId: Int) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             try {
-                // Start the lesson
+                // Start the lesson — the backend refuses completeLesson without
+                // a progress row (404 "Lesson progress not found"), so this
+                // must succeed before the player can finish the lesson.
                 tutorialApi.startLesson(lessonId)
 
                 // Look up the lesson's type first — theory lessons (slides +
@@ -118,7 +143,7 @@ class TutorialLessonViewModel @Inject constructor(
                 val plainResponse = tutorialApi.getLesson(lessonId)
                 if (!plainResponse.isSuccessful) {
                     _state.update {
-                        it.copy(isLoading = false, error = "Couldn't load this lesson. Pull to retry.")
+                        it.copy(isLoading = false, error = context.getString(R.string.lesson_load_failed))
                     }
                     return@launch
                 }
@@ -126,15 +151,22 @@ class TutorialLessonViewModel @Inject constructor(
                 if (plainData == null) {
                     Timber.w("tutorial contract miss (lesson $lessonId): keys=${plainResponse.body()?.keySet()}")
                     _state.update {
-                        it.copy(isLoading = false, error = "Couldn't load this lesson. Pull to retry.")
+                        it.copy(isLoading = false, error = context.getString(R.string.lesson_load_failed))
                     }
                     return@launch
                 }
 
-                val title = plainData.str("title") ?: "Lesson"
-                val lessonType = plainData.str("lesson_type")
+                currentLessonId = lessonId
+                lessonStartedAtMs = System.currentTimeMillis()
+                wrongAttempts = 0
+                correctMoves = 0
 
-                val stages = if (lessonType in INTERACTIVE_LESSON_TYPES) {
+                val title = plainData.str("title") ?: context.getString(R.string.lesson_default_title)
+                val lessonType = plainData.str("lesson_type")
+                isInteractiveLesson = lessonType in INTERACTIVE_LESSON_TYPES
+                estimatedDurationMinutes = plainData.int("estimated_duration_minutes") ?: 0
+
+                val stages = if (isInteractiveLesson) {
                     loadInteractiveStages(lessonId)
                 } else {
                     // theory (slides) or puzzle-without-stage-data fallback:
@@ -144,7 +176,7 @@ class TutorialLessonViewModel @Inject constructor(
 
                 if (stages == null) {
                     _state.update {
-                        it.copy(isLoading = false, error = "Couldn't load this lesson. Pull to retry.")
+                        it.copy(isLoading = false, error = context.getString(R.string.lesson_load_failed))
                     }
                     return@launch
                 }
@@ -160,6 +192,8 @@ class TutorialLessonViewModel @Inject constructor(
                         lessonDescription = plainData.str("description") ?: "",
                         stages = stages,
                         currentStageIndex = 0,
+                        completionPersisted = null,
+                        xpAwarded = 0,
                         lastMoveFrom = -1,
                         lastMoveTo = -1,
                         lastMoveEffects = MoveEffects.None,
@@ -167,7 +201,7 @@ class TutorialLessonViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load lesson $lessonId")
-                _state.update { it.copy(isLoading = false, error = friendlyError(e, "this lesson")) }
+                _state.update { it.copy(isLoading = false, error = friendlyError(context, e, R.string.error_subject_this_lesson)) }
             }
         }
     }
@@ -189,6 +223,7 @@ class TutorialLessonViewModel @Inject constructor(
                 // the pre-existing null-expectedMove behavior.
                 expectedMove = null,
                 hint = obj.get("hints").arrOrNull()?.firstOrNull()?.takeIf { it.isJsonPrimitive }?.asString,
+                stageId = obj.int("id"),
             )
         }
     }
@@ -225,10 +260,11 @@ class TutorialLessonViewModel @Inject constructor(
 
         if (expected != null && moveNotation != expected) {
             // Wrong move — reset board
+            wrongAttempts++
             game.load(stage.fen)
             _state.update {
                 it.copy(
-                    feedbackMessage = "Not quite. Try again!",
+                    feedbackMessage = context.getString(R.string.lesson_feedback_wrong),
                     feedbackIsCorrect = false,
                     lastMoveFrom = -1,
                     lastMoveTo = -1,
@@ -242,22 +278,40 @@ class TutorialLessonViewModel @Inject constructor(
         val result = game.move(from, to, promotion)
         if (result == null) {
             _state.update {
-                it.copy(feedbackMessage = "Invalid move", feedbackIsCorrect = false)
+                it.copy(feedbackMessage = context.getString(R.string.lesson_feedback_invalid), feedbackIsCorrect = false)
             }
             return
         }
 
-        // Validate with server
-        viewModelScope.launch {
-            try {
-                val body = JsonObject().apply {
-                    addProperty("move", moveNotation)
-                    addProperty("stage_index", currentState.currentStageIndex)
+        correctMoves++
+
+        // Validate with the server against the real lesson and stage rows.
+        // Theory slides have no server stage (stageId null) and stay local
+        // read-alongs. fenAfter is captured before the coroutine runs because
+        // the local stage advance below reloads the board for the next stage.
+        val lessonId = currentLessonId
+        val stageId = stage.stageId
+        val fenAfter = game.fen()
+        val uci = result.uci()
+        if (lessonId > 0 && stageId != null) {
+            viewModelScope.launch {
+                try {
+                    val body = JsonObject().apply {
+                        addProperty("move", uci)
+                        addProperty("stage_id", stageId)
+                        addProperty("fen_after", fenAfter)
+                    }
+                    val response = tutorialApi.validateInteractiveMove(lessonId, body)
+                    val serverValidated = response.isSuccessful &&
+                        response.body()?.get("data").objOrNull()
+                            ?.get("validation_result").objOrNull()
+                            ?.get("success")?.takeIf { it.isJsonPrimitive }?.asBoolean == true
+                    if (!serverValidated) {
+                        Timber.w("Server rejected move %s for lesson %d stage %d", uci, lessonId, stageId)
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "Server validation failed for lesson %d stage %d", lessonId, stageId)
                 }
-                val lessonId = 0 // will be set from the loaded data
-                tutorialApi.validateInteractiveMove(lessonId, body)
-            } catch (_: Exception) {
-                // Continue even if server validation fails
             }
         }
 
@@ -269,7 +323,7 @@ class TutorialLessonViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     currentStageIndex = nextIndex,
-                    feedbackMessage = "Correct!",
+                    feedbackMessage = context.getString(R.string.lesson_feedback_correct),
                     feedbackIsCorrect = true,
                     showHint = false,
                     // Fresh position — nothing has moved on it.
@@ -282,14 +336,77 @@ class TutorialLessonViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     isComplete = true,
-                    feedbackMessage = "Lesson complete!",
+                    feedbackMessage = context.getString(R.string.lesson_feedback_complete),
                     feedbackIsCorrect = true,
                     lastMoveFrom = result.from,
                     lastMoveTo = result.to,
                     lastMoveEffects = MoveReplay.effectsOf(result),
                 )
             }
+            persistCompletion()
         }
+    }
+
+    /** Re-issues the server completion after a failure on the complete screen. */
+    fun retryCompletion() {
+        if (_state.value.isComplete) persistCompletion()
+    }
+
+    /**
+     * Persists the completion server-side (tutorial/lessons/{id}/complete),
+     * mirroring the web LessonPlayer payload: score 0-100, seconds spent and
+     * attempt count. A clean interactive run scores 100 with each wrong
+     * attempt costing 10 (LessonPlayer's puzzle scoring); theory read-alongs
+     * use the web's time-based fallback, never below 60.
+     */
+    private fun persistCompletion() {
+        val lessonId = currentLessonId
+        if (lessonId <= 0) {
+            _state.update { it.copy(completionPersisted = false) }
+            return
+        }
+        val timeSpentSeconds = ((System.currentTimeMillis() - lessonStartedAtMs) / 1000)
+            .coerceAtLeast(0L).toInt()
+        val score = lessonScore(timeSpentSeconds)
+        val body = JsonObject().apply {
+            addProperty("score", score)
+            addProperty("time_spent_seconds", timeSpentSeconds)
+            addProperty("attempts", wrongAttempts + 1)
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(completionPersisted = null) }
+            try {
+                val response = tutorialApi.completeLesson(lessonId, body)
+                val data = response.body()?.get("data").objOrNull()
+                if (!response.isSuccessful || data == null) {
+                    Timber.w("Lesson %d completion not persisted (http %d)", lessonId, response.code())
+                    _state.update { it.copy(completionPersisted = false) }
+                    return@launch
+                }
+                _state.update {
+                    it.copy(
+                        completionPersisted = true,
+                        xpAwarded = data.get("xp_awarded")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0,
+                    )
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to persist lesson %d completion", lessonId)
+                _state.update { it.copy(completionPersisted = false) }
+            }
+        }
+    }
+
+    private fun lessonScore(timeSpentSeconds: Int): Int {
+        if (!isInteractiveLesson) {
+            // Web parity: lose one point per minute over the estimated
+            // duration, floored at 60 for read-along lessons without quizzes.
+            val expectedSeconds = (estimatedDurationMinutes.takeIf { it > 0 } ?: 5) * 60
+            val minutesOver = ((timeSpentSeconds - expectedSeconds) / 60.0).coerceAtLeast(0.0)
+            return maxOf(60.0, 100.0 - minutesOver).toInt()
+        }
+        val totalStages = _state.value.stages.size.coerceAtLeast(1)
+        val earned = (100.0 / totalStages) * correctMoves - 10.0 * wrongAttempts
+        return earned.toInt().coerceIn(0, 100)
     }
 
     fun requestHint() {
@@ -329,10 +446,10 @@ fun TutorialLessonScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(state.lessonTitle.ifEmpty { "Lesson" }) },
+                title = { Text(state.lessonTitle.ifEmpty { stringResource(R.string.lesson_default_title) }) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -355,12 +472,12 @@ fun TutorialLessonScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            state.error ?: "Error",
+                            state.error ?: stringResource(R.string.error_title),
                             color = MaterialTheme.colorScheme.error,
                         )
                         Spacer(Modifier.height(16.dp))
                         Button(onClick = { viewModel.loadLesson(lessonId) }) {
-                            Text("Retry")
+                            Text(stringResource(R.string.action_retry))
                         }
                     }
                 }
@@ -383,7 +500,7 @@ fun TutorialLessonScreen(
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            "Lesson Complete!",
+                            stringResource(R.string.lesson_complete_title),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                         )
@@ -393,9 +510,30 @@ fun TutorialLessonScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        if (state.completionPersisted == true && state.xpAwarded > 0) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                stringResource(R.string.lesson_complete_xp, state.xpAwarded),
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+                        if (state.completionPersisted == false) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                stringResource(R.string.lesson_save_failed),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedButton(onClick = { viewModel.retryCompletion() }) {
+                                Text(stringResource(R.string.action_retry_save))
+                            }
+                        }
                         Spacer(Modifier.height(24.dp))
                         Button(onClick = onNavigateBack) {
-                            Text("Back to Lessons")
+                            Text(stringResource(R.string.lesson_back_to_lessons))
                         }
                     }
                 }
@@ -414,7 +552,7 @@ fun TutorialLessonScreen(
                     // Progress indicator
                     if (state.stages.size > 1) {
                         Text(
-                            "Step ${state.currentStageIndex + 1} of ${state.stages.size}",
+                            stringResource(R.string.lesson_step_of, state.currentStageIndex + 1, state.stages.size),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -514,7 +652,7 @@ fun TutorialLessonScreen(
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Icon(Icons.Default.Lightbulb, null)
-                                Text("Hint", modifier = Modifier.padding(start = 4.dp))
+                                Text(stringResource(R.string.action_hint), modifier = Modifier.padding(start = 4.dp))
                             }
                         }
                         OutlinedButton(
@@ -522,7 +660,7 @@ fun TutorialLessonScreen(
                             modifier = Modifier.weight(1f),
                         ) {
                             Icon(Icons.Default.Refresh, null)
-                            Text("Reset", modifier = Modifier.padding(start = 4.dp))
+                            Text(stringResource(R.string.action_reset), modifier = Modifier.padding(start = 4.dp))
                         }
                     }
                 }

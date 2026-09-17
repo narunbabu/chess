@@ -13,10 +13,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chess99.R
 import com.chess99.domain.model.SkillGroup
 import com.chess99.domain.model.SyntheticPlayer
 
@@ -83,12 +85,12 @@ private fun CompanionSelectorPanel(
             .navigationBarsPadding(),
     ) {
         Text(
-            "Choose a Companion",
+            stringResource(R.string.companion_choose_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
         )
         Text(
-            "An AI will play moves on your behalf. Casual games only.",
+            stringResource(R.string.companion_choose_subtitle),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -114,7 +116,7 @@ private fun CompanionSelectorPanel(
                 ) {
                     Text(error, color = MaterialTheme.colorScheme.error)
                     Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(onClick = onRetry) { Text("Retry") }
+                    TextButton(onClick = onRetry) { Text(stringResource(R.string.action_retry)) }
                 }
             }
             else -> {
@@ -131,7 +133,7 @@ private fun CompanionSelectorPanel(
                         val players = grouped[group] ?: return@forEach
                         item {
                             Text(
-                                group.label,
+                                stringResource(group.label),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
@@ -211,7 +213,7 @@ private fun CompanionCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        "Lv${companion.computerLevel}",
+                        stringResource(R.string.companion_level, companion.computerLevel),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -227,17 +229,17 @@ private fun CompanionCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
-                        "Rating: ${companion.rating}",
+                        stringResource(R.string.companion_rating, companion.rating),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        "${companion.gamesPlayed} games",
+                        stringResource(R.string.companion_games_played, companion.gamesPlayed),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        "Win: ${companion.winRate.toInt()}%",
+                        stringResource(R.string.companion_win_rate, companion.winRate.toInt()),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -300,7 +302,13 @@ private fun CompanionControlPanel(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    "Lv${companion.computerLevel} • ${companion.rating} ELO • ${companion.personalityEmoji} ${companion.personality}",
+                    stringResource(
+                        R.string.companion_summary,
+                        companion.computerLevel,
+                        companion.rating,
+                        companion.personalityEmoji,
+                        companion.personality,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -337,14 +345,14 @@ private fun CompanionControlPanel(
         // Status
         if (!isGameActive) {
             Text(
-                "Game not active",
+                stringResource(R.string.companion_game_not_active),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 4.dp),
             )
         } else if (!isMyTurn && !companionThinking) {
             Text(
-                "Waiting for opponent's turn...",
+                stringResource(R.string.companion_waiting_for_opponent),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 4.dp),
@@ -364,7 +372,7 @@ private fun CompanionControlPanel(
                 enabled = isGameActive && isMyTurn && !companionThinking,
                 modifier = Modifier.weight(1f),
             ) {
-                Text("Play One Move", fontSize = 13.sp)
+                Text(stringResource(R.string.companion_play_one_move), fontSize = 13.sp)
             }
 
             // Continuous Play toggle
@@ -381,7 +389,9 @@ private fun CompanionControlPanel(
                 },
             ) {
                 Text(
-                    if (isContinuousPlay) "Stop" else "Auto Play",
+                    stringResource(
+                        if (isContinuousPlay) R.string.companion_stop else R.string.companion_auto_play,
+                    ),
                     fontSize = 13.sp,
                 )
             }
@@ -397,7 +407,7 @@ private fun CompanionControlPanel(
                 contentColor = MaterialTheme.colorScheme.error,
             ),
         ) {
-            Text("Release Companion", fontSize = 13.sp)
+            Text(stringResource(R.string.companion_release), fontSize = 13.sp)
         }
 
         Spacer(modifier = Modifier.height(16.dp))

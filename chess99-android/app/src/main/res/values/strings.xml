@@ -104,4 +104,1571 @@
     <string name="action_ok">OK</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_back">Back</string>
+
+    <!-- ── Shared actions and accessibility (added with the Lobby pass) ── -->
+    <string name="action_apply">Apply</string>
+    <string name="action_reset">Reset</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_accept">Accept</string>
+    <string name="action_decline">Decline</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_play">Play</string>
+    <string name="action_challenge">Challenge</string>
+    <string name="error_title">Error</string>
+    <string name="a11y_more_options">More options</string>
+    <string name="lobby_title">Lobby</string>
+    <string name="lobby_online_count">%1$d online</string>
+    <string name="lobby_tab_players">Players</string>
+    <string name="lobby_tab_friends">Friends</string>
+    <string name="lobby_tab_quick_play">Quick Play</string>
+    <string name="lobby_no_players_online">No players online</string>
+    <string name="lobby_no_players_in_range">No opponents rated %1$d-%2$d. Widen the range to see more.</string>
+    <string name="lobby_opponent_rating">Opponent rating</string>
+    <string name="lobby_rating_from">From</string>
+    <string name="lobby_rating_to">To</string>
+    <string name="lobby_rating_to_separator">to</string>
+    <string name="lobby_game_options">Game options</string>
+    <string name="lobby_mode">Mode</string>
+    <string name="mode_casual">Casual</string>
+    <string name="mode_learning">Learning</string>
+    <string name="mode_rated">Rated</string>
+    <string name="lobby_time">Time</string>
+    <string name="lobby_time_control_option">%1$d+%2$d</string>
+    <string name="lobby_player_rating">Rating: %1$d</string>
+    <string name="lobby_search_players">Search players...</string>
+    <string name="lobby_search_results">Search Results</string>
+    <string name="lobby_add_friend">Add Friend</string>
+    <string name="lobby_friend_requests">Friend requests</string>
+    <string name="lobby_friends_count">Friends (%1$d)</string>
+    <string name="lobby_no_friends">No friends yet. Search for players above!</string>
+    <string name="lobby_remove_friend_title">Remove friend?</string>
+    <string name="lobby_remove_friend_body">Remove %1$s from your chess mates? You can add them again anytime.</string>
+    <string name="lobby_remove_friend">Remove friend</string>
+    <string name="lobby_quick_play_title">Quick Play</string>
+    <string name="lobby_time_control">Time Control</string>
+    <string name="lobby_color">Color</string>
+    <string name="color_random">Random</string>
+    <string name="color_white">♔ White</string>
+    <string name="color_black">♚ Black</string>
+    <string name="lobby_find_opponent">Find Opponent</string>
+    <string name="lobby_finding_opponent">Finding opponent...</string>
+    <string name="lobby_searching_players">Searching for players...</string>
+    <string name="lobby_search_expectation">Finding a player usually takes under a minute.</string>
+    <string name="lobby_match_found">Match Found!</string>
+    <string name="lobby_joining_game">Joining game...</string>
+    <string name="lobby_active_games">Active Games</string>
+    <string name="lobby_active_game_row">vs %1$s (%2$s)</string>
+    <string name="lobby_challenges">Challenges</string>
+    <string name="lobby_invitation_row">%1$s (%2$s)</string>
+
+    <!-- ── Multiplayer game, chat and shared game actions ── -->
+    <string name="action_draw">Draw</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resign">Resign</string>
+    <string name="action_allow">Allow</string>
+    <string name="action_deny">Deny</string>
+    <string name="action_block">Block</string>
+    <string name="action_share">Share</string>
+    <string name="action_back_to_lobby">Back to Lobby</string>
+    <string name="a11y_companion">Companion</string>
+    <string name="a11y_analysis">Analysis</string>
+    <string name="a11y_chat">Chat</string>
+    <string name="a11y_close_chat">Close chat</string>
+    <string name="a11y_send">Send</string>
+    <string name="a11y_report_message">Report message</string>
+    <string name="a11y_message_reported">Message reported</string>
+    <string name="a11y_block_player">Block player</string>
+    <string name="game_playing_opponent">Playing %1$s</string>
+    <string name="game_number">Game #%1$d</string>
+    <string name="game_subtitle">%1$s • %2$s</string>
+    <string name="game_loading">Loading game...</string>
+    <string name="game_player_with_rating">%1$s (%2$d)</string>
+    <string name="game_you_with_rating">You (%1$d)</string>
+    <string name="game_your_turn">Your turn</string>
+    <string name="game_opponents_turn">Opponent\'s turn</string>
+    <string name="game_connecting">Connecting...</string>
+    <string name="game_draw_offered">Offered</string>
+    <string name="game_best">Best</string>
+    <string name="game_review">Review</string>
+    <string name="game_undo_asked">Asked</string>
+    <string name="game_undo_count">Undo %1$d</string>
+    <string name="game_resign_title">Resign Game?</string>
+    <string name="game_resign_body">Are you sure you want to resign? This will count as a loss.</string>
+    <string name="game_opponent_offers_draw">Opponent offers a draw</string>
+    <string name="game_opponent_requests_undo">Opponent requests undo</string>
+    <string name="game_paused">Game Paused</string>
+    <string name="game_waiting_for_opponent_seconds">Waiting for opponent… %1$ds</string>
+    <string name="game_request_resume">Request Resume</string>
+    <string name="game_result_victory">Victory!</string>
+    <string name="game_result_defeat">Defeat</string>
+    <string name="game_result_draw">Draw</string>
+    <string name="game_vs_opponent">vs %1$s</string>
+    <string name="game_rating_gain">Rating +%1$d</string>
+    <string name="game_rating_loss">Rating %1$d</string>
+    <string name="game_rating_unchanged">Rating unchanged</string>
+    <string name="game_rating_transition">%1$d → %2$d</string>
+    <string name="game_moves">Moves</string>
+    <string name="game_move_number">%1$d.</string>
+    <string name="game_reviewing_move">Reviewing move...</string>
+    <string name="game_review_rank">Your move ranked #%1$d of %2$d</string>
+    <string name="game_review_outside_top">Your move was outside the top %1$d</string>
+    <string name="game_review_header">Review · %1$d. %2$s</string>
+    <string name="game_review_top_move">%1$d. %2$s</string>
+    <string name="chat_title">Chat</string>
+    <string name="chat_empty">No messages yet. Say hi!</string>
+    <string name="chat_choose_kid_safe">Choose a kid-safe quick message</string>
+    <string name="chat_choose_quick">Choose a quick message</string>
+    <string name="chat_type_message">Type a message...</string>
+    <string name="chat_block_title">Block this player?</string>
+    <string name="chat_block_body">You will no longer be able to chat with each other.</string>
+    <string name="chat_filtered">filtered</string>
+
+    <!-- ── Dashboard ── -->
+    <string name="action_retry">Retry</string>
+    <string name="a11y_dismiss">Dismiss</string>
+    <string name="a11y_avatar">Avatar</string>
+    <string name="a11y_collapse">Collapse</string>
+    <string name="a11y_expand">Expand</string>
+    <string name="a11y_mark_read">Mark read</string>
+    <string name="dashboard_welcome_back">Welcome back,</string>
+    <string name="dashboard_default_player_name">Player</string>
+    <string name="dashboard_rating">Rating</string>
+    <string name="dashboard_peak">Peak</string>
+    <string name="dashboard_all_time_high">All-time high!</string>
+    <string name="dashboard_stat_games">Games</string>
+    <string name="dashboard_stat_win_rate">Win Rate</string>
+    <string name="dashboard_stat_streak">Streak</string>
+    <string name="dashboard_win_rate_value">%1$.0f%%</string>
+    <string name="dashboard_stat_wins">Wins</string>
+    <string name="dashboard_stat_losses">Losses</string>
+    <string name="dashboard_stat_draws">Draws</string>
+    <string name="dashboard_quota_remaining">%1$d of %2$d games left today</string>
+    <string name="dashboard_quota_exhausted">You\'ve used all your free games for today. Come back tomorrow, or upgrade for unlimited play!</string>
+    <string name="dashboard_active_games">Active Games</string>
+    <string name="dashboard_vs_opponent">vs %1$s</string>
+    <string name="dashboard_active_game_status">%1$s - Playing as %2$s</string>
+    <string name="dashboard_quick_actions">Quick Actions</string>
+    <string name="dashboard_action_computer">Computer</string>
+    <string name="dashboard_action_online">Online</string>
+    <string name="dashboard_action_learn">Learn</string>
+    <string name="dashboard_action_tournaments">Tournaments</string>
+    <string name="dashboard_recent_games">Recent Games</string>
+    <string name="dashboard_see_all">See All</string>
+    <string name="dashboard_active_tournaments">Active Tournaments</string>
+    <string name="dashboard_view_all">View All</string>
+    <string name="dashboard_result_win">Win</string>
+    <string name="dashboard_result_loss">Loss</string>
+    <string name="dashboard_result_draw">Draw</string>
+    <string name="dashboard_game_summary">%1$s - %2$s</string>
+    <string name="dashboard_tournament_round">%1$s - Round %2$d/%3$d</string>
+    <string name="dashboard_tournament_players">%1$d players</string>
+    <string name="dashboard_notifications">Notifications</string>
+
+    <!-- ── Board themes and piece styles (kept as resource ids on the model) ── -->
+    <string name="board_theme_classic">Classic</string>
+    <string name="board_theme_blue">Blue</string>
+    <string name="board_theme_walnut">Walnut</string>
+    <string name="board_theme_royal">Royal</string>
+    <string name="board_theme_coral">Coral</string>
+    <string name="board_theme_midnight">Midnight</string>
+    <string name="board_theme_forest">Forest</string>
+    <string name="board_theme_marble">Marble</string>
+    <string name="board_theme_ocean">Ocean</string>
+    <string name="board_theme_autumn">Autumn</string>
+    <string name="board_theme_neon">Neon</string>
+    <string name="board_theme_obsidian">Obsidian</string>
+    <string name="piece_style_standard">Standard</string>
+    <string name="piece_style_3d_classic">3D Classic</string>
+
+    <!-- ── Profile ── -->
+    <string name="profile_title">Profile</string>
+    <string name="a11y_my_kids">My Kids</string>
+    <string name="a11y_referrals">Referrals</string>
+    <string name="a11y_about">About</string>
+    <string name="a11y_profile_avatar">Profile avatar</string>
+    <string name="a11y_default_avatar">Default avatar</string>
+    <string name="a11y_dicebear_avatar">%1$s avatar</string>
+    <string name="profile_tab_settings">Settings</string>
+    <string name="profile_tab_friends">Friends</string>
+    <string name="profile_tab_stats">Stats</string>
+    <string name="profile_avatar">Avatar</string>
+    <string name="profile_upload_photo">Upload Photo</string>
+    <string name="profile_pick_avatar">Pick Avatar</string>
+    <string name="profile_info">Profile Info</string>
+    <string name="profile_display_name">Display Name</string>
+    <string name="profile_birthday">Birthday (YYYY-MM-DD)</string>
+    <string name="profile_class_grade">Class / Grade (1-12)</string>
+    <string name="profile_save_changes">Save Changes</string>
+    <string name="profile_game_sounds">Game Sounds</string>
+    <string name="profile_sound_muted">Muted</string>
+    <string name="profile_sound_enabled">Enabled</string>
+    <string name="profile_choose_avatar">Choose an Avatar</string>
+    <string name="profile_new_options">New Options</string>
+    <string name="profile_board_theme">Board Theme</string>
+    <string name="profile_piece_style">Piece Style</string>
+    <string name="profile_friends_count">Friends (%1$d)</string>
+    <string name="profile_no_friends">No friends yet.\nSearch for players above!</string>
+    <string name="profile_friend_rating">Rating: %1$d</string>
+    <string name="profile_online">Online</string>
+    <string name="profile_stats_empty">Play your first game to see stats!</string>
+    <string name="profile_game_results">Game Results</string>
+    <string name="profile_stat_wins">Wins</string>
+    <string name="profile_stat_losses">Losses</string>
+    <string name="profile_stat_draws">Draws</string>
+    <string name="profile_performance">Performance</string>
+    <string name="profile_total_games">Total Games</string>
+    <string name="profile_win_rate">Win Rate</string>
+    <string name="profile_win_rate_value">%1$.1f%%</string>
+    <string name="profile_current_streak">Current Streak</string>
+    <string name="profile_best_streak">Best Streak</string>
+    <string name="profile_avg_game_duration">Avg Game Duration</string>
+    <string name="profile_duration_value">%1$dm %2$ds</string>
+    <string name="profile_not_available">N/A</string>
+    <string name="profile_rating_history">Rating History</string>
+    <string name="profile_view_rating_history_body">View your full rating history</string>
+    <string name="profile_view_rating_history">View Rating History</string>
+
+    <!-- ── Play vs Computer: counted help/undo copy ── -->
+    <plurals name="computer_undo_chances_available">
+        <item quantity="one">%1$d undo chance available</item>
+        <item quantity="other">%1$d undo chances available</item>
+    </plurals>
+    <plurals name="computer_help_chances_left">
+        <item quantity="one">%1$d help chance left for Best or Undo</item>
+        <item quantity="other">%1$d help chances left for Best or Undo</item>
+    </plurals>
+    <plurals name="computer_undos_left">
+        <item quantity="one">%1$d undo left</item>
+        <item quantity="other">%1$d undos left</item>
+    </plurals>
+
+    <!-- ── Play vs Computer ── -->
+    <string name="action_undo">Undo</string>
+    <string name="computer_title">Play vs Computer</string>
+    <string name="computer_engine_failed_title">Can\'t play the computer right now</string>
+    <string name="computer_game_setup">Game Setup</string>
+    <string name="computer_play_as">Play as</string>
+    <string name="computer_choose_opponent">Choose an opponent</string>
+    <string name="computer_difficulty">Difficulty: %1$d</string>
+    <string name="computer_difficulty_custom">Custom</string>
+    <string name="computer_difficulty_easy">Easy (%1$d undos)</string>
+    <string name="computer_difficulty_medium">Medium (%1$d undos)</string>
+    <string name="computer_difficulty_hard">Hard (%1$d undos)</string>
+    <string name="computer_difficulty_expert">Expert (%1$d undo)</string>
+    <string name="computer_game_mode">Game Mode</string>
+    <string name="computer_rated_needs_persona">Choose a named online opponent above for rated play. Custom computer games are not rated.</string>
+    <string name="computer_rated_note">No undo or pause. Rated play requires a server connection.</string>
+    <string name="computer_learning_note">Best-move &amp; undo help from a small pool (%1$d); not rated</string>
+    <string name="computer_start_game">Start Game</string>
+    <string name="computer_opponent_default">Computer (Lv.%1$d)</string>
+    <string name="computer_you">You</string>
+    <string name="computer_finding_best_move">Finding a best move...</string>
+    <string name="computer_thinking">Computer thinking...</string>
+    <string name="computer_status_your_check">Your king is in check. Your turn.</string>
+    <string name="computer_status_computer_check">Computer is in check. Computer\'s turn.</string>
+    <string name="computer_status_computer_turn">Computer\'s turn</string>
+    <string name="computer_review_game">Review game</string>
+    <string name="computer_play_again">Play again</string>
+
+    <!-- ── Championship detail ── -->
+    <string name="a11y_refresh">Refresh</string>
+    <string name="championship_fallback_title">Tournament</string>
+    <string name="championship_tab_overview">Overview</string>
+    <string name="championship_tab_players">Players</string>
+    <string name="championship_tab_standings">Standings</string>
+    <string name="championship_tab_matches">Matches</string>
+    <string name="championship_no_data">No data available</string>
+    <string name="championship_format_swiss">Swiss</string>
+    <string name="championship_format_elimination">Elimination</string>
+    <string name="championship_format_round_robin">Round Robin</string>
+    <string name="championship_description">Description</string>
+    <string name="championship_details">Details</string>
+    <string name="championship_time_control">Time Control</string>
+    <string name="championship_participants">Participants</string>
+    <string name="championship_participants_value">%1$d / %2$d</string>
+    <string name="championship_rounds">Rounds</string>
+    <string name="championship_rounds_value">%1$d / %2$d</string>
+    <string name="championship_entry_fee">Entry Fee</string>
+    <string name="championship_fee_value">₹%1$d</string>
+    <string name="championship_fee_free">Free</string>
+    <string name="championship_prize_pool">Prize Pool</string>
+    <string name="championship_start_date">Start Date</string>
+    <string name="championship_end_date">End Date</string>
+    <string name="championship_organizer">Organizer</string>
+    <string name="championship_registered">You are registered for this tournament</string>
+    <string name="championship_organizer_controls">Organizer controls</string>
+    <string name="championship_organizer_controls_body">Manage your tournament. Generate the bracket, schedule rounds, and start play.</string>
+    <string name="championship_generate_pairings">Generate pairings</string>
+    <string name="championship_schedule_next_round">Schedule next round</string>
+    <string name="championship_start_tournament">Start tournament</string>
+    <string name="championship_no_participants">No participants yet</string>
+    <string name="championship_column_number">#</string>
+    <string name="championship_column_player">Player</string>
+    <string name="championship_column_rating">Rating</string>
+    <string name="championship_column_points">Pts</string>
+    <string name="championship_column_wins">W</string>
+    <string name="championship_column_draws">D</string>
+    <string name="championship_column_losses">L</string>
+    <string name="championship_drop_reason_forfeit_limit">Too many forfeits</string>
+    <string name="championship_drop_reason_removed">Removed from the tournament</string>
+    <string name="championship_withdrawn">Withdrawn — %1$s</string>
+    <string name="championship_no_standings">Standings not available yet</string>
+    <string name="championship_filter_my_matches">My Matches</string>
+    <string name="championship_filter_all_matches">All Matches</string>
+    <string name="championship_no_my_matches">No matches yet</string>
+    <string name="championship_no_matches">No matches scheduled yet</string>
+    <string name="championship_no_my_matches_body">Once the tournament starts and you\'re paired, your games will show up here.</string>
+    <string name="championship_round">Round %1$d</string>
+    <string name="championship_score_white_win">1 - 0</string>
+    <string name="championship_score_black_win">0 - 1</string>
+    <string name="championship_score_draw">½ - ½</string>
+    <string name="championship_versus">vs</string>
+    <string name="championship_my_result_won">Won</string>
+    <string name="championship_my_result_lost">Lost</string>
+    <string name="championship_my_result_draw">Draw</string>
+    <string name="championship_my_result">You: %1$s</string>
+    <string name="championship_review_game">Review game</string>
+    <string name="championship_go_to_game">Go to game</string>
+    <string name="championship_starting">Starting…</string>
+    <string name="championship_waiting_for_pairing">Waiting for pairing…</string>
+    <string name="championship_status_completed">Completed</string>
+    <string name="championship_status_in_progress">In progress</string>
+    <string name="championship_status_scheduled">Scheduled</string>
+    <string name="championship_status_cancelled">Cancelled</string>
+    <string name="championship_status_expired">Expired</string>
+    <string name="championship_status_pending">Pending</string>
+
+    <!-- ── Game history ── -->
+    <string name="a11y_clear_search">Clear search</string>
+    <string name="a11y_first_move">First move</string>
+    <string name="a11y_previous_move">Previous move</string>
+    <string name="a11y_next_move">Next move</string>
+    <string name="a11y_last_move">Last move</string>
+    <string name="a11y_auto_play">Auto-play</string>
+    <string name="history_title">Game History</string>
+    <string name="history_search_placeholder">Search by opponent name</string>
+    <string name="history_filter_all_results">All Results</string>
+    <string name="history_result_won">Won</string>
+    <string name="history_result_lost">Lost</string>
+    <string name="history_result_draw">Draw</string>
+    <string name="history_filter_all_colors">All Colors</string>
+    <string name="history_filter_all_modes">All Modes</string>
+    <string name="history_load_more">Load More Games</string>
+    <string name="history_opponent_rating">(%1$d)</string>
+    <string name="history_pgn_clip_label">PGN</string>
+    <string name="history_pgn_copied">PGN copied to clipboard</string>
+    <string name="history_loading_moves">Loading moves...</string>
+    <string name="history_no_moves">No moves recorded for this game.</string>
+    <string name="history_move_counter">Move %1$d of %2$d</string>
+    <string name="history_copy_pgn">Copy PGN</string>
+    <string name="history_full_review">Full Review</string>
+    <string name="history_empty_filtered_title">No games match your filters</string>
+    <string name="history_empty_title">No games played yet</string>
+    <string name="history_empty_filtered_body">Try adjusting your filters or search query</string>
+    <string name="history_empty_body">Play your first game to see it here!</string>
+
+    <!-- ── Home and navigation drawer ── -->
+    <string name="a11y_menu">Menu</string>
+    <string name="color_white_name">White</string>
+    <string name="color_black_name">Black</string>
+    <string name="drawer_dashboard">Dashboard</string>
+    <string name="drawer_championships">Championships</string>
+    <string name="drawer_tournament_invites">Tournament Invites</string>
+    <string name="drawer_leaderboard">Leaderboard</string>
+    <string name="drawer_daily_challenges">Daily Challenges</string>
+    <string name="drawer_game_history">Game History</string>
+    <string name="drawer_organizations">Organizations</string>
+    <string name="drawer_referrals">Referrals</string>
+    <string name="drawer_ambassador">Ambassador</string>
+    <string name="drawer_my_plan">My Plan</string>
+    <string name="drawer_privacy">Privacy Policy</string>
+    <string name="drawer_terms">Terms of Service</string>
+    <string name="drawer_licenses">Open-source licences</string>
+    <string name="drawer_logout">Logout</string>
+    <string name="home_tagline">Play · Learn · Master</string>
+    <string name="home_resume_error_cached">Couldn\'t refresh games. Showing your last known list.</string>
+    <string name="home_resume_error">Couldn\'t check for games to resume. Offline computer play is still available.</string>
+    <string name="home_continue_playing">Continue playing</string>
+    <string name="home_see_all_in_lobby">See all in Lobby</string>
+    <string name="home_vs_opponent">vs %1$s</string>
+    <string name="home_playing_as">Playing as %1$s · %2$s</string>
+    <string name="home_discard">Discard</string>
+    <string name="home_discard_title">Discard this game?</string>
+    <string name="home_discard_body">This will end the game with no rating impact.</string>
+    <string name="home_status_active">Active</string>
+    <string name="home_status_paused">Paused</string>
+    <string name="home_status_waiting">Waiting</string>
+    <string name="home_start_a_game">Start a game</string>
+    <string name="home_play_computer_title">Play computer</string>
+    <string name="home_play_computer_subtitle">Practice offline against a computer</string>
+    <string name="home_play_online_title">Play online</string>
+    <string name="home_play_online_subtitle">Find a player near your rating</string>
+    <string name="home_keep_going">Keep going</string>
+    <string name="home_continue_learning">Continue learning</string>
+    <string name="home_progress">Progress</string>
+    <string name="home_nearby_title">Players near your rating</string>
+    <string name="home_show_less">Show less</string>
+    <string name="home_show_more">Show %1$d more</string>
+    <string name="home_status_computer_available">Computer · Available</string>
+    <string name="home_status_in_game">In game</string>
+    <string name="home_status_online">Online</string>
+    <string name="home_no_moves_yet">No moves yet</string>
+    <string name="home_just_now">Just now</string>
+    <string name="home_minutes_ago">%1$dm ago</string>
+    <string name="home_hours_ago">%1$dh ago</string>
+    <string name="home_days_ago">%1$dd ago</string>
+    <string name="home_hero_welcome">Welcome back</string>
+    <string name="home_hero_ready">Ready to play?</string>
+    <string name="home_hero_body">Sharpen your game — one move at a time.</string>
+
+    <!-- ── Parent dashboard (My Kids) ── -->
+    <string name="action_save">Save</string>
+    <string name="kids_title">My Kids</string>
+    <string name="kids_intro">Track your child\'s chess progress — ratings, puzzles, lessons and recent games — and get a weekly report card by email.</string>
+    <string name="kids_guardian_request">%1$s wants to be your guardian.</string>
+    <string name="kids_guardian_request_body">They\'ll be able to see your progress reports.</string>
+    <string name="kids_link_title">Link a child account</string>
+    <string name="kids_child_email">Child\'s Chess99 account email</string>
+    <string name="kids_relationship">Relationship (optional)</string>
+    <string name="kids_send_invite">Send invite</string>
+    <string name="kids_link_note">Your child must already have a Chess99 account and approve the link from their own account.</string>
+    <string name="kids_awaiting_confirmation">Awaiting confirmation</string>
+    <string name="kids_invitation_pending">%1$s — invitation pending</string>
+    <string name="kids_empty">No linked children yet. Add your child\'s account email above to start tracking their progress.</string>
+    <string name="kids_rating">Rating</string>
+    <string name="kids_this_week">This week</string>
+    <string name="kids_stat_games">Games</string>
+    <string name="kids_stat_wld">W/L/D</string>
+    <string name="kids_stat_puzzles">Puzzles</string>
+    <string name="kids_stat_lessons">Lessons</string>
+    <string name="kids_learning_summary">Learning time %1$s · Lifetime: %2$d lessons, %3$d puzzles · Tactical %4$d</string>
+    <string name="kids_recent_games">Recent games</string>
+    <string name="kids_vs_opponent">vs %1$s</string>
+    <string name="kids_vs_opponent_rated">vs %1$s (%2$d)</string>
+    <string name="kids_replay">Replay</string>
+    <string name="kids_email_report">Email report</string>
+    <string name="kids_manage">Manage</string>
+    <string name="kids_manage_title">Manage %1$s</string>
+    <string name="kids_display_name">Display name</string>
+    <string name="kids_new_password">New password (optional)</string>
+    <string name="kids_confirm_password">Confirm new password</string>
+    <string name="kids_passwords_mismatch">Passwords do not match.</string>
+    <string name="kids_password_too_short">Password must be at least 8 characters.</string>
+
+    <!-- ── Organizations ── -->
+    <string name="org_title">Organizations</string>
+    <string name="org_create">Create</string>
+    <string name="org_search_label">Search clubs, schools, federations</string>
+    <string name="org_search">Search</string>
+    <string name="org_none_found">No organizations found</string>
+    <string name="org_member_count">%1$d members</string>
+    <string name="org_create_title">Create organization</string>
+    <string name="org_name">Name</string>
+    <string name="org_type">Type</string>
+    <string name="org_contact_email">Contact email</string>
+    <string name="org_description">Description (optional)</string>
+    <string name="org_creating">Creating…</string>
+    <string name="org_type_club">Club</string>
+    <string name="org_type_school">School</string>
+    <string name="org_type_federation">Federation</string>
+    <string name="org_type_company">Company</string>
+    <string name="org_type_community">Community</string>
+    <string name="org_type_other">Other</string>
+    <string name="org_summary">%1$s • %2$d members</string>
+    <string name="org_invite_member">Invite member</string>
+    <string name="org_members">Members</string>
+    <string name="org_no_members">No members yet.</string>
+    <string name="org_email">Email</string>
+    <string name="org_invite_as_admin">Invite as organization admin</string>
+    <string name="org_sending">Sending…</string>
+    <string name="org_send_invite">Send invite</string>
+    <string name="org_role_admin">Organization admin</string>
+    <string name="org_role_member">Member</string>
+
+    <!-- ── Championship list ── -->
+    <string name="filter_all">All</string>
+    <string name="a11y_create_tournament">Create Tournament</string>
+    <string name="championship_list_title">Tournaments</string>
+    <string name="championship_search">Search tournaments...</string>
+    <string name="championship_filter_status">Status</string>
+    <string name="championship_filter_format">Format</string>
+    <string name="championship_none_found">No tournaments found</string>
+    <string name="championship_none_found_body">Try adjusting your filters or create a new one</string>
+    <string name="championship_participants_ratio">%1$d/%2$d</string>
+    <string name="championship_dates_start">Starts: %1$s</string>
+    <string name="championship_dates_start_end">Starts: %1$s  •  Ends: %2$s</string>
+    <string name="championship_registering">Registering...</string>
+    <string name="championship_register">Register</string>
+    <string name="championship_registered_badge">Registered</string>
+    <string name="championship_create_title">Create Tournament</string>
+    <string name="championship_name_label">Tournament Name</string>
+    <string name="championship_max_players">Max Players</string>
+    <string name="championship_entry_fee_label">Entry Fee (₹)</string>
+    <string name="championship_description_optional">Description (optional)</string>
+    <string name="championship_creating">Creating...</string>
+    <string name="championship_create">Create</string>
+    <string name="championship_format_hybrid">Hybrid</string>
+    <string name="championship_status_upcoming">Upcoming</string>
+    <string name="championship_status_active">Active</string>
+    <string name="championship_status_paused">Paused</string>
+
+    <!-- ── Game end card ── -->
+    <string name="gameend_checkmate">Checkmate!</string>
+    <string name="gameend_vs">vs</string>
+    <string name="gameend_stat_moves">Moves</string>
+    <string name="gameend_stat_time">Time</string>
+    <string name="gameend_stat_used">Used</string>
+    <string name="gameend_stat_accuracy">Accuracy</string>
+    <string name="gameend_accuracy_value">%1$d%%</string>
+    <string name="gameend_share_result">Share Result</string>
+    <string name="gameend_share_whatsapp">WhatsApp</string>
+    <string name="gameend_share_twitter">Twitter</string>
+    <string name="gameend_share_facebook">Facebook</string>
+    <string name="gameend_share_copy">Copy</string>
+    <string name="gameend_share_more">More</string>
+    <string name="gameend_review">Review</string>
+    <string name="gameend_play_again">Play Again</string>
+    <string name="gameend_dismiss">Dismiss</string>
+    <string name="a11y_winner">Winner</string>
+    <string name="gameend_rating_label">"Rating: "</string>
+
+    <!-- ── Move classification labels (resource ids on the domain enum) ── -->
+    <string name="move_class_brilliant">Brilliant</string>
+    <string name="move_class_excellent">Excellent</string>
+    <string name="move_class_good">Good</string>
+    <string name="move_class_inaccuracy">Inaccuracy</string>
+    <string name="move_class_mistake">Mistake</string>
+    <string name="move_class_blunder">Blunder</string>
+    <string name="move_class_book">Book</string>
+
+    <!-- ── Lifeline markers ── -->
+    <string name="lifeline_best">Best</string>
+    <string name="lifeline_undo">Undo</string>
+    <string name="lifeline_review">Review</string>
+    <string name="lifeline_help">Help</string>
+
+    <!-- ── Stockfish analysis panel ── -->
+    <string name="analysis_run">Analyze with Stockfish</string>
+    <string name="analysis_run_body">Run full game analysis to see evaluations, accuracy, and move quality</string>
+    <string name="analysis_running_progress">Analyzing game... %1$d%%</string>
+    <string name="analysis_running">Analyzing game...</string>
+    <string name="analysis_running_body">Stockfish is evaluating each position (depth 18)</string>
+    <string name="analysis_failed">Analysis Failed</string>
+    <string name="analysis_title">Stockfish Analysis</string>
+    <string name="analysis_depth">Depth 18</string>
+    <string name="analysis_acpl">ACPL: %1$.1f</string>
+    <string name="analysis_accuracy_value">%1$.1f%%</string>
+    <string name="analysis_opening">Opening</string>
+    <string name="analysis_evaluation">EVALUATION</string>
+    <string name="analysis_move_classifications">MOVE CLASSIFICATIONS</string>
+
+    <!-- ── Game review ── -->
+    <string name="review_title">Game Review</string>
+    <string name="review_vs_opponent">vs %1$s</string>
+    <string name="a11y_copy_pgn">Copy PGN</string>
+    <string name="a11y_export_pgn">Export PGN</string>
+    <string name="review_unknown_error">Unknown error</string>
+    <string name="review_go_back">Go Back</string>
+    <string name="review_game_not_found">Game not found</string>
+    <string name="review_starting_position">Starting position</string>
+    <string name="review_move_san">%1$d. %2$s</string>
+    <string name="review_eval_loss">-%1$.1f</string>
+    <string name="review_eval_gain">+%1$.1f</string>
+    <string name="review_lifelines">Lifelines</string>
+    <string name="review_lifelines_summary">%1$d used · %2$s</string>
+    <string name="review_lifeline_count">%1$d %2$s</string>
+    <string name="review_detail_opponent">Opponent</string>
+    <string name="review_opponent_rated">%1$s (%2$d)</string>
+    <string name="review_detail_color">Color</string>
+    <string name="review_detail_time">Time</string>
+    <string name="review_detail_mode">Mode</string>
+    <string name="review_detail_moves">Moves</string>
+    <string name="review_end_checkmate">Ended by checkmate</string>
+    <string name="review_end_resignation">Ended by resignation</string>
+    <string name="review_end_timeout">Ended on time</string>
+    <string name="review_end_stalemate">Ended in stalemate</string>
+    <string name="review_end_agreed_draw">Draw by agreement</string>
+    <string name="review_end_insufficient_material">Draw by insufficient material</string>
+    <string name="review_end_repetition">Draw by threefold repetition</string>
+    <string name="review_end_fifty_move">Draw by 50-move rule</string>
+    <string name="review_end_abandoned">Game abandoned</string>
+
+    <!-- ── Local (offline) game review ── -->
+    <string name="local_review_title">Game review</string>
+    <string name="local_review_unavailable">This local game is no longer available.</string>
+    <string name="local_review_go_back">Go back</string>
+    <string name="local_review_summary">You vs %1$s • %2$s</string>
+    <string name="local_review_move">Move %1$d: %2$s</string>
+    <string name="local_review_first">First</string>
+    <string name="local_review_previous">Previous</string>
+    <string name="local_review_next">Next</string>
+    <string name="local_review_last">Last</string>
+    <string name="local_review_move_san">%1$d. %2$s</string>
+
+    <!-- ── Dates ── -->
+    <string name="history_date">%1$s %2$s %3$s</string>
+    <string-array name="month_abbreviations">
+        <item>Jan</item>
+        <item>Feb</item>
+        <item>Mar</item>
+        <item>Apr</item>
+        <item>May</item>
+        <item>Jun</item>
+        <item>Jul</item>
+        <item>Aug</item>
+        <item>Sep</item>
+        <item>Oct</item>
+        <item>Nov</item>
+        <item>Dec</item>
+    </string-array>
+
+    <!-- ── Ambassador dashboard ── -->
+    <string name="action_copy">Copy</string>
+    <string name="share_via">Share via</string>
+    <string name="ambassador_title">Ambassador</string>
+    <string name="ambassador_become_title">Become an Ambassador</string>
+    <string name="ambassador_become_body">Earn commission for every player you bring to Chess99. Apply to join the ambassador program.</string>
+    <string name="ambassador_apply_now">Apply Now</string>
+    <string name="ambassador_pending_title">Application under review</string>
+    <string name="ambassador_pending_body">Your ambassador application is being reviewed. You can already share your referral link below.</string>
+    <string name="ambassador_stat_referred">Referred</string>
+    <string name="ambassador_stat_active">Active</string>
+    <string name="ambassador_stat_earned">Earned</string>
+    <string name="referral_your_link">Your referral link</string>
+    <string name="referral_link_clip_label">Referral link</string>
+    <string name="ambassador_share_templates">Share templates</string>
+    <string name="ambassador_payout_history">Payout history</string>
+    <string name="ambassador_payout_detail">%1$s • %2$s</string>
+    <string name="ambassador_adults_only_title">Adults only</string>
+    <string name="ambassador_adults_only_body">The Ambassador program is for adults (18+).</string>
+    <string name="ambassador_tpl_parents">For Parents</string>
+    <string name="ambassador_tpl_parents_body">I found a great way for kids to learn chess online — Chess99 has guided lessons, tactics training and safe online play. Join here: %1$s</string>
+    <string name="ambassador_tpl_students">For Students</string>
+    <string name="ambassador_tpl_students_body">Level up your chess! Chess99 has puzzles, lessons and rated games against real players. Sign up with my link: %1$s</string>
+    <string name="ambassador_tpl_friends">For Friends</string>
+    <string name="ambassador_tpl_friends_body">Let\'s play chess on Chess99 — quick games, ratings and tournaments. Join me: %1$s</string>
+    <string name="ambassador_tpl_coaches">For Coaches</string>
+    <string name="ambassador_tpl_coaches_body">Chess99 is a solid platform for coaching — lessons, tactical trainer, tournaments and student progress tracking. Take a look: %1$s</string>
+    <string name="ambassador_tpl_telugu">Telugu</string>
+    <string name="ambassador_tpl_telugu_body">చెస్ నేర్చుకోవాలనుకుంటున్నారా? Chess99 లో పాఠాలు, పజిల్స్, ఆన్‌లైన్ ఆటలు ఉన్నాయి. ఇక్కడ చేరండి: %1$s</string>
+
+    <!-- ── Subscription ── -->
+    <string name="subscription_title">My Subscription</string>
+    <string name="subscription_cancel_title">Cancel Subscription?</string>
+    <string name="subscription_cancel_body">Are you sure you want to cancel your subscription? You will continue to have access until the end of your current billing period. After that, your account will revert to the Free tier.</string>
+    <string name="subscription_cancel_action">Cancel Subscription</string>
+    <string name="subscription_keep">Keep Subscription</string>
+    <string name="subscription_tier_free">Free</string>
+    <string name="subscription_status_active">Active</string>
+    <string name="subscription_status_cancelled">Cancelled</string>
+    <string name="subscription_status_expired">Expired</string>
+    <string name="subscription_status_free_tier">Free Tier</string>
+    <string name="subscription_status_none">No Subscription</string>
+    <string name="subscription_details">Subscription Details</string>
+    <string name="subscription_started">Started</string>
+    <string name="subscription_access_until">Access Until</string>
+    <string name="subscription_renews_on">Renews On</string>
+    <string name="subscription_auto_renew">Auto-Renew</string>
+    <string name="subscription_enabled">Enabled</string>
+    <string name="subscription_disabled">Disabled</string>
+    <string name="subscription_cancelled_notice">Your subscription has been cancelled. Access continues until the end of the billing period.</string>
+    <string name="subscription_cancel_card_body">If you cancel, your premium features will remain available until the end of your current billing period.</string>
+    <string name="subscription_restore">Restore Purchases</string>
+    <string name="subscription_restore_body">If you have previously purchased a subscription on another device, tap below to restore it.</string>
+    <string name="subscription_plans_unavailable">Premium plan purchases are not available in this app. If your Chess99 account has a premium plan, it is active here automatically.</string>
+
+    <!-- ── Leaderboard (ViewModel-side copy, resolved through the injected @ApplicationContext) ── -->
+    <string name="leaderboard_category_most_games">Most Games</string>
+    <string name="leaderboard_category_most_wins">Most Wins</string>
+    <string name="leaderboard_category_highest_points">Highest Points</string>
+    <string name="leaderboard_category_by_rating">By Rating</string>
+    <string name="leaderboard_value_games">Games</string>
+    <string name="leaderboard_value_wins">Wins</string>
+    <string name="leaderboard_value_points">Points</string>
+    <string name="leaderboard_value_rating">Rating</string>
+    <string name="leaderboard_period_today">Today</string>
+    <string name="leaderboard_period_7_days">7 Days</string>
+    <string name="leaderboard_period_30_days">30 Days</string>
+    <string name="leaderboard_period_all_time">All Time</string>
+    <string name="leaderboard_share_suffix">%1$s\n\nhttps://chess99.com/leaderboard</string>
+    <string name="leaderboard_invite_text">Join me on Chess99 — play chess online with players worldwide! Climb the leaderboard and prove your skills.\n\nhttps://chess99.com/leaderboard</string>
+    <string name="leaderboard_invite_chooser">Invite friends</string>
+    <string name="unknown_player">Unknown</string>
+
+    <!-- ── Leaderboard screen ── -->
+    <string name="leaderboard_title">Leaderboard</string>
+    <string name="leaderboard_empty_today">No games today. Be the first!</string>
+    <string name="leaderboard_empty_week">No games this week yet.</string>
+    <string name="leaderboard_empty_month">No games this month yet.</string>
+    <string name="leaderboard_empty_all">No leaderboard data available.</string>
+    <string name="leaderboard_rank">#%1$d</string>
+    <string name="leaderboard_rated">%1$d rated</string>
+    <string name="leaderboard_invite_title">Challenge your friends!</string>
+    <string name="leaderboard_invite_body">Invite friends to Chess99 and see who climbs the leaderboard faster.</string>
+    <string name="leaderboard_invite">Invite</string>
+
+    <!-- ── Learn hub ── -->
+    <string name="learn_title">Learn</string>
+    <string name="learn_tab_tutorials">Tutorials</string>
+    <string name="learn_tab_training">Training</string>
+    <string name="learn_load_failed">Couldn\'t load</string>
+    <string name="learn_dismiss">Dismiss</string>
+    <string name="learn_stat_lessons_value">%1$d/%2$d</string>
+    <string name="learn_stat_lessons">Lessons</string>
+    <string name="learn_stat_xp">XP</string>
+    <string name="learn_stat_level_value">Lv %1$d</string>
+    <string name="learn_stat_level">Level</string>
+    <string name="learn_stat_streak">Streak</string>
+    <string name="learn_tier_beginner">Beginner</string>
+    <string name="learn_tier_intermediate">Intermediate</string>
+    <string name="learn_tier_advanced">Advanced</string>
+    <string name="learn_no_tutorials">No tutorials available yet</string>
+    <string name="a11y_completed">Completed</string>
+    <string name="a11y_not_completed">Not completed</string>
+    <string name="learn_module_progress">%1$d/%2$d</string>
+    <string name="learn_daily_challenge">Daily Challenge</string>
+    <string name="learn_no_daily_challenge">No daily challenge available</string>
+    <string name="learn_achievements">Achievements</string>
+    <string name="learn_no_achievements">Complete lessons and solve puzzles to earn achievements</string>
+    <string name="learn_practice">Practice</string>
+    <string name="learn_tactics_trainer">Tactics Trainer</string>
+    <string name="learn_tactics_trainer_body">Staged puzzles from beginner to master with progression tracking</string>
+    <string name="learn_difficulty_easy">Easy</string>
+    <string name="learn_difficulty_medium">Medium</string>
+    <string name="learn_difficulty_hard">Hard</string>
+    <string name="learn_xp_reward">+%1$d XP</string>
+    <string name="learn_completed">Completed</string>
+    <string name="learn_lessons">Lessons</string>
+    <string name="learn_no_lessons">No lessons in this module yet</string>
+
+    <!-- ── Game details ── -->
+    <string name="detail_title">Game Details</string>
+    <string name="a11y_start">Start</string>
+    <string name="a11y_end">End</string>
+    <string name="a11y_play">Play</string>
+    <string name="detail_move_counter">Move %1$d / %2$d</string>
+    <string name="detail_full_review">Full Game Review</string>
+    <string name="detail_result_victory">Victory</string>
+    <string name="detail_result_draw">Draw</string>
+    <string name="detail_result_defeat">Defeat</string>
+    <string name="detail_end_reason">(%1$s)</string>
+    <string name="detail_rating_parenthesised">(%1$d)</string>
+    <string name="detail_vs">vs</string>
+    <string name="detail_game_info">Game Info</string>
+    <string name="detail_info_opening">Opening</string>
+    <string name="detail_info_date">Date</string>
+    <string name="detail_info_mode">Mode</string>
+    <string name="detail_info_moves">Moves</string>
+    <string name="detail_info_time_control">Time Control</string>
+
+    <!-- ── Referral dashboard ── -->
+    <string name="referral_title">Referral Program</string>
+    <string name="referral_stat_referrals">Referrals</string>
+    <string name="referral_stat_active">Active</string>
+    <string name="referral_stat_earned">Earned</string>
+    <string name="referral_link_title">Your Referral Link</string>
+    <string name="referral_link_copied">Link copied!</string>
+    <string name="referral_copy_link">Copy Link</string>
+    <string name="referral_generate_title">Generate New Code</string>
+    <string name="referral_label_optional">Label (optional)</string>
+    <string name="referral_generate">Generate</string>
+    <string name="referral_referred_users">Referred Users</string>
+    <string name="a11y_subscribed">Subscribed</string>
+    <string name="referral_earnings">Earnings</string>
+    <string name="referral_payout_history">Payout History</string>
+    <string name="referral_empty">Share your referral link to start earning!</string>
+
+    <!-- ── Become an ambassador ── -->
+    <string name="become_ambassador_approved">You\'re an approved ambassador!</string>
+    <string name="become_ambassador_under_review">Your application is under review</string>
+    <string name="become_ambassador_notify">We\'ll notify you once there\'s an update.</string>
+    <string name="become_ambassador_intro">Help more kids discover chess. Ambassadors earn commission for every player they bring to Chess99. Tell us a bit about yourself.</string>
+    <string name="become_ambassador_full_name">Full name</string>
+    <string name="become_ambassador_mobile">Mobile number</string>
+    <string name="become_ambassador_upi">UPI ID (for payouts)</string>
+    <string name="become_ambassador_upi_hint">name@bank</string>
+    <string name="become_ambassador_reason">Why do you want to join? (optional)</string>
+    <string name="become_ambassador_submit">Submit Application</string>
+
+    <!-- ── Daily challenges ── -->
+    <string name="daily_title">Daily Challenges</string>
+    <string name="daily_streak">%1$d-day streak</string>
+    <string name="a11y_locked">Locked</string>
+    <string name="daily_track_locked_title">This track is part of %1$s</string>
+    <string name="daily_track_locked_default_tier">a premium</string>
+    <string name="daily_track_locked_body">This daily challenge track is available on premium plans.</string>
+    <string name="daily_todays_challenge">Today\'s Challenge</string>
+    <string name="daily_default_description">Solve today\'s puzzle to keep your streak alive.</string>
+    <string name="daily_difficulty_xp">%1$s • +%2$d XP</string>
+    <string name="daily_solve">Solve Today\'s Challenge</string>
+    <string name="daily_review">Review Today\'s Challenge</string>
+    <string name="daily_review_saved">Your result is saved.</string>
+    <string name="daily_review_already_completed">Already completed today — this run was a review.</string>
+    <string name="daily_review_saved_xp">Saved! +%1$d XP earned.</string>
+    <string name="daily_review_save_failed">Couldn\'t save your result — check your connection.</string>
+    <string name="daily_leader_time_seconds">%1$ds</string>
+    <string name="daily_leader_time_min_sec">%1$dm %2$02ds</string>
+    <string name="daily_leaderboard">Leaderboard</string>
+
+    <!-- ── Daily challenges (ViewModel fallback) ── -->
+    <string name="daily_track_fallback">Track</string>
+
+    <!-- ── Unfinished-game prompt ── -->
+    <string name="unfinished_title">Unfinished Game</string>
+    <string name="unfinished_intro">You have an unfinished game:</string>
+    <string name="unfinished_summary">vs %1$s • %2$s</string>
+    <string name="unfinished_question">Would you like to resume or discard it?</string>
+
+    <!-- ── Presence confirmation ── -->
+    <string name="presence_title">Are you still there?</string>
+    <string name="presence_body">Confirm your presence to continue the game.</string>
+    <string name="presence_seconds_remaining">seconds remaining</string>
+    <string name="presence_confirm">I\'m here!</string>
+
+    <!-- ── New-game challenge dialog ── -->
+    <string name="new_game_title">New Game Challenge</string>
+    <string name="new_game_vs">VS</string>
+    <string name="new_game_time_control">%1$d+%2$d</string>
+    <string name="new_game_colour_preference">They want to play as %1$s</string>
+    <string name="new_game_rating">(%1$d)</string>
+
+    <!-- ── Network error dialog ── -->
+    <string name="network_error_title">Connection Lost</string>
+    <string name="network_error_body">Lost connection to the game server.\nThis may be due to a network issue.</string>
+    <string name="network_error_hint">Your game state is preserved. Try reconnecting.</string>
+    <string name="network_error_retry">Retry Connection</string>
+    <string name="network_error_leave">Leave Game</string>
+
+    <!-- ── Game completion overlay ── -->
+    <string name="completion_game_over">Game Over</string>
+    <string name="completion_rating">Rating</string>
+    <string name="completion_continue">Continue</string>
+    <string name="completion_checkmate">Checkmate!</string>
+
+    <!-- ── About & contact dialog ── -->
+    <string name="about_title">About Chess99</string>
+    <string name="about_body">Chess99 is a real-time multiplayer chess platform built for everyone — from beginners to advanced players.</string>
+    <string name="about_website">chess99.com</string>
+    <string name="about_support_email">support@chess99.com</string>
+    <string name="about_version">Version 1.0.0</string>
+    <string name="about_built_by">Built by Ameyem</string>
+    <string name="about_close">Close</string>
+    <string name="about_contact_us">Contact Us</string>
+    <string name="about_feedback_subject">Chess99 App Feedback</string>
+
+    <!-- ── Upgrade prompt ── -->
+    <string name="upgrade_title">Upgrade to Premium</string>
+    <string name="upgrade_message">Unlock unlimited games, advanced analysis, and ad-free experience.</string>
+    <string name="upgrade_action">Upgrade</string>
+    <string name="upgrade_free_tier">Playing on Free tier</string>
+    <string name="upgrade_go_premium">Go Premium</string>
+
+    <!-- ── Game preview dialog ── -->
+    <string name="preview_title">Join Game?</string>
+    <string name="preview_host">Host</string>
+    <string name="preview_rating">Rating</string>
+    <string name="preview_join">Join</string>
+
+    <!-- ── Leave-game warning ── -->
+    <string name="leave_game_title">Leave the game?</string>
+    <string name="leave_game_rated">This is a rated game. If you leave now, you resign and it counts as a loss.</string>
+    <string name="leave_game_casual">Your game will be paused. You can resume it from Home within an hour.</string>
+    <string name="leave_game_vs_computer">Your game won\'t be saved.</string>
+    <string name="leave_game_confirm">Leave game</string>
+    <string name="leave_game_keep_playing">Keep playing</string>
+
+    <!-- ── Checkmate banner ── -->
+    <string name="checkmate_banner">CHECKMATE!</string>
+    <string name="checkmate_winner">%1$s wins!</string>
+
+    <!-- ── Global invitation dialog ── -->
+    <string name="invitation_title_rematch">Rematch Challenge</string>
+    <string name="invitation_title_resume">Resume Game Request</string>
+    <string name="invitation_title_match">Match Request</string>
+    <string name="invitation_title_championship">Championship Game Request</string>
+    <string name="invitation_title_default">Game Invitation</string>
+    <string name="invitation_body_rematch">has challenged you to a rematch!</string>
+    <string name="invitation_body_resume">wants to resume the paused game!</string>
+    <string name="invitation_body_match">wants to play you!</string>
+    <string name="invitation_body_championship">wants to start your championship match!</string>
+    <string name="invitation_body_default">wants to play chess with you!</string>
+    <string name="invitation_wants_colour">Wants %1$s</string>
+    <string name="invitation_play_now">Play Now</string>
+    <string name="invitation_accept_and_play">Accept &amp; Play</string>
+
+    <!-- ── Presence status bar ── -->
+    <string name="presence_online_count">%1$d online</string>
+    <string name="presence_online">Online</string>
+    <string name="presence_offline">Offline</string>
+
+    <!-- ── Player info bar ── -->
+    <string name="player_rating_suffix">" (%1$d)"</string>
+
+    <!-- ── Leaderboard share copy; {name}/{value} are substituted in the ViewModel ── -->
+    <string-array name="leaderboard_share_most_games">
+        <item>{value} games strong! Can you match {name}\'s dedication on Chess99?</item>
+        <item>{name} has played {value} games on Chess99! That\'s commitment. Join the battle!</item>
+        <item>Legend alert: {name} with {value} games on Chess99. Think you can keep up?</item>
+    </string-array>
+    <string-array name="leaderboard_share_most_wins">
+        <item>Checkmate! {name} has {value} victories on Chess99. Challenge them!</item>
+        <item>{value} wins! {name} is dominating Chess99. Dare to take them on?</item>
+        <item>Victory machine: {name} with {value} wins on Chess99. Can you stop them?</item>
+    </string-array>
+    <string-array name="leaderboard_share_highest_points">
+        <item>{name} scored {value} points on Chess99! Can you beat that?</item>
+        <item>{value} points! {name} is a scoring machine on Chess99.</item>
+        <item>Point monster: {name} racked up {value} points. Join Chess99 and compete!</item>
+    </string-array>
+    <string-array name="leaderboard_share_by_rating">
+        <item>Rated {value}! {name} is a force on Chess99. Dare to challenge?</item>
+        <item>{name} hit a {value} rating on Chess99! Think you can climb higher?</item>
+        <item>Rating royalty: {name} at {value} on Chess99. The board awaits your challenge!</item>
+    </string-array>
+
+    <!-- ── Tactical trainer — stage catalogue ── -->
+    <string name="tactical_stage_0_title">Beginner Tactics</string>
+    <string name="tactical_stage_0_description">Master the fundamentals: forks, pins, back-rank mates, and skewers.</string>
+    <string name="tactical_stage_1_title">Tactical Sharpness</string>
+    <string name="tactical_stage_1_description">Stop missing multi-move tactics. Master double attacks, discovered checks, and removing the defender.</string>
+    <string name="tactical_stage_2_title">Calculation Depth</string>
+    <string name="tactical_stage_2_description">Calculate forcing lines clearly. Zwischenzug, deflection, sacrifices, and in-between moves.</string>
+    <string name="tactical_stage_3_title">Positional Tactics</string>
+    <string name="tactical_stage_3_description">See tactics arising from position — quiet moves, overloaded pieces, and zugzwang.</string>
+    <string name="tactical_stage_4_title">Master Calculation</string>
+    <string name="tactical_stage_4_description">Long forcing lines, defensive resources, and endgame precision at master level.</string>
+    <string name="tactical_theme_fork">Fork</string>
+    <string name="tactical_theme_pin">Pin</string>
+    <string name="tactical_theme_back_rank_mate">Back rank mate</string>
+    <string name="tactical_theme_skewer">Skewer</string>
+    <string name="tactical_theme_hanging_pieces">Hanging pieces</string>
+    <string name="tactical_theme_double_attacks">Double attacks</string>
+    <string name="tactical_theme_pins">Pins</string>
+    <string name="tactical_theme_discovered_attacks">Discovered attacks</string>
+    <string name="tactical_theme_removing_the_defender">Removing the defender</string>
+    <string name="tactical_theme_zwischenzug">Zwischenzug</string>
+    <string name="tactical_theme_deflection">Deflection</string>
+    <string name="tactical_theme_sacrifices">Sacrifices</string>
+    <string name="tactical_theme_forcing_variations">Forcing variations</string>
+    <string name="tactical_theme_quiet_moves">Quiet moves</string>
+    <string name="tactical_theme_overloaded_pieces">Overloaded pieces</string>
+    <string name="tactical_theme_trapped_pieces">Trapped pieces</string>
+    <string name="tactical_theme_zugzwang">Zugzwang</string>
+    <string name="tactical_theme_long_forcing_lines">Long forcing lines</string>
+    <string name="tactical_theme_defensive_resources">Defensive resources</string>
+    <string name="tactical_theme_endgame_tactics">Endgame tactics</string>
+    <string name="tactical_theme_quiet_killers">Quiet killers</string>
+
+    <!-- ── Tactical trainer — dashboard ── -->
+    <string name="tactical_trainer_title">Tactical Trainer</string>
+    <string name="tactical_stat_rating">Rating</string>
+    <string name="tactical_stat_solved">Solved</string>
+    <string name="tactical_stat_accuracy">Accuracy</string>
+    <string name="tactical_stat_streak">Streak</string>
+    <string name="tactical_overall_progress">Overall Progress</string>
+    <string name="tactical_puzzles_progress">%1$d / %2$d puzzles</string>
+    <string name="tactical_peak_and_streak">Peak rating: %1$d · Best streak: %2$d</string>
+    <string name="tactical_badges">Badges</string>
+    <string name="tactical_stages">Stages</string>
+    <string name="tactical_accuracy_short">%1$d%% acc</string>
+    <string name="tactical_not_started">Not started</string>
+    <string name="tactical_unlock_hint">Solve %1$d more to unlock %2$s</string>
+    <string name="tactical_unlock_previous">Solve %1$d puzzles in previous stage to unlock</string>
+    <string name="tactical_stage_complete">Stage Complete!</string>
+    <string name="tactical_completed_all">You\'ve completed all %1$d puzzles in</string>
+    <string name="tactical_stage_unlocked">%1$s %2$s is now unlocked!</string>
+    <string name="tactical_back_to_stages">Back to Stages</string>
+
+    <!-- ── Tactical trainer — puzzle screen ── -->
+    <string name="action_hint">Hint</string>
+    <string name="tactical_puzzle_index">Puzzle %1$d/%2$d</string>
+    <string name="tactical_puzzle_rating">Rating: %1$d</string>
+    <string name="tactical_correct">Correct!</string>
+    <string name="tactical_to_move">%1$s to move. Find the best continuation.</string>
+    <string name="tactical_hint_square">Hint: Try moving from %1$s</string>
+    <string name="tactical_incorrect">Incorrect. Try again!</string>
+    <string name="tactical_show_solution_title">Show the solution?</string>
+    <string name="tactical_show_solution_body">You\'ll get 0 points for this puzzle.</string>
+    <string name="tactical_show_solution_confirm">Show solution</string>
+    <string name="tactical_keep_trying">Keep trying</string>
+    <string name="tactical_score">Score: %1$d/100</string>
+    <string name="tactical_next_puzzle">Next Puzzle</string>
+    <string name="tactical_rating_delta">Rating %1$s</string>
+    <string name="tactical_solution_title">Solution</string>
+    <string name="tactical_solution_move">Move %1$d/%2$d</string>
+
+    <!-- ── Accessible move input and promotion dialog ── -->
+    <string name="board_accessible_input_open">Accessible move input</string>
+    <string name="board_accessible_input_close">Close accessible move input</string>
+    <string name="board_choose_piece">Choose one of your pieces</string>
+    <string name="board_piece_selected">%1$s on %2$s selected. Choose a legal destination.</string>
+    <string name="board_piece_at_square">%1$s %2$s</string>
+    <string name="board_move_to">Move to %1$s</string>
+    <string name="board_promotion_title">Choose promotion piece</string>
+    <string name="board_promotion_body">Promote the pawn to a queen, rook, bishop or knight.</string>
+    <string name="piece_queen">Queen</string>
+    <string name="piece_rook">Rook</string>
+    <string name="piece_bishop">Bishop</string>
+    <string name="piece_knight">Knight</string>
+    <string name="piece_spoken_pawn">pawn</string>
+    <string name="piece_spoken_knight">knight</string>
+    <string name="piece_spoken_bishop">bishop</string>
+    <string name="piece_spoken_rook">rook</string>
+    <string name="piece_spoken_queen">queen</string>
+    <string name="piece_spoken_king">king</string>
+    <string name="piece_spoken_unknown">piece</string>
+    <string name="board_piece_spoken_name">%1$s %2$s</string>
+
+    <!-- ── Daily puzzle screen ── -->
+    <string name="puzzle_title">Puzzles</string>
+    <string name="puzzle_none_available">No puzzles available</string>
+    <string name="puzzle_number">Puzzle #%1$d</string>
+    <string name="puzzle_difficulty_offline">%1$s · Offline</string>
+    <string name="puzzle_solved">Solved</string>
+    <string name="puzzle_streak">Streak</string>
+
+    <!-- ── CCT analysis panel ── -->
+    <string name="cct_panel_title">Analysis Panel</string>
+    <string name="cct_panel_subtitle">Checks, Captures &amp; Threats scanner</string>
+    <string name="cct_panel_inactive">Start a game to activate the learning panel.</string>
+    <string name="cct_rated_gate_title">Limited in Rated games</string>
+    <string name="cct_rated_gate_body">CCT counts are visible but move hints and best moves are disabled.</string>
+    <string name="cct_chip_cct">CCT</string>
+    <string name="cct_perspective_mine">My Moves</string>
+    <string name="cct_perspective_opponent">Their Threats</string>
+    <string name="cct_checks">Checks</string>
+    <string name="cct_captures">Captures</string>
+    <string name="cct_threats">Threats</string>
+    <string name="cct_mate">Mate</string>
+    <string name="cct_calculating">Calculating...</string>
+    <string name="cct_top_moves">Top 3 Moves</string>
+    <string name="cct_analysing">Analysing position...</string>
+    <string name="cct_no_moves">No moves found.</string>
+
+    <!-- ── Shared game result ── -->
+    <string name="shared_result_title">Game Result</string>
+    <string name="shared_result_load_failed">Could not load result</string>
+    <string name="shared_result_time_control">Time Control</string>
+    <string name="shared_result_total_moves">Total Moves</string>
+    <string name="shared_result_result">Result</string>
+    <string name="shared_result_rating_change">Rating Change</string>
+
+    <!-- ── Open-source licences ── -->
+    <string name="licences_title">Open-source licences</string>
+    <string name="licences_stockfish_heading">Stockfish 11</string>
+    <string name="licences_stockfish_body">Chess99 includes unmodified Stockfish 11 executables. Stockfish is free software licensed under GNU GPL version 3. The exact corresponding source is available at the link below.</string>
+    <string name="licences_view_source">View exact Stockfish source</string>
+
+    <!-- ── Rating change notification ── -->
+    <string name="rating_updated">Rating Updated</string>
+
+    <!-- ── Rating history ── -->
+    <string name="rating_history_title">Rating History</string>
+    <string name="rating_history_your_progress">Your Progress</string>
+    <string name="rating_history_empty">No rating history yet. Play some games!</string>
+    <string name="rating_history_recent_games">Recent Games</string>
+    <string name="rating_stat_current">Current</string>
+    <string name="rating_stat_peak">Peak</string>
+    <string name="rating_stat_record">Record</string>
+    <string name="rating_stat_avg_change">Avg Change</string>
+    <string name="rating_stat_streak">Streak</string>
+
+    <!-- ── Onboarding call to action ── -->
+    <string name="onboarding_get_started">Get started</string>
+    <string name="onboarding_have_account">I already have an account</string>
+    <string name="onboarding_try_as_guest">Try as guest</string>
+
+    <!-- ── Tutorial lesson screen ── -->
+    <string name="lesson_default_title">Lesson</string>
+    <string name="lesson_complete_title">Lesson Complete!</string>
+    <string name="lesson_back_to_lessons">Back to Lessons</string>
+    <string name="lesson_step_of">Step %1$d of %2$d</string>
+
+    <!-- ── Legal screen chrome ── -->
+    <string name="legal_last_updated">Last updated: %1$s</string>
+    <string name="legal_bullet">•  %1$s</string>
+
+    <!-- ── Companion controls ── -->
+    <string name="companion_choose_title">Choose a Companion</string>
+    <string name="companion_choose_subtitle">An AI will play moves on your behalf. Casual games only.</string>
+    <string name="companion_level">Lv%1$d</string>
+    <string name="companion_rating">Rating: %1$d</string>
+    <string name="companion_games_played">%1$d games</string>
+    <string name="companion_win_rate">Win: %1$d%%</string>
+    <string name="companion_summary">Lv%1$d • %2$d ELO • %3$s %4$s</string>
+    <string name="companion_game_not_active">Game not active</string>
+    <string name="companion_waiting_for_opponent">Waiting for opponent\'s turn...</string>
+    <string name="companion_play_one_move">Play One Move</string>
+    <string name="companion_stop">Stop</string>
+    <string name="companion_auto_play">Auto Play</string>
+    <string name="companion_release">Release Companion</string>
+
+    <!-- ── Tournament invitations ── -->
+    <string name="invitations_title">Tournament Invitations</string>
+    <string name="invitations_empty">No pending invitations</string>
+    <string name="invitations_format">Format: %1$s • %2$d players</string>
+    <string name="invitations_invited_by">Invited by %1$s</string>
+
+    <!-- ── My progress screen ── -->
+    <string name="progress_title">My Progress</string>
+
+    <!-- ── Public game replay ── -->
+    <string name="public_game_title">Game Replay</string>
+    <string name="public_game_not_found">Game Not Found</string>
+    <string name="public_game_move_counter">Move %1$d / %2$d</string>
+    <string name="public_game_flip_board">Flip board</string>
+    <string name="public_game_share_chooser">Share game replay</string>
+    <string name="public_game_share_text">%1$s vs %2$s on Chess99\n%3$s</string>
+    <string name="public_game_detail_date">Played</string>
+    <string name="public_game_detail_moves">Moves</string>
+    <string name="public_game_detail_end_reason">Ended by</string>
+    <string name="public_game_detail_opening">Opening</string>
+    <string name="public_game_detail_time_control">Time control</string>
+    <string name="public_game_cta_title">Play chess on Chess99</string>
+    <string name="public_game_cta_body">Challenge players worldwide or practise against the computer.</string>
+    <string name="public_game_cta_button">Start playing</string>
+
+    <!-- ── Board customizer ── -->
+    <string name="board_customizer_title">Board Theme</string>
+    <string name="a11y_selected">Selected</string>
+    <string name="a11y_premium">Premium</string>
+    <string name="board_theme_green">Green</string>
+    <string name="board_theme_brown">Brown</string>
+    <string name="board_theme_purple">Purple</string>
+    <string name="board_theme_red">Red</string>
+    <string name="board_theme_dark">Dark</string>
+    <string name="board_theme_ice">Ice</string>
+    <string name="board_theme_wood">Wood</string>
+
+    <!-- ── Progress charts ── -->
+    <string name="progress_range_week">7 days</string>
+    <string name="progress_range_month">30 days</string>
+    <string name="progress_range_all">All time</string>
+    <string name="progress_tap_to_retry">Tap to retry</string>
+    <string name="progress_empty">No games in this period yet. Play a few games and your progress will show up here!</string>
+    <string name="progress_rating_progression">Rating Progression</string>
+    <string name="progress_no_rating_changes">No rating changes in this period.</string>
+    <string name="progress_peak">Peak %1$d</string>
+    <string name="progress_games_per_day">Games Played Per Day</string>
+    <string name="progress_no_games">No games in this period.</string>
+    <string name="progress_legend_wins">Wins</string>
+    <string name="progress_legend_draws">Draws</string>
+    <string name="progress_legend_losses">Losses</string>
+
+    <!-- ── Failure copy subjects (see ErrorCopy.kt) ── -->
+    <string name="error_subject_a_new_code">a new code</string>
+    <string name="error_subject_accepting_the_invite">accepting the invite</string>
+    <string name="error_subject_companion_players">companion players</string>
+    <string name="error_subject_creating_the_organization">creating the organization</string>
+    <string name="error_subject_lessons">lessons</string>
+    <string name="error_subject_linking_this_child">linking this child</string>
+    <string name="error_subject_managing_this_child">managing this child</string>
+    <string name="error_subject_matchmaking">matchmaking</string>
+    <string name="error_subject_organizations">organizations</string>
+    <string name="error_subject_pausing_the_game">pausing the game</string>
+    <string name="error_subject_resuming_the_game">resuming the game</string>
+    <string name="error_subject_sending_the_invite">sending the invite</string>
+    <string name="error_subject_starting_the_game">starting the game</string>
+    <string name="error_subject_the_leaderboard">the leaderboard</string>
+    <string name="error_subject_the_lobby">the lobby</string>
+    <string name="error_subject_the_moves">the moves</string>
+    <string name="error_subject_the_puzzles">the puzzles</string>
+    <string name="error_subject_this_action">this action</string>
+    <string name="error_subject_this_game">this game</string>
+    <string name="error_subject_this_lesson">this lesson</string>
+    <string name="error_subject_this_module">this module</string>
+    <string name="error_subject_this_request">this request</string>
+    <string name="error_subject_this_shared_game">this shared game</string>
+    <string name="error_subject_today_s_challenge">today\'s challenge</string>
+    <string name="error_subject_tournament_details">tournament details</string>
+    <string name="error_subject_tournament_registration">tournament registration</string>
+    <string name="error_subject_tournaments">tournaments</string>
+    <string name="error_subject_your_application">your application</string>
+    <string name="error_subject_your_avatar">your avatar</string>
+    <string name="error_subject_your_dashboard">your dashboard</string>
+    <string name="error_subject_your_draw_offer">your draw offer</string>
+    <string name="error_subject_your_games">your games</string>
+    <string name="error_subject_your_profile">your profile</string>
+    <string name="error_subject_your_progress">your progress</string>
+    <string name="error_subject_your_purchases">your purchases</string>
+    <string name="error_subject_your_rating_history">your rating history</string>
+    <string name="error_subject_your_referral_stats">your referral stats</string>
+    <string name="error_subject_your_request">your request</string>
+    <string name="error_subject_your_stats">your stats</string>
+    <string name="error_subject_your_subscription">your subscription</string>
+
+    <!-- ── Failure copy (see ErrorCopy.kt) ── -->
+    <string name="error_offline">Couldn\'t reach Chess99. Check your connection and try again.</string>
+    <string name="error_generic">Couldn\'t load %1$s. Please try again.</string>
+    <string name="auth_error_login">That email or password doesn\'t match. Try again.</string>
+    <string name="auth_error_register">Please check your details and try again.</string>
+    <string name="auth_error_google">Google sign-in didn\'t work. Please try again.</string>
+    <string name="auth_error_facebook">Facebook sign-in didn\'t work. Please try again.</string>
+    <string name="auth_error_no_google_account">No Google account on this device. Add one in Settings, or sign up with an email address.</string>
+
+    <!-- ── Multiplayer game — ViewModel copy ── -->
+    <string name="mp_error_load_game">Failed to load game</string>
+    <string name="mp_error_send_move">Failed to send move. Please try again.</string>
+    <string name="mp_error_resign">Couldn\'t record your resignation. Please try again.</string>
+    <string name="mp_connection_hiccup">Connection hiccup — trying to reconnect.</string>
+    <string name="mp_connection_restored_takeback">Connection restored — ask for a takeback again if you still need it.</string>
+    <string name="mp_draw_offer_declined">Draw offer declined</string>
+    <string name="mp_undo_request_declined">Undo request declined</string>
+    <string name="mp_opponent_pinged">Your opponent wants you to move!</string>
+    <string name="mp_takeback_request_failed">Couldn\'t ask for a takeback. Please try again.</string>
+    <string name="mp_takeback_gone">That takeback request is no longer available.</string>
+    <string name="mp_takeback_expired">No response — takeback request expired.</string>
+    <string name="mp_takeback_resyncing">Game changed while the takeback was arriving. Re-syncing…</string>
+    <string name="mp_takeback_restore_failed">Couldn\'t restore the takeback position. Reopen the game.</string>
+    <string name="mp_best_no_chances">No help chances left — Best and takebacks share the same pool.</string>
+    <string name="mp_resume_request_sent">Resume request sent</string>
+    <string name="mp_resume_pending_mine">Your resume request is still pending. Waiting for your opponent.</string>
+    <string name="mp_resume_pending_theirs">Your opponent already asked to resume. Accept their request to continue.</string>
+    <string name="mp_resume_failed">Couldn\'t send the resume request. Please try again.</string>
+    <string name="mp_chat_filtered">Message was filtered before sending.</string>
+    <string name="mp_chat_send_failed">Message could not be sent. Please try again.</string>
+    <string name="mp_chat_reported">Message reported for review.</string>
+    <string name="mp_chat_report_failed">Report could not be sent. Please try again.</string>
+    <string name="mp_chat_blocked">Chat blocked with this player.</string>
+    <string name="mp_chat_block_failed">Player could not be blocked. Please try again.</string>
+    <string name="mp_companion_load_failed">Failed to load companions</string>
+    <string name="mp_companion_no_move">Companion could not find a move</string>
+    <string name="mp_companion_invalid_move">Companion move was invalid</string>
+    <string name="mp_companion_move_failed">Your companion couldn\'t make a move. Please try again.</string>
+    <string name="player_opponent">Opponent</string>
+    <string name="player_you">You</string>
+    <string name="player_generic">Player</string>
+    <string name="companion_default_name">Companion</string>
+    <string name="end_resign_opponent">Opponent resigned</string>
+    <string name="end_resign_you">You resigned</string>
+    <string name="end_timeout_opponent">Opponent ran out of time</string>
+    <string name="end_timeout_you">You ran out of time</string>
+    <string name="end_checkmate_win">Checkmate! You win!</string>
+    <string name="end_checkmate_loss">Checkmate! You lose.</string>
+    <string name="end_draw_stalemate">Draw by stalemate</string>
+    <string name="end_draw_agreement">Draw by agreement</string>
+    <string name="end_draw_repetition">Draw by repetition</string>
+    <string name="end_draw_insufficient">Draw by insufficient material</string>
+    <string name="end_draw_fifty_move">Draw by 50-move rule</string>
+
+    <!-- ── Skill assessment ── -->
+    <string name="skill_q_experience">How long have you been playing chess?</string>
+    <string name="skill_q_experience_desc">This helps us set your starting rating.</string>
+    <string-array name="skill_q_experience_options">
+        <item>I\'m new to chess</item>
+        <item>I know the rules but rarely play</item>
+        <item>I play regularly</item>
+        <item>I play competitively</item>
+    </string-array>
+    <string name="skill_q_tactics">Can you spot basic tactics?</string>
+    <string name="skill_q_tactics_desc">Forks, pins, and skewers.</string>
+    <string-array name="skill_q_tactics_options">
+        <item>Not sure what those are</item>
+        <item>I know them but miss them</item>
+        <item>I spot them often</item>
+        <item>I rarely miss them</item>
+    </string-array>
+    <string name="skill_q_openings">How familiar are you with openings?</string>
+    <string name="skill_q_openings_desc">Common opening sequences and principles.</string>
+    <string-array name="skill_q_openings_options">
+        <item>I don\'t know any openings</item>
+        <item>I know a few moves</item>
+        <item>I follow opening principles</item>
+        <item>I study openings regularly</item>
+    </string-array>
+    <string name="skill_q_endgame">How would you describe your endgame?</string>
+    <string name="skill_q_endgame_desc">King and pawn endgames, basic checkmates.</string>
+    <string-array name="skill_q_endgame_options">
+        <item>I struggle with endgames</item>
+        <item>I know basic checkmates</item>
+        <item>I\'m comfortable in endgames</item>
+        <item>Endgames are my strength</item>
+    </string-array>
+    <string name="skill_q_time">What\'s your experience with timed games?</string>
+    <string name="skill_q_time_desc">Playing under time pressure.</string>
+    <string-array name="skill_q_time_options">
+        <item>Never played timed</item>
+        <item>I\'ve tried but struggle</item>
+        <item>I\'m comfortable with time</item>
+        <item>I thrive under time pressure</item>
+    </string-array>
+    <string name="skill_level_beginner">Beginner</string>
+    <string name="skill_level_novice">Novice</string>
+    <string name="skill_level_intermediate">Intermediate</string>
+    <string name="skill_level_advanced">Advanced</string>
+    <string name="skill_level_expert">Expert</string>
+    <string name="skill_level_master">Master</string>
+    <string name="skill_assessment_complete">Assessment Complete!</string>
+    <string name="skill_estimated_rating">Your estimated rating: %1$d</string>
+    <string name="skill_level_label">Level: %1$s</string>
+    <string name="skill_question_of">Question %1$d of %2$d</string>
+
+    <!-- ── Play vs computer — ViewModel copy ── -->
+    <string name="pc_rated_needs_online">Rated play needs a named online opponent and a server connection. Choose an opponent and retry, or select Casual to play offline.</string>
+    <string name="pc_engine_move_failed">The computer couldn\'t make a move. Please try again.</string>
+    <string name="pc_best_move_unavailable_free">A best move isn\'t available right now. Your help chance was not used.</string>
+    <string name="pc_best_move_unavailable">A best move isn\'t available right now. Please try again.</string>
+    <string name="pc_opponent_computer">Computer</string>
+    <string name="end_checkmate_computer_wins">Checkmate! Computer wins.</string>
+    <string name="end_draw_threefold">Draw by threefold repetition</string>
+    <string name="end_game_over">Game over</string>
+    <string name="end_timeout_computer">Computer ran out of time</string>
+
+    <!-- ── Lobby — ViewModel copy ── -->
+    <string name="lobby_join_queue_failed">Failed to join queue</string>
+    <string name="lobby_no_opponents">No opponents found. Try again later.</string>
+    <string name="lobby_start_game_failed">Couldn\'t start that game. Please try again.</string>
+    <string name="lobby_challenge_sent">Challenge sent!</string>
+    <string name="lobby_challenge_failed">Failed to send challenge</string>
+    <string name="lobby_friend_request_sent">Friend request sent!</string>
+    <string name="lobby_friend_request_accepted">Friend request accepted!</string>
+    <string name="lobby_friend_accept_failed">Couldn\'t accept this request. Please try again.</string>
+    <string name="lobby_friend_decline_failed">Couldn\'t decline this request. Please try again.</string>
+    <string name="lobby_friend_removed">Friend removed</string>
+    <string name="lobby_friend_remove_failed">Couldn\'t remove this friend. Please try again.</string>
+    <string name="player_unknown">Unknown</string>
+
+    <!-- ── My Kids — ViewModel copy ── -->
+    <string name="kids_invite_sent">Invitation sent. Your child confirms it from their own account.</string>
+    <string name="kids_invite_no_account">No Chess99 child account was found for that email.</string>
+    <string name="kids_invite_failed">Could not send the invitation.</string>
+    <string name="kids_link_accepted">Guardian link accepted.</string>
+    <string name="kids_link_accept_failed">Could not accept the link.</string>
+    <string name="kids_link_remove_failed">Could not remove the link.</string>
+    <string name="kids_report_emailed">Weekly report card emailed.</string>
+    <string name="kids_report_failed">Could not send the report email.</string>
+    <string name="kids_account_updated">Account updated.</string>
+    <string name="kids_account_invalid">Please check the details and try again.</string>
+    <string name="kids_account_update_failed">Could not update the account.</string>
+    <string name="kids_guardian_fallback">A guardian</string>
+    <string name="kids_child_fallback">Child</string>
+
+    <!-- ── Home — ViewModel copy ── -->
+    <string name="home_discard_failed">Couldn\'t discard that game. Please try again.</string>
+    <string name="home_start_game_failed">Couldn\'t start that game. Please try again.</string>
+
+    <!-- ── Organizations — ViewModel copy ── -->
+    <string name="org_load_failed">Failed to load organizations</string>
+    <string name="org_created">Organization created.</string>
+    <string name="org_create_invalid">Please check the name and email.</string>
+    <string name="org_create_forbidden">You don\'t have permission to create organizations.</string>
+    <string name="org_create_failed">Failed to create organization.</string>
+    <string name="org_invite_sent">Invitation sent to %1$s.</string>
+    <string name="org_invite_forbidden">Only organization admins can invite members.</string>
+    <string name="org_invite_invalid">Please enter a valid email.</string>
+    <string name="org_invite_failed">Failed to send invitation.</string>
+    <string name="org_member_fallback">Member</string>
+
+    <!-- ── Push notifications ── -->
+    <string name="notif_channel_game">Game Notifications</string>
+    <string name="notif_channel_game_desc">Notifications for game moves, invitations, and results</string>
+    <string name="notif_channel_tournament">Tournament Notifications</string>
+    <string name="notif_channel_tournament_desc">Notifications for tournament updates, round pairings, and results</string>
+    <string name="notif_channel_social">Social Notifications</string>
+    <string name="notif_channel_social_desc">Notifications for friend requests and social events</string>
+    <string name="notif_channel_system">System Notifications</string>
+    <string name="notif_channel_system_desc">System maintenance and informational messages</string>
+    <string name="notif_your_turn_title">Your turn!</string>
+    <string name="notif_opponent_moved_title">Opponent moved</string>
+    <string name="notif_your_turn_body">%1$s made a move. It\'s your turn to play.</string>
+    <string name="notif_opponent_moved_body">You made a move against %1$s.</string>
+    <string name="notif_challenge_title">Game Challenge</string>
+    <string name="notif_challenge_body">%1$s has challenged you to a game!</string>
+
+    <!-- ── Detailed statistics sheet ── -->
+    <string name="stats_detailed_title">Detailed Statistics</string>
+    <string name="stats_section_games">Games</string>
+    <string name="stats_total_games">Total Games</string>
+    <string name="stats_wins">Wins</string>
+    <string name="stats_losses">Losses</string>
+    <string name="stats_draws">Draws</string>
+    <string name="stats_win_rate">Win Rate</string>
+    <string name="stats_percent">%1$s%%</string>
+    <string name="stats_section_streaks">Streaks</string>
+    <string name="stats_current_streak">Current Streak</string>
+    <string name="stats_best_streak">Best Streak</string>
+    <string name="stats_section_rating">Rating</string>
+    <string name="stats_rating_current">Current</string>
+    <string name="stats_rating_peak">Peak</string>
+
+    <!-- ── Chat safety ── -->
+    <string name="chat_disabled_account">Chat is disabled for this account.</string>
+    <string name="chat_disabled_organization">Chat is disabled by your organization.</string>
+    <string name="chat_disabled_blocked">Chat is blocked between these players.</string>
+    <string name="chat_disabled_generic">Chat is unavailable.</string>
+
+    <!-- ── Share sheet copy ── -->
+    <string name="share_result_win">%1$s won</string>
+    <string name="share_result_draw">Draw</string>
+    <string name="share_result_draw_sentence">It was a draw</string>
+    <string name="share_text_header">Chess99 Game Result</string>
+    <string name="share_text_players">%1$s vs %2$s</string>
+    <string name="share_text_result">Result: %1$s</string>
+    <string name="share_text_rating">Rating: %1$s</string>
+    <string name="share_text_moves">Moves: %1$d | Time: %2$s</string>
+    <string name="share_subject_game_result">Chess99 - Game Result</string>
+    <string name="share_chooser_game_result">Share game result</string>
+    <string name="share_clip_label">Chess99 Game Link</string>
+    <string name="share_link_copied">Game link copied!</string>
+    <string name="share_invite_body">Join me on Chess99 - the best way to play chess online!</string>
+    <string name="share_invite_subject">Join Chess99!</string>
+    <string name="share_chooser_invite">Invite a friend</string>
+    <string name="share_screenshot_text">Check out my game on Chess99!\n%1$s</string>
+    <string name="share_chooser_screenshot">Share game screenshot</string>
+    <string name="share_screenshot_failed">Failed to share screenshot</string>
+    <string name="share_chooser_your_game">Share your game</string>
+    <string name="share_failed">Couldn\'t share right now. Please try again.</string>
+    <string name="share_caption">%1$s on Chess99! %2$s vs %3$s\n%4$s</string>
+    <string name="share_subject_pgn">Chess99 Game #%1$d</string>
+    <string name="share_subject_pgn_text">Chess99 Game #%1$d PGN</string>
+    <string name="share_chooser_pgn">Share PGN</string>
+
+    <!-- ── Tournament detail — ViewModel copy ── -->
+    <string name="champ_load_failed_code">Failed to load tournament (%1$d)</string>
+    <string name="champ_game_created_not_opened">Game created but could not open it. Pull to refresh.</string>
+    <string name="champ_match_not_ready">Match not ready to play yet.</string>
+    <string name="champ_not_a_player">You are not a player in this match.</string>
+    <string name="champ_start_failed_code">Couldn\'t start the game (%1$d).</string>
+    <string name="champ_action_done">Done.</string>
+    <string name="champ_manage_forbidden">You don\'t have permission to manage this tournament.</string>
+    <string name="champ_action_not_allowed">Action not allowed in the current tournament state.</string>
+    <string name="champ_action_failed_code">Action failed (%1$d).</string>
+
+    <!-- ── Tournament list — ViewModel copy ── -->
+    <string name="champ_list_load_failed_code">Failed to load tournaments (%1$d)</string>
+    <string name="champ_registered">Successfully registered!</string>
+    <string name="champ_registration_failed_code">Registration failed (%1$d)</string>
+    <string name="champ_created">Tournament created!</string>
+    <string name="champ_create_failed_code">Failed to create tournament (%1$d)</string>
+
+    <!-- ── Tournament invitations — ViewModel copy ── -->
+    <string name="champ_invite_accepted">Invitation accepted!</string>
+    <string name="champ_invite_declined">Invitation declined.</string>
+
+    <!-- ── Profile — ViewModel copy ── -->
+    <string name="profile_load_failed">Failed to load profile</string>
+    <string name="profile_stats_failed">Couldn\'t load your stats.</string>
+    <string name="profile_updated">Profile updated</string>
+    <string name="profile_save_failed">Failed to save profile</string>
+    <string name="profile_file_read_failed">Could not read file</string>
+    <string name="profile_avatar_updated">Avatar updated</string>
+    <string name="profile_avatar_upload_failed">Upload failed</string>
+    <string name="profile_avatar_set_failed">Failed to set avatar</string>
+
+    <!-- ── Referral — ViewModel copy ── -->
+    <string name="referral_stats_failed">Couldn\'t load your referral stats.</string>
+    <string name="referral_payout_bank_transfer">Bank Transfer</string>
+    <string name="referral_application_submitted">Application submitted. We\'ll review and get back to you.</string>
+    <string name="referral_application_invalid">Please check your details and try again.</string>
+    <string name="referral_application_duplicate">You\'ve already applied.</string>
+    <string name="referral_application_failed">Failed to submit application.</string>
+    <string name="referral_code_generated">New referral code generated!</string>
+    <string name="referral_code_failed">Failed to generate code.</string>
+
+    <!-- ── Tutorial lesson — ViewModel copy ── -->
+    <string name="lesson_load_failed">Couldn\'t load this lesson. Pull to retry.</string>
+    <string name="lesson_feedback_wrong">Not quite. Try again!</string>
+    <string name="lesson_feedback_invalid">Invalid move</string>
+    <string name="lesson_feedback_correct">Correct!</string>
+    <string name="lesson_feedback_complete">Lesson complete!</string>
+    <string name="lesson_complete_xp">+%1$d XP earned</string>
+    <string name="lesson_save_failed">Couldn\'t save your progress to your account.</string>
+    <string name="action_retry_save">Retry saving</string>
+
+    <!-- ── Game history — ViewModel copy ── -->
+    <string name="history_load_failed">Couldn\'t load your games. Please try again.</string>
+    <string name="history_load_game_failed_code">Failed to load game (%1$d)</string>
+    <string name="history_load_moves_failed">Failed to load moves</string>
+    <string name="history_no_moves_loaded">No moves loaded for analysis</string>
+    <string name="history_no_moves_to_analyze">No moves to analyze</string>
+    <string name="history_analysis_failed">We couldn\'t finish analyzing this game. Please try again.</string>
+
+    <!-- ── Game detail — ViewModel copy ── -->
+    <string name="detail_load_failed">Failed to load game</string>
+    <string name="detail_empty_response">Empty response</string>
+    <string name="player_white">White</string>
+    <string name="player_black">Black</string>
+
+    <!-- ── Payments — ViewModel copy ── -->
+    <string name="payment_tier_free">Free</string>
+    <string name="payment_plan_check_failed">Couldn\'t check your plan — you\'re on the Free plan for now.</string>
+    <string name="payment_cancelled">Subscription cancelled. It remains active until the end of the billing period.</string>
+    <string name="payment_cancel_failed">Failed to cancel subscription.</string>
+    <string name="payment_restored">Purchases restored successfully.</string>
+    <string name="payment_nothing_to_restore">No purchases found to restore.</string>
+
+    <!-- ── Dashboard — ViewModel copy ── -->
+    <string name="dashboard_load_failed">Couldn\'t load your dashboard. Please try again.</string>
+    <string name="dashboard_stats_failed">Couldn\'t load your stats.</string>
+
+    <!-- ── Public game viewer — ViewModel copy ── -->
+    <string name="public_game_not_shared">Game not found or not publicly shared.</string>
+    <string name="public_game_empty_response">Empty response</string>
+
+    <!-- ── Learn — ViewModel copy ── -->
+    <string name="learn_lessons_failed">Couldn\'t load lessons. Pull to retry.</string>
+    <string name="learn_daily_challenge_default">Daily Challenge</string>
+    <string name="learn_module_failed">Couldn\'t load this module. Pull to retry.</string>
+    <string name="learn_lesson_completed">Lesson completed!</string>
+
+    <!-- ── Puzzles — ViewModel copy ── -->
+    <string name="puzzle_instruction_default">Find the best move</string>
+    <string name="puzzle_difficulty_medium">Medium</string>
+    <string name="puzzle_hint_from_square">Try moving from %1$s</string>
+
+    <!-- ── Shared result — ViewModel copy ── -->
+    <string name="shared_result_game_over">Game Over</string>
+    <string name="shared_result_not_found">Result not found</string>
+
+    <!-- ── Rating history — ViewModel copy ── -->
+    <string name="rating_history_load_failed">Failed to load</string>
+    <string name="rating_history_computer_level">Computer Lv %1$s</string>
+
+    <!-- ── Reset / forgot password — ViewModel copy ── -->
+    <string name="auth_passwords_mismatch">Passwords do not match.</string>
+    <string name="auth_password_too_short">Password must be at least 8 characters.</string>
+    <string name="auth_generic_failure">Something went wrong. Please try again.</string>
+
+    <!-- ── Forgot password — ViewModel copy ── -->
+    <string name="auth_invalid_email">Please enter a valid email address.</string>
+
+    <!-- ── Daily challenges — ViewModel copy ── -->
+    <string name="daily_challenge_description">Solve today\'s %1$s to keep your streak alive.</string>
+
+    <!-- ── Leaderboard — ViewModel copy ── -->
+    <string name="leaderboard_load_failed_code">Failed to load leaderboard (%1$d)</string>
+
+    <!-- ── User progress — ViewModel copy ── -->
+    <string name="progress_load_failed">We couldn\'t load your progress. Please try again.</string>
+
+    <!-- ── Push message handling ── -->
+    <string name="notif_someone">Someone</string>
+    <string name="notif_tournament_title">Tournament Update</string>
+    <string name="notif_tournament_body">Check your tournament for updates.</string>
+
+    <!-- ── Bottom navigation ── -->
+    <string name="nav_play">Play</string>
+    <string name="nav_learn">Learn</string>
+    <string name="nav_compete">Compete</string>
+    <string name="nav_you">You</string>
+
+    <!-- ── Companion difficulty labels ── -->
+    <string name="companion_difficulty_beginner">Beginner Friendly</string>
+    <string name="companion_difficulty_intermediate">Intermediate</string>
+    <string name="companion_difficulty_advanced">Advanced</string>
+
+    <!-- ── Piece names and engine failure copy ── -->
+    <string name="piece_pawn">Pawn</string>
+    <string name="piece_king">King</string>
+    <string name="piece_unknown">?</string>
+    <string name="engine_unavailable_message">The chess engine couldn\'t start on this device.</string>
+    <string name="engine_unavailable_action">Try a puzzle instead</string>
+
+    <!-- ── Legacy notification channels (Application) ── -->
+    <string name="notif_channel_tournament_legacy_desc">Notifications for tournament updates and reminders</string>
+
+    <!-- ── CCT panel ── -->
+    <string name="cct_none">None</string>
+    <string name="cct_capture_chip">×%1$s</string>
+    <string name="cct_threat_chip">→ %1$s</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.chess99.presentation.game
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.MatchmakingApi
@@ -59,7 +60,7 @@ class PlayMultiplayerLeaveTest {
         gameApi = mockk(relaxed = true)
         coEvery { gameApi.getGameMoves(42) } returns jsonResponse("""{"moves":[]}""")
         coEvery { gameApi.completeGame(42, any()) } returns jsonResponse("{}")
-        coEvery { gameApi.pauseNavigation(any()) } returns jsonResponse("{}")
+        coEvery { gameApi.pauseNavigation(any(), any()) } returns jsonResponse("{}")
     }
 
     @After
@@ -84,7 +85,13 @@ class PlayMultiplayerLeaveTest {
         scheduler.runCurrent()
 
         assertEquals(1, left)
-        coVerify(exactly = 1) { gameApi.pauseNavigation(42) }
+        coVerify(exactly = 1) {
+            gameApi.pauseNavigation(42, match {
+                it.get("white_time_remaining_ms").asLong == 600_000L &&
+                    it.get("black_time_remaining_ms").asLong == 600_000L &&
+                    it.get("paused_reason").asString == "navigation"
+            })
+        }
         coVerify(exactly = 0) { gameApi.completeGame(any(), any()) }
         coVerify(exactly = 0) { socketService.resignGame() }
         coVerify(exactly = 0) { socketService.pauseGame(any(), any()) }
@@ -111,20 +118,20 @@ class PlayMultiplayerLeaveTest {
         rated.leaveGame {}
         scheduler.runCurrent()
         coVerify(exactly = 1) { socketService.resignGame() }
-        coVerify(exactly = 0) { gameApi.pauseNavigation(any()) }
+        coVerify(exactly = 0) { gameApi.pauseNavigation(any(), any()) }
         coVerify(exactly = 0) { socketService.pauseGame(any(), any()) }
 
         val casual = createViewModel(gameMode = "casual", bot = false)
         casual.leaveGame {}
         scheduler.runCurrent()
-        coVerify(exactly = 1) { gameApi.pauseNavigation(42) }
+        coVerify(exactly = 1) { gameApi.pauseNavigation(42, any()) }
         coVerify(exactly = 0) { socketService.pauseGame(any(), any()) }
         coVerify(exactly = 1) { socketService.resignGame() }
     }
 
     @Test
     fun `a slow pause-navigation does not delay Leave`() {
-        coEvery { gameApi.pauseNavigation(42) } coAnswers {
+        coEvery { gameApi.pauseNavigation(42, any()) } coAnswers {
             delay(60_000)
             jsonResponse("{}")
         }
@@ -137,7 +144,7 @@ class PlayMultiplayerLeaveTest {
         // The pause request was started but Leave did not wait for it: even
         // advancing no virtual time past the request, navigation already ran.
         assertEquals(1, left)
-        coVerify(atLeast = 1) { gameApi.pauseNavigation(42) }
+        coVerify(atLeast = 1) { gameApi.pauseNavigation(42, any()) }
     }
 
     @Test
@@ -202,6 +209,7 @@ class PlayMultiplayerLeaveTest {
             featureFlagManager = flags,
             stockfishEngine = mockk<StockfishEngine>(relaxed = true),
             shareManager = mockk<ShareManager>(relaxed = true),
+            context = mockk<Context>(relaxed = true),
         )
         scheduler.runCurrent()
         assertEquals(MultiplayerPhase.PLAYING, viewModel.uiState.value.gamePhase)

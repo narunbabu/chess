@@ -5,8 +5,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,11 +14,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 /**
  * Learn screen with Tutorial Hub and Training tabs.
@@ -58,15 +60,15 @@ fun LearnScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Learn") },
+                title = { Text(stringResource(R.string.learn_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, "Refresh")
+                        Icon(Icons.Default.Refresh, stringResource(R.string.a11y_refresh))
                     }
                 },
             )
@@ -85,13 +87,13 @@ fun LearnScreen(
                 Tab(
                     selected = state.selectedTab == LearnTab.TUTORIALS,
                     onClick = { viewModel.selectTab(LearnTab.TUTORIALS) },
-                    text = { Text("Tutorials") },
+                    text = { Text(stringResource(R.string.learn_tab_tutorials)) },
                     icon = { Icon(Icons.Default.School, null, modifier = Modifier.size(18.dp)) },
                 )
                 Tab(
                     selected = state.selectedTab == LearnTab.TRAINING,
                     onClick = { viewModel.selectTab(LearnTab.TRAINING) },
-                    text = { Text("Training") },
+                    text = { Text(stringResource(R.string.learn_tab_training)) },
                     icon = { Icon(Icons.Default.FitnessCenter, null, modifier = Modifier.size(18.dp)) },
                 )
             }
@@ -127,7 +129,7 @@ fun LearnScreen(
         state.error?.let { error ->
             AlertDialog(
                 onDismissRequest = { viewModel.clearError() },
-                title = { Text("Couldn't load") },
+                title = { Text(stringResource(R.string.learn_load_failed)) },
                 text = { Text(error) },
                 confirmButton = {
                     TextButton(
@@ -139,10 +141,12 @@ fun LearnScreen(
                                 viewModel.refresh()
                             }
                         },
-                    ) { Text("Retry") }
+                    ) { Text(stringResource(R.string.action_retry)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { viewModel.clearError() }) { Text("Dismiss") }
+                    TextButton(onClick = { viewModel.clearError() }) {
+                        Text(stringResource(R.string.learn_dismiss))
+                    }
                 },
             )
         }
@@ -170,8 +174,12 @@ private fun StatsCard(stats: TutorialStats, streak: Int) {
         ) {
             // Completed lessons
             StatItem(
-                value = "${stats.completedLessons}/${stats.totalLessons}",
-                label = "Lessons",
+                value = stringResource(
+                    R.string.learn_stat_lessons_value,
+                    stats.completedLessons,
+                    stats.totalLessons,
+                ),
+                label = stringResource(R.string.learn_stat_lessons),
                 icon = Icons.Default.CheckCircle,
             )
 
@@ -183,7 +191,7 @@ private fun StatsCard(stats: TutorialStats, streak: Int) {
             // XP
             StatItem(
                 value = "${stats.xp}",
-                label = "XP",
+                label = stringResource(R.string.learn_stat_xp),
                 icon = Icons.Default.Star,
             )
 
@@ -194,8 +202,8 @@ private fun StatsCard(stats: TutorialStats, streak: Int) {
 
             // Level
             StatItem(
-                value = "Lv ${stats.level}",
-                label = "Level",
+                value = stringResource(R.string.learn_stat_level_value, stats.level),
+                label = stringResource(R.string.learn_stat_level),
                 icon = Icons.Default.MilitaryTech,
             )
 
@@ -206,7 +214,7 @@ private fun StatsCard(stats: TutorialStats, streak: Int) {
                 )
                 StatItem(
                     value = "$streak",
-                    label = "Streak",
+                    label = stringResource(R.string.learn_stat_streak),
                     icon = Icons.Default.LocalFireDepartment,
                 )
             }
@@ -260,7 +268,7 @@ private fun TutorialsTab(
         if (beginnerModules.isNotEmpty()) {
             item {
                 TierHeader(
-                    tier = "Beginner",
+                    tier = stringResource(R.string.learn_tier_beginner),
                     color = Color(0xFF4CAF50),
                     icon = Icons.Default.EmojiPeople,
                 )
@@ -275,7 +283,7 @@ private fun TutorialsTab(
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 TierHeader(
-                    tier = "Intermediate",
+                    tier = stringResource(R.string.learn_tier_intermediate),
                     color = Color(0xFFFFA726),
                     icon = Icons.AutoMirrored.Filled.TrendingUp,
                 )
@@ -290,7 +298,7 @@ private fun TutorialsTab(
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 TierHeader(
-                    tier = "Advanced",
+                    tier = stringResource(R.string.learn_tier_advanced),
                     color = Color(0xFFEF5350),
                     icon = Icons.Default.Whatshot,
                 )
@@ -318,7 +326,7 @@ private fun TutorialsTab(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            "No tutorials available yet",
+                            stringResource(R.string.learn_no_tutorials),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -406,7 +414,7 @@ private fun ModuleCard(
                 if (module.isComplete) {
                     Icon(
                         Icons.Default.CheckCircle,
-                        "Completed",
+                        stringResource(R.string.a11y_completed),
                         tint = Color(0xFF4CAF50),
                         modifier = Modifier.size(24.dp),
                     )
@@ -431,7 +439,11 @@ private fun ModuleCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    "${module.completedLessons}/${module.lessonsCount}",
+                    stringResource(
+                        R.string.learn_module_progress,
+                        module.completedLessons,
+                        module.lessonsCount,
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -457,7 +469,7 @@ private fun TrainingTab(
         // Daily challenge card
         item {
             Text(
-                "Daily Challenge",
+                stringResource(R.string.learn_daily_challenge),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
@@ -474,7 +486,7 @@ private fun TrainingTab(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            "No daily challenge available",
+                            stringResource(R.string.learn_no_daily_challenge),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -486,7 +498,7 @@ private fun TrainingTab(
         item {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                "Achievements",
+                stringResource(R.string.learn_achievements),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
@@ -502,7 +514,7 @@ private fun TrainingTab(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            "Complete lessons and solve puzzles to earn achievements",
+                            stringResource(R.string.learn_no_achievements),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -518,7 +530,7 @@ private fun TrainingTab(
         item {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                "Practice",
+                stringResource(R.string.learn_practice),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
@@ -536,8 +548,8 @@ private fun TrainingTab(
         // post-v1 content project, not a bug fix.
         item {
             PracticeCard(
-                title = "Tactics Trainer",
-                description = "Staged puzzles from beginner to master with progression tracking",
+                title = stringResource(R.string.learn_tactics_trainer),
+                description = stringResource(R.string.learn_tactics_trainer_body),
                 icon = Icons.AutoMirrored.Filled.TrendingUp,
                 onClick = onNavigateToTacticalTrainer,
             )
@@ -608,7 +620,12 @@ private fun DailyChallengeCard(challenge: DailyChallenge) {
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Text(
-                        challenge.difficulty.replaceFirstChar { it.uppercase() },
+                        when (challenge.difficulty) {
+                            "easy" -> stringResource(R.string.learn_difficulty_easy)
+                            "medium" -> stringResource(R.string.learn_difficulty_medium)
+                            "hard" -> stringResource(R.string.learn_difficulty_hard)
+                            else -> challenge.difficulty.replaceFirstChar { it.uppercase() }
+                        },
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = difficultyColor,
@@ -626,7 +643,7 @@ private fun DailyChallengeCard(challenge: DailyChallenge) {
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        "+${challenge.xpReward} XP",
+                        stringResource(R.string.learn_xp_reward, challenge.xpReward),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -639,7 +656,7 @@ private fun DailyChallengeCard(challenge: DailyChallenge) {
                     Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        "Completed",
+                        stringResource(R.string.learn_completed),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF4CAF50),
                         fontWeight = FontWeight.Medium,
@@ -783,7 +800,7 @@ private fun ModuleDetailSheet(
                 .padding(bottom = 32.dp),
         ) {
             Text(
-                "Lessons",
+                stringResource(R.string.learn_lessons),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 16.dp),
@@ -806,7 +823,7 @@ private fun ModuleDetailSheet(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        "No lessons in this module yet",
+                        stringResource(R.string.learn_no_lessons),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -842,14 +859,14 @@ private fun LessonRow(
             if (lesson.isCompleted) {
                 Icon(
                     Icons.Default.CheckCircle,
-                    "Completed",
+                    stringResource(R.string.a11y_completed),
                     tint = Color(0xFF4CAF50),
                     modifier = Modifier.size(24.dp),
                 )
             } else {
                 Icon(
                     Icons.Default.RadioButtonUnchecked,
-                    "Not completed",
+                    stringResource(R.string.a11y_not_completed),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp),
                 )

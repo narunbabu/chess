@@ -16,18 +16,19 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.core.graphics.createBitmap
 import androidx.core.net.toUri
+import com.chess99.R
 import com.chess99.data.api.SocialApi
 import com.google.gson.JsonObject
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
-import timber.log.Timber
 import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 /**
  * Singleton manager for sharing game results across platforms.
@@ -61,11 +62,11 @@ class ShareManager @Inject constructor(
 
     // ── Share Text Formatting ───────────────────────────────────────────
 
-    private fun formatShareText(game: ShareableGame): String {
+    private fun formatShareText(context: Context, game: ShareableGame): String {
         val resultText = when (game.result) {
-            "white" -> "${game.whitePlayer} won"
-            "black" -> "${game.blackPlayer} won"
-            "draw" -> "Draw"
+            "white" -> context.getString(R.string.share_result_win, game.whitePlayer)
+            "black" -> context.getString(R.string.share_result_win, game.blackPlayer)
+            "draw" -> context.getString(R.string.share_result_draw)
             else -> game.result
         }
 
@@ -76,11 +77,17 @@ class ShareManager @Inject constructor(
         }
 
         return buildString {
-            appendLine("Chess99 Game Result")
-            appendLine("${game.whitePlayer} vs ${game.blackPlayer}")
-            appendLine("Result: $resultText")
-            appendLine("Rating: $ratingText")
-            appendLine("Moves: ${game.totalMoves} | Time: ${game.timeControl.replace("|", "+")}")
+            appendLine(context.getString(R.string.share_text_header))
+            appendLine(context.getString(R.string.share_text_players, game.whitePlayer, game.blackPlayer))
+            appendLine(context.getString(R.string.share_text_result, resultText))
+            appendLine(context.getString(R.string.share_text_rating, ratingText))
+            appendLine(
+                context.getString(
+                    R.string.share_text_moves,
+                    game.totalMoves,
+                    game.timeControl.replace("|", "+"),
+                ),
+            )
             appendLine()
             appendLine("$BASE_URL/game/${game.gameId}")
         }
@@ -89,13 +96,13 @@ class ShareManager @Inject constructor(
     // ── General Share Sheet ─────────────────────────────────────────────
 
     fun shareGameResult(context: Context, game: ShareableGame) {
-        val shareText = formatShareText(game)
+        val shareText = formatShareText(context, game)
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "Chess99 - Game Result")
+            putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.share_subject_game_result))
             putExtra(Intent.EXTRA_TEXT, shareText)
         }
-        val chooser = Intent.createChooser(intent, "Share game result")
+        val chooser = Intent.createChooser(intent, context.getString(R.string.share_chooser_game_result))
         chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(chooser)
         trackShare(game.gameId, "other")
@@ -104,7 +111,7 @@ class ShareManager @Inject constructor(
     // ── WhatsApp Share ──────────────────────────────────────────────────
 
     fun shareToWhatsApp(context: Context, game: ShareableGame) {
-        val shareText = formatShareText(game)
+        val shareText = formatShareText(context, game)
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             `package` = "com.whatsapp"
@@ -125,9 +132,9 @@ class ShareManager @Inject constructor(
 
     fun shareToTwitter(context: Context, game: ShareableGame) {
         val resultText = when (game.result) {
-            "white" -> "${game.whitePlayer} won"
-            "black" -> "${game.blackPlayer} won"
-            "draw" -> "Draw"
+            "white" -> context.getString(R.string.share_result_win, game.whitePlayer)
+            "black" -> context.getString(R.string.share_result_win, game.blackPlayer)
+            "draw" -> context.getString(R.string.share_result_draw)
             else -> game.result
         }
 
@@ -208,9 +215,9 @@ class ShareManager @Inject constructor(
     fun copyGameLink(context: Context, gameId: Int) {
         val link = "$BASE_URL/game/$gameId"
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("Chess99 Game Link", link)
+        val clip = ClipData.newPlainText(context.getString(R.string.share_clip_label), link)
         clipboard.setPrimaryClip(clip)
-        Toast.makeText(context, "Game link copied!", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, R.string.share_link_copied, Toast.LENGTH_SHORT).show()
         trackShare(gameId, "copy")
     }
 
@@ -218,17 +225,17 @@ class ShareManager @Inject constructor(
 
     fun shareInviteLink(context: Context, userId: Int) {
         val inviteText = buildString {
-            appendLine("Join me on Chess99 - the best way to play chess online!")
+            appendLine(context.getString(R.string.share_invite_body))
             appendLine()
             appendLine("$BASE_URL/invite/$userId")
         }
 
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "Join Chess99!")
+            putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.share_invite_subject))
             putExtra(Intent.EXTRA_TEXT, inviteText)
         }
-        val chooser = Intent.createChooser(intent, "Invite a friend")
+        val chooser = Intent.createChooser(intent, context.getString(R.string.share_chooser_invite))
         chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(chooser)
     }
@@ -266,17 +273,20 @@ class ShareManager @Inject constructor(
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "image/png"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_TEXT, "Check out my game on Chess99!\n$BASE_URL/game/$gameId")
+                putExtra(
+                    Intent.EXTRA_TEXT,
+                    context.getString(R.string.share_screenshot_text, "$BASE_URL/game/$gameId"),
+                )
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            val chooser = Intent.createChooser(intent, "Share game screenshot")
+            val chooser = Intent.createChooser(intent, context.getString(R.string.share_chooser_screenshot))
             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(chooser)
 
             trackShare(gameId, "screenshot")
         } catch (e: Exception) {
             Timber.e(e, "Failed to capture and share screenshot")
-            Toast.makeText(context, "Failed to share screenshot", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, R.string.share_screenshot_failed, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -298,7 +308,7 @@ class ShareManager @Inject constructor(
      * Activity window (e.g. Compose's LocalView.current).
      */
     suspend fun captureAndShare(view: View, context: Context, game: ShareableGame) {
-        val caption = shareCaption(game)
+        val caption = shareCaption(context, game)
         try {
             val window = (view.context as? Activity)?.window
                 ?: (context as? Activity)?.window
@@ -329,11 +339,11 @@ class ShareManager @Inject constructor(
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "image/png"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, "Chess99 - Game Result")
+                putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.share_subject_game_result))
                 putExtra(Intent.EXTRA_TEXT, caption)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            val chooser = Intent.createChooser(intent, "Share your game")
+            val chooser = Intent.createChooser(intent, context.getString(R.string.share_chooser_your_game))
             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(chooser)
 
@@ -346,20 +356,26 @@ class ShareManager @Inject constructor(
                 shareGameResult(context, game)
             } catch (e2: Exception) {
                 Timber.e(e2, "Text share fallback also failed")
-                Toast.makeText(context, "Couldn't share right now. Please try again.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, R.string.share_failed, Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     /** Kid-safe one-line caption accompanying the shared image. */
-    private fun shareCaption(game: ShareableGame): String {
+    private fun shareCaption(context: Context, game: ShareableGame): String {
         val resultText = when (game.result) {
-            "white" -> "${game.whitePlayer} won"
-            "black" -> "${game.blackPlayer} won"
-            "draw" -> "It was a draw"
+            "white" -> context.getString(R.string.share_result_win, game.whitePlayer)
+            "black" -> context.getString(R.string.share_result_win, game.blackPlayer)
+            "draw" -> context.getString(R.string.share_result_draw_sentence)
             else -> game.result
         }
-        return "$resultText on Chess99! ${game.whitePlayer} vs ${game.blackPlayer}\n$BASE_URL"
+        return context.getString(
+            R.string.share_caption,
+            resultText,
+            game.whitePlayer,
+            game.blackPlayer,
+            BASE_URL,
+        )
     }
 
     /** Suspending PixelCopy request. Returns null on any failure. */
@@ -406,10 +422,10 @@ class ShareManager @Inject constructor(
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "application/x-chess-pgn"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, "Chess99 Game #$gameId")
+                putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.share_subject_pgn, gameId))
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            val chooser = Intent.createChooser(intent, "Share PGN")
+            val chooser = Intent.createChooser(intent, context.getString(R.string.share_chooser_pgn))
             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(chooser)
         } catch (e: Exception) {
@@ -417,10 +433,10 @@ class ShareManager @Inject constructor(
             // Fallback: share as text
             val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_SUBJECT, "Chess99 Game #$gameId PGN")
+                putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.share_subject_pgn_text, gameId))
                 putExtra(Intent.EXTRA_TEXT, pgnContent)
             }
-            val chooser = Intent.createChooser(fallbackIntent, "Share PGN")
+            val chooser = Intent.createChooser(fallbackIntent, context.getString(R.string.share_chooser_pgn))
             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(chooser)
         }

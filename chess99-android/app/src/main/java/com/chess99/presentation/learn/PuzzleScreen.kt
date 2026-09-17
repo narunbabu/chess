@@ -8,41 +8,51 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 import com.chess99.engine.ChessGame
 import com.chess99.presentation.common.ChessBoardView
 
 /**
  * Puzzle screen with daily puzzles and practice mode.
  * Mirrors chess-frontend/src/components/Puzzles.js
+ *
+ * [track] selects which daily-challenge track to solve (null = default
+ * track); the Daily hub passes its selected track through the nav arg.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PuzzleScreen(
     onNavigateBack: () -> Unit,
+    track: String? = null,
     viewModel: PuzzleViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
 
+    LaunchedEffect(track) {
+        viewModel.loadPuzzles(track)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Puzzles") },
+                title = { Text(stringResource(R.string.puzzle_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     if (state.currentPuzzle != null) {
                         IconButton(onClick = { viewModel.requestHint() }) {
-                            Icon(Icons.Default.Lightbulb, "Hint")
+                            Icon(Icons.Default.Lightbulb, stringResource(R.string.action_hint))
                         }
                         IconButton(onClick = { viewModel.nextPuzzle() }) {
-                            Icon(Icons.Default.SkipNext, "Next")
+                            Icon(Icons.Default.SkipNext, stringResource(R.string.local_review_next))
                         }
                     }
                 },
@@ -77,12 +87,12 @@ fun PuzzleScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            "No puzzles available",
+                            stringResource(R.string.puzzle_none_available),
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(onClick = { viewModel.loadPuzzles() }) {
-                            Text("Retry")
+                            Text(stringResource(R.string.action_retry))
                         }
                     }
                 }
@@ -103,7 +113,7 @@ fun PuzzleScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            "Puzzle #${state.puzzleNumber}",
+                            stringResource(R.string.puzzle_number, state.puzzleNumber),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                         )
@@ -112,7 +122,7 @@ fun PuzzleScreen(
                             label = {
                                 Text(
                                     if (state.isOfflinePuzzle) {
-                                        "${state.difficulty} · Offline"
+                                        stringResource(R.string.puzzle_difficulty_offline, state.difficulty)
                                     } else {
                                         state.difficulty
                                     }
@@ -191,15 +201,32 @@ fun PuzzleScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    "Correct!",
+                                    stringResource(R.string.tactical_correct),
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleMedium,
                                 )
+                                state.dailyReview?.let { review ->
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = when {
+                                            !review.persisted -> stringResource(R.string.daily_review_save_failed)
+                                            review.alreadyCompleted ->
+                                                stringResource(R.string.daily_review_already_completed)
+                                            review.xpAwarded > 0 -> stringResource(
+                                                R.string.daily_review_saved_xp,
+                                                review.xpAwarded,
+                                            )
+                                            else -> stringResource(R.string.daily_review_saved)
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
                             }
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(onClick = { viewModel.nextPuzzle() }) {
-                            Text("Next Puzzle")
+                            Text(stringResource(R.string.tactical_next_puzzle))
                         }
                     }
 
@@ -207,7 +234,7 @@ fun PuzzleScreen(
                     if (state.isWrongMove) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Incorrect. Try again!",
+                            stringResource(R.string.tactical_incorrect),
                             color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
@@ -225,11 +252,11 @@ fun PuzzleScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("${state.solvedCount}", fontWeight = FontWeight.Bold)
-                            Text("Solved", style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.puzzle_solved), style = MaterialTheme.typography.bodySmall)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("${state.streakCount}", fontWeight = FontWeight.Bold)
-                            Text("Streak", style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.puzzle_streak), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }

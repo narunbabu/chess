@@ -1,16 +1,19 @@
 package com.chess99.presentation.payment
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.PaymentApi
 import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * ViewModel for the Subscription feature.
@@ -25,6 +28,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PaymentViewModel @Inject constructor(
     private val paymentApi: PaymentApi,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PaymentUiState())
@@ -54,7 +59,7 @@ class PaymentViewModel @Inject constructor(
                         Subscription(
                             id = sub.get("id")?.asInt ?: 0,
                             planName = sub.get("plan_name")?.asString
-                                ?: sub.get("tier")?.asString ?: "Free",
+                                ?: sub.get("tier")?.asString ?: context.getString(R.string.payment_tier_free),
                             tier = sub.get("tier")?.asString ?: "free",
                             status = sub.get("status")?.asString ?: "active",
                             expiresAt = sub.get("expires_at")?.asString
@@ -78,7 +83,7 @@ class PaymentViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         currentSubscription = null,
                         isLoadingSubscription = false,
-                        planCheckNotice = "Couldn't check your plan — you're on the Free plan for now.",
+                        planCheckNotice = context.getString(R.string.payment_plan_check_failed),
                     )
                 }
             } catch (e: Exception) {
@@ -90,7 +95,7 @@ class PaymentViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     currentSubscription = null,
                     isLoadingSubscription = false,
-                    planCheckNotice = "Couldn't check your plan — you're on the Free plan for now.",
+                    planCheckNotice = context.getString(R.string.payment_plan_check_failed),
                 )
             }
         }
@@ -107,7 +112,7 @@ class PaymentViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isProcessing = false,
                         showCancelDialog = false,
-                        snackbarMessage = "Subscription cancelled. It remains active until the end of the billing period.",
+                        snackbarMessage = context.getString(R.string.payment_cancelled),
                     )
                     loadSubscription()
                 } else {
@@ -115,14 +120,14 @@ class PaymentViewModel @Inject constructor(
                     Timber.e("Cancel subscription failed: $errorBody")
                     _uiState.value = _uiState.value.copy(
                         isProcessing = false,
-                        error = "Failed to cancel subscription.",
+                        error = context.getString(R.string.payment_cancel_failed),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Cancel subscription error")
                 _uiState.value = _uiState.value.copy(
                     isProcessing = false,
-                    error = friendlyError(e, "your subscription"),
+                    error = friendlyError(context, e, R.string.error_subject_your_subscription),
                 )
             }
         }
@@ -139,20 +144,20 @@ class PaymentViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     _uiState.value = _uiState.value.copy(
                         isProcessing = false,
-                        snackbarMessage = "Purchases restored successfully.",
+                        snackbarMessage = context.getString(R.string.payment_restored),
                     )
                     loadSubscription()
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isProcessing = false,
-                        error = "No purchases found to restore.",
+                        error = context.getString(R.string.payment_nothing_to_restore),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Restore purchases error")
                 _uiState.value = _uiState.value.copy(
                     isProcessing = false,
-                    error = friendlyError(e, "your purchases"),
+                    error = friendlyError(context, e, R.string.error_subject_your_purchases),
                 )
             }
         }

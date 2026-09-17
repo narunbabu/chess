@@ -10,9 +10,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 /**
  * Championship invitations screen showing pending tournament invitations.
@@ -39,10 +41,10 @@ fun ChampionshipInvitationsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Tournament Invitations") },
+                title = { Text(stringResource(R.string.invitations_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -76,7 +78,7 @@ fun ChampionshipInvitationsScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "No pending invitations",
+                            stringResource(R.string.invitations_empty),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -102,13 +104,13 @@ fun ChampionshipInvitationsScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    "Format: ${invitation.format} \u2022 ${invitation.playerCount} players",
+                                    stringResource(R.string.invitations_format, invitation.format, invitation.playerCount),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    "Invited by ${invitation.invitedBy}",
+                                    stringResource(R.string.invitations_invited_by, invitation.invitedBy),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -120,12 +122,12 @@ fun ChampionshipInvitationsScreen(
                                             onNavigateToChampionship(invitation.championshipId)
                                         },
                                     ) {
-                                        Text("Accept")
+                                        Text(stringResource(R.string.action_accept))
                                     }
                                     OutlinedButton(
                                         onClick = { viewModel.declineInvitation(invitation.id) },
                                     ) {
-                                        Text("Decline")
+                                        Text(stringResource(R.string.action_decline))
                                     }
                                 }
                             }

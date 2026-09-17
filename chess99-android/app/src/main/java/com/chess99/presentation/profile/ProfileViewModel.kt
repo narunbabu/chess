@@ -5,12 +5,14 @@ import android.net.Uri
 import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.ProfileApi
 import com.chess99.data.local.TokenManager
 import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +21,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * ViewModel for the Profile screen.
@@ -93,14 +94,14 @@ class ProfileViewModel @Inject constructor(
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = "Failed to load profile",
+                        error = context.getString(R.string.profile_load_failed),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load profile")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = friendlyError(e, "your profile"),
+                    error = friendlyError(context, e, R.string.error_subject_your_profile),
                 )
             }
         }
@@ -164,14 +165,14 @@ class ProfileViewModel @Inject constructor(
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isStatsLoading = false,
-                        statsError = "Couldn't load your stats.",
+                        statsError = context.getString(R.string.profile_stats_failed),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load stats")
                 _uiState.value = _uiState.value.copy(
                     isStatsLoading = false,
-                    statsError = friendlyError(e, "your stats"),
+                    statsError = friendlyError(context, e, R.string.error_subject_your_stats),
                 )
             }
         }
@@ -272,19 +273,19 @@ class ProfileViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     _uiState.value = _uiState.value.copy(
                         isSaving = false,
-                        snackbarMessage = "Profile updated",
+                        snackbarMessage = context.getString(R.string.profile_updated),
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isSaving = false,
-                        error = "Failed to save profile",
+                        error = context.getString(R.string.profile_save_failed),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to save profile")
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
-                    error = friendlyError(e, "your profile"),
+                    error = friendlyError(context, e, R.string.error_subject_your_profile),
                 )
             }
         }
@@ -299,7 +300,7 @@ class ProfileViewModel @Inject constructor(
                 val inputStream = context.contentResolver.openInputStream(uri) ?: run {
                     _uiState.value = _uiState.value.copy(
                         isUploadingAvatar = false,
-                        error = "Could not read file",
+                        error = context.getString(R.string.profile_file_read_failed),
                     )
                     return@launch
                 }
@@ -328,19 +329,19 @@ class ProfileViewModel @Inject constructor(
                     loadProfile()
                     _uiState.value = _uiState.value.copy(
                         isUploadingAvatar = false,
-                        snackbarMessage = "Avatar updated",
+                        snackbarMessage = context.getString(R.string.profile_avatar_updated),
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isUploadingAvatar = false,
-                        error = "Upload failed",
+                        error = context.getString(R.string.profile_avatar_upload_failed),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Avatar upload failed")
                 _uiState.value = _uiState.value.copy(
                     isUploadingAvatar = false,
-                    error = friendlyError(e, "your avatar"),
+                    error = friendlyError(context, e, R.string.error_subject_your_avatar),
                 )
             }
         }
@@ -360,19 +361,19 @@ class ProfileViewModel @Inject constructor(
                         avatarUrl = url,
                         isUploadingAvatar = false,
                         showAvatarPicker = false,
-                        snackbarMessage = "Avatar updated",
+                        snackbarMessage = context.getString(R.string.profile_avatar_updated),
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isUploadingAvatar = false,
-                        error = "Failed to set avatar",
+                        error = context.getString(R.string.profile_avatar_set_failed),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "DiceBear avatar set failed")
                 _uiState.value = _uiState.value.copy(
                     isUploadingAvatar = false,
-                    error = friendlyError(e, "your avatar"),
+                    error = friendlyError(context, e, R.string.error_subject_your_avatar),
                 )
             }
         }
@@ -470,28 +471,28 @@ class ProfileViewModel @Inject constructor(
          */
         val BOARD_THEMES = linkedMapOf(
             // Free themes
-            "classic" to BoardThemeInfo("Classic", 0xFF769656, 0xFFEEEED2, "free"),
-            "blue" to BoardThemeInfo("Blue", 0xFF4B7399, 0xFFEAE9D2, "free"),
+            "classic" to BoardThemeInfo(R.string.board_theme_classic, 0xFF769656, 0xFFEEEED2, "free"),
+            "blue" to BoardThemeInfo(R.string.board_theme_blue, 0xFF4B7399, 0xFFEAE9D2, "free"),
             // Standard+ themes
-            "brown" to BoardThemeInfo("Walnut", 0xFFB58863, 0xFFF0D9B5, "standard"),
-            "purple" to BoardThemeInfo("Royal", 0xFF7B61A6, 0xFFE8D0FF, "standard"),
-            "coral" to BoardThemeInfo("Coral", 0xFFC76E6E, 0xFFFCE4E4, "standard"),
-            "midnight" to BoardThemeInfo("Midnight", 0xFF4A4A6A, 0xFFC8C8D4, "standard"),
-            "forest" to BoardThemeInfo("Forest", 0xFF5A8A4A, 0xFFD4E8C4, "standard"),
-            "marble" to BoardThemeInfo("Marble", 0xFF888888, 0xFFF5F5F0, "standard"),
-            "ocean" to BoardThemeInfo("Ocean", 0xFF2C5F8A, 0xFFD4E8F2, "standard"),
-            "autumn" to BoardThemeInfo("Autumn", 0xFFA0522D, 0xFFF5E6D3, "standard"),
+            "brown" to BoardThemeInfo(R.string.board_theme_walnut, 0xFFB58863, 0xFFF0D9B5, "standard"),
+            "purple" to BoardThemeInfo(R.string.board_theme_royal, 0xFF7B61A6, 0xFFE8D0FF, "standard"),
+            "coral" to BoardThemeInfo(R.string.board_theme_coral, 0xFFC76E6E, 0xFFFCE4E4, "standard"),
+            "midnight" to BoardThemeInfo(R.string.board_theme_midnight, 0xFF4A4A6A, 0xFFC8C8D4, "standard"),
+            "forest" to BoardThemeInfo(R.string.board_theme_forest, 0xFF5A8A4A, 0xFFD4E8C4, "standard"),
+            "marble" to BoardThemeInfo(R.string.board_theme_marble, 0xFF888888, 0xFFF5F5F0, "standard"),
+            "ocean" to BoardThemeInfo(R.string.board_theme_ocean, 0xFF2C5F8A, 0xFFD4E8F2, "standard"),
+            "autumn" to BoardThemeInfo(R.string.board_theme_autumn, 0xFFA0522D, 0xFFF5E6D3, "standard"),
             // Gold-exclusive themes
-            "neon" to BoardThemeInfo("Neon", 0xFF6B1F9E, 0xFF1A1A2E, "gold"),
-            "obsidian" to BoardThemeInfo("Obsidian", 0xFF2D2D2D, 0xFF404040, "gold"),
+            "neon" to BoardThemeInfo(R.string.board_theme_neon, 0xFF6B1F9E, 0xFF1A1A2E, "gold"),
+            "obsidian" to BoardThemeInfo(R.string.board_theme_obsidian, 0xFF2D2D2D, 0xFF404040, "gold"),
         )
 
         /**
          * Piece style options matching chess-frontend/src/components/play/BoardCustomizer.js.
          */
         val PIECE_STYLES = listOf(
-            PieceStyleInfo("standard", "Standard"),
-            PieceStyleInfo("3d", "3D Classic"),
+            PieceStyleInfo("standard", R.string.piece_style_standard),
+            PieceStyleInfo("3d", R.string.piece_style_3d_classic),
         )
     }
 }
@@ -559,7 +560,7 @@ data class DiceBearOption(
 }
 
 data class BoardThemeInfo(
-    val name: String,
+    @androidx.annotation.StringRes val nameRes: Int,
     val darkColor: Long,
     val lightColor: Long,
     val tier: String,
@@ -567,7 +568,7 @@ data class BoardThemeInfo(
 
 data class PieceStyleInfo(
     val key: String,
-    val label: String,
+    @androidx.annotation.StringRes val labelRes: Int,
 )
 
 data class RatingHistoryEntry(

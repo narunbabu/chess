@@ -1,7 +1,9 @@
 package com.chess99.presentation.referral
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.ReferralApi
 import com.chess99.data.api.arrOrNull
 import com.chess99.data.api.objOrNull
@@ -9,7 +11,9 @@ import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Locale
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,11 +21,12 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import retrofit2.Response
 import timber.log.Timber
-import javax.inject.Inject
 
 @HiltViewModel
 class ReferralViewModel @Inject constructor(
     private val referralApi: ReferralApi,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReferralUiState())
@@ -64,7 +69,7 @@ class ReferralViewModel @Inject constructor(
                 )
             } else {
                 _uiState.value = _uiState.value.copy(
-                    error = "Couldn't load your referral stats.",
+                    error = context.getString(R.string.referral_stats_failed),
                 )
             }
         } catch (e: Exception) {
@@ -72,7 +77,7 @@ class ReferralViewModel @Inject constructor(
             // Stats are the essential section — without them the screen is
             // useless, so surface a top-level error card with Retry.
             _uiState.value = _uiState.value.copy(
-                error = friendlyError(e, "your referral stats"),
+                error = friendlyError(context, e, R.string.error_subject_your_referral_stats),
             )
         }
     }
@@ -85,7 +90,7 @@ class ReferralViewModel @Inject constructor(
                 val users = body?.get("referred_users")?.arrOrNull()?.mapNotNull { el ->
                     val u = el.objOrNull() ?: return@mapNotNull null
                     ReferredUser(
-                        name = u.get("name")?.asString ?: "Unknown",
+                        name = u.get("name")?.asString ?: context.getString(R.string.player_unknown),
                         joinedAt = u.get("created_at")?.asString ?: "",
                         isSubscribed = u.get("is_subscribed")?.asBoolean ?: false,
                     )
@@ -126,7 +131,7 @@ class ReferralViewModel @Inject constructor(
                 val payouts = body?.get("payouts")?.arrOrNull()?.mapNotNull { el ->
                     val p = el.objOrNull() ?: return@mapNotNull null
                     ReferralPayout(
-                        method = p.get("method")?.asString ?: "Bank Transfer",
+                        method = p.get("method")?.asString ?: context.getString(R.string.referral_payout_bank_transfer),
                         amount = p.get("amount")?.asDouble ?: 0.0,
                         currency = p.get("currency")?.asString ?: "INR",
                         status = p.get("status")?.asString ?: "pending",
@@ -177,7 +182,7 @@ class ReferralViewModel @Inject constructor(
                         isSubmittingApplication = false,
                         applicationSubmitted = true,
                         ambassadorStatus = status,
-                        snackbarMessage = "Application submitted. We'll review and get back to you.",
+                        snackbarMessage = context.getString(R.string.referral_application_submitted),
                     )
                 } else if (response.isAdultOnly()) {
                     _uiState.value = _uiState.value.copy(
@@ -186,9 +191,9 @@ class ReferralViewModel @Inject constructor(
                     )
                 } else {
                     val msg = when (response.code()) {
-                        422 -> "Please check your details and try again."
-                        409 -> "You've already applied."
-                        else -> "Failed to submit application."
+                        422 -> context.getString(R.string.referral_application_invalid)
+                        409 -> context.getString(R.string.referral_application_duplicate)
+                        else -> context.getString(R.string.referral_application_failed)
                     }
                     _uiState.value = _uiState.value.copy(
                         isSubmittingApplication = false,
@@ -199,7 +204,7 @@ class ReferralViewModel @Inject constructor(
                 Timber.e(e, "Ambassador application error")
                 _uiState.value = _uiState.value.copy(
                     isSubmittingApplication = false,
-                    applicationError = friendlyError(e, "your application"),
+                    applicationError = friendlyError(context, e, R.string.error_subject_your_application),
                 )
             }
         }
@@ -220,20 +225,20 @@ class ReferralViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     _uiState.value = _uiState.value.copy(
                         isGenerating = false,
-                        snackbarMessage = "New referral code generated!",
+                        snackbarMessage = context.getString(R.string.referral_code_generated),
                     )
                     loadStats()
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isGenerating = false,
-                        snackbarMessage = "Failed to generate code.",
+                        snackbarMessage = context.getString(R.string.referral_code_failed),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Generate code error")
                 _uiState.value = _uiState.value.copy(
                     isGenerating = false,
-                    snackbarMessage = friendlyError(e, "a new code"),
+                    snackbarMessage = friendlyError(context, e, R.string.error_subject_a_new_code),
                 )
             }
         }

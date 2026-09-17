@@ -1,22 +1,26 @@
 package com.chess99.presentation.lobby
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.MatchmakingApi
 import com.chess99.data.api.RatingWindow
-import com.chess99.data.local.LobbyPreferences
-import com.chess99.data.local.TokenManager
-import com.chess99.data.websocket.PusherManager
 import com.chess99.data.api.arrOrNull
 import com.chess99.data.api.bool
 import com.chess99.data.api.int
 import com.chess99.data.api.objOrNull
 import com.chess99.data.api.str
+import com.chess99.data.local.LobbyPreferences
+import com.chess99.data.local.TokenManager
+import com.chess99.data.websocket.PusherManager
 import com.chess99.presentation.common.friendlyError
 import com.chess99.presentation.game.PlayComputerViewModel
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +29,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * ViewModel for the lobby screen.
@@ -39,6 +42,8 @@ class LobbyViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val pusherManager: PusherManager,
     private val lobbyPreferences: LobbyPreferences,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LobbyUiState())
@@ -108,7 +113,7 @@ class LobbyViewModel @Inject constructor(
                     val p = el.objOrNull() ?: return@mapNotNull null
                     LobbyPlayer(
                         id = p.int("id") ?: return@mapNotNull null,
-                        name = p.str("name") ?: "Player",
+                        name = p.str("name") ?: context.getString(R.string.player_generic),
                         rating = p.int("rating") ?: 1200,
                         isOnline = true,
                         avatarUrl = p.str("avatar_url"),
@@ -118,7 +123,7 @@ class LobbyViewModel @Inject constructor(
                     val p = el.objOrNull() ?: return@mapNotNull null
                     LobbyPlayer(
                         id = p.int("id") ?: return@mapNotNull null,
-                        name = p.str("name") ?: "Player",
+                        name = p.str("name") ?: context.getString(R.string.player_generic),
                         rating = p.int("rating") ?: 1200,
                         isOnline = true,
                         avatarUrl = p.str("avatar_url"),
@@ -172,7 +177,7 @@ class LobbyViewModel @Inject constructor(
                     val g = el.asJsonObject
                     ActiveGame(
                         id = g.get("id")?.asInt ?: 0,
-                        opponentName = g.get("opponent_name")?.asString ?: "Unknown",
+                        opponentName = g.get("opponent_name")?.asString ?: context.getString(R.string.player_unknown),
                         status = g.get("status")?.asString ?: "active",
                         timeControl = g.get("time_control")?.asString ?: "10|0",
                     )
@@ -316,13 +321,13 @@ class LobbyViewModel @Inject constructor(
             } else {
                 _uiState.value = _uiState.value.copy(
                     matchmakingState = MatchmakingState.IDLE,
-                    error = "Failed to join queue",
+                    error = context.getString(R.string.lobby_join_queue_failed),
                 )
             }
         } catch (e: Exception) {
             _uiState.value = _uiState.value.copy(
                 matchmakingState = MatchmakingState.IDLE,
-                error = friendlyError(e, "matchmaking"),
+                error = friendlyError(context, e, R.string.error_subject_matchmaking),
             )
         }
     }
@@ -388,7 +393,7 @@ class LobbyViewModel @Inject constructor(
             // Timeout - no match found
             _uiState.value = _uiState.value.copy(
                 matchmakingState = MatchmakingState.IDLE,
-                snackbarMessage = "No opponents found. Try again later.",
+                snackbarMessage = context.getString(R.string.lobby_no_opponents),
             )
         }
     }
@@ -531,13 +536,13 @@ class LobbyViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(matchedGameId = gameId)
                 } else {
                     _uiState.value = _uiState.value.copy(
-                        snackbarMessage = "Couldn't start that game. Please try again.",
+                        snackbarMessage = context.getString(R.string.lobby_start_game_failed),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to start game vs synthetic player ${player.id}")
                 _uiState.value = _uiState.value.copy(
-                    snackbarMessage = "Couldn't start that game. Please try again.",
+                    snackbarMessage = context.getString(R.string.lobby_start_game_failed),
                 )
             }
         }
@@ -556,13 +561,13 @@ class LobbyViewModel @Inject constructor(
                 }
                 val response = matchmakingApi.sendInvitation(body)
                 if (response.isSuccessful) {
-                    _uiState.value = _uiState.value.copy(snackbarMessage = "Challenge sent!")
+                    _uiState.value = _uiState.value.copy(snackbarMessage = context.getString(R.string.lobby_challenge_sent))
                     loadSentInvitations()
                 } else {
-                    _uiState.value = _uiState.value.copy(error = "Failed to send challenge")
+                    _uiState.value = _uiState.value.copy(error = context.getString(R.string.lobby_challenge_failed))
                 }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(error = friendlyError(e, "the lobby"))
+                _uiState.value = _uiState.value.copy(error = friendlyError(context, e, R.string.error_subject_the_lobby))
             }
         }
     }
@@ -583,7 +588,7 @@ class LobbyViewModel @Inject constructor(
                     loadPendingInvitations()
                 }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(error = friendlyError(e, "accepting the invite"))
+                _uiState.value = _uiState.value.copy(error = friendlyError(context, e, R.string.error_subject_accepting_the_invite))
             }
         }
     }
@@ -644,9 +649,9 @@ class LobbyViewModel @Inject constructor(
             try {
                 val body = JsonObject().apply { addProperty("user_id", userId) }
                 matchmakingApi.sendFriendRequest(body)
-                _uiState.value = _uiState.value.copy(snackbarMessage = "Friend request sent!")
+                _uiState.value = _uiState.value.copy(snackbarMessage = context.getString(R.string.lobby_friend_request_sent))
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(error = friendlyError(e, "this action"))
+                _uiState.value = _uiState.value.copy(error = friendlyError(context, e, R.string.error_subject_this_action))
             }
         }
     }
@@ -656,15 +661,15 @@ class LobbyViewModel @Inject constructor(
             try {
                 val response = matchmakingApi.acceptFriendRequest(requestId)
                 if (response.isSuccessful) {
-                    _uiState.value = _uiState.value.copy(snackbarMessage = "Friend request accepted!")
+                    _uiState.value = _uiState.value.copy(snackbarMessage = context.getString(R.string.lobby_friend_request_accepted))
                     loadFriends()
                     loadPendingFriendRequests()
                 } else {
-                    _uiState.value = _uiState.value.copy(error = "Couldn't accept this request. Please try again.")
+                    _uiState.value = _uiState.value.copy(error = context.getString(R.string.lobby_friend_accept_failed))
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to accept friend request")
-                _uiState.value = _uiState.value.copy(error = friendlyError(e, "this request"))
+                _uiState.value = _uiState.value.copy(error = friendlyError(context, e, R.string.error_subject_this_request))
             }
         }
     }
@@ -676,11 +681,11 @@ class LobbyViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     loadPendingFriendRequests()
                 } else {
-                    _uiState.value = _uiState.value.copy(error = "Couldn't decline this request. Please try again.")
+                    _uiState.value = _uiState.value.copy(error = context.getString(R.string.lobby_friend_decline_failed))
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to decline friend request")
-                _uiState.value = _uiState.value.copy(error = friendlyError(e, "this request"))
+                _uiState.value = _uiState.value.copy(error = friendlyError(context, e, R.string.error_subject_this_request))
             }
         }
     }
@@ -690,14 +695,14 @@ class LobbyViewModel @Inject constructor(
             try {
                 val response = matchmakingApi.removeFriend(friendId)
                 if (response.isSuccessful) {
-                    _uiState.value = _uiState.value.copy(snackbarMessage = "Friend removed")
+                    _uiState.value = _uiState.value.copy(snackbarMessage = context.getString(R.string.lobby_friend_removed))
                     loadFriends()
                 } else {
-                    _uiState.value = _uiState.value.copy(error = "Couldn't remove this friend. Please try again.")
+                    _uiState.value = _uiState.value.copy(error = context.getString(R.string.lobby_friend_remove_failed))
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to remove friend")
-                _uiState.value = _uiState.value.copy(error = friendlyError(e, "this action"))
+                _uiState.value = _uiState.value.copy(error = friendlyError(context, e, R.string.error_subject_this_action))
             }
         }
     }
@@ -709,10 +714,10 @@ class LobbyViewModel @Inject constructor(
             id = json.get("id")?.asInt ?: 0,
             senderId = json.get("sender_id")?.asInt ?: 0,
             senderName = json.get("sender_name")?.asString
-                ?: json.getAsJsonObject("sender")?.get("name")?.asString ?: "Unknown",
+                ?: json.getAsJsonObject("sender")?.get("name")?.asString ?: context.getString(R.string.player_unknown),
             receiverId = json.get("receiver_id")?.asInt ?: 0,
             receiverName = json.get("receiver_name")?.asString
-                ?: json.getAsJsonObject("receiver")?.get("name")?.asString ?: "Unknown",
+                ?: json.getAsJsonObject("receiver")?.get("name")?.asString ?: context.getString(R.string.player_unknown),
             timeControl = json.get("time_control")?.asString ?: "10|0",
             gameMode = json.get("game_mode")?.asString ?: "casual",
             status = json.get("status")?.asString ?: "pending",

@@ -45,11 +45,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 import com.chess99.engine.ChessGame
 import com.chess99.presentation.common.ChessBoardView
 
@@ -70,10 +72,10 @@ fun GameDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Game Details") },
+                title = { Text(stringResource(R.string.detail_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -94,7 +96,10 @@ fun GameDetailScreen(
                     Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(state.error ?: "Error", color = MaterialTheme.colorScheme.error)
+                    Text(
+                        state.error ?: stringResource(R.string.error_title),
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
 
@@ -157,27 +162,34 @@ fun GameDetailScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     IconButton(onClick = { viewModel.goToStart() }) {
-                                        Icon(Icons.Default.SkipPrevious, "Start")
+                                        Icon(Icons.Default.SkipPrevious, stringResource(R.string.a11y_start))
                                     }
                                     IconButton(onClick = { viewModel.stepBackward() }) {
-                                        Icon(Icons.Default.FastRewind, "Previous")
+                                        Icon(Icons.Default.FastRewind, stringResource(R.string.a11y_previous_move))
                                     }
                                     IconButton(onClick = { viewModel.toggleAutoPlay() }) {
                                         Icon(
                                             if (state.isAutoPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                            if (state.isAutoPlaying) "Pause" else "Play",
+                                            stringResource(
+                                                if (state.isAutoPlaying) R.string.action_pause
+                                                else R.string.a11y_play
+                                            ),
                                         )
                                     }
                                     IconButton(onClick = { viewModel.stepForward() }) {
-                                        Icon(Icons.Default.FastForward, "Next")
+                                        Icon(Icons.Default.FastForward, stringResource(R.string.a11y_next_move))
                                     }
                                     IconButton(onClick = { viewModel.goToEnd() }) {
-                                        Icon(Icons.Default.SkipNext, "End")
+                                        Icon(Icons.Default.SkipNext, stringResource(R.string.a11y_end))
                                     }
                                 }
 
                                 Text(
-                                    text = "Move ${state.currentMoveIndex} / ${state.totalMoves}",
+                                    text = stringResource(
+                                        R.string.detail_move_counter,
+                                        state.currentMoveIndex,
+                                        state.totalMoves,
+                                    ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -219,7 +231,7 @@ fun GameDetailScreen(
                             shape = RoundedCornerShape(12.dp),
                         ) {
                             Text(
-                                text = "Full Game Review",
+                                text = stringResource(R.string.detail_full_review),
                                 color = MaterialTheme.colorScheme.onPrimary,
                                 fontWeight = FontWeight.Medium,
                                 textAlign = TextAlign.Center,
@@ -248,11 +260,13 @@ private fun ResultBadge(result: String?, endReason: String?) {
         isDraw -> Color(0xFFE8A93E)
         else -> Color(0xFFC33A3A)
     }
-    val label = when {
-        isWin -> "Victory"
-        isDraw -> "Draw"
-        else -> "Defeat"
-    }
+    val label = stringResource(
+        when {
+            isWin -> R.string.detail_result_victory
+            isDraw -> R.string.detail_result_draw
+            else -> R.string.detail_result_defeat
+        }
+    )
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -272,7 +286,7 @@ private fun ResultBadge(result: String?, endReason: String?) {
             if (endReason != null) {
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "($endReason)",
+                    text = stringResource(R.string.detail_end_reason, endReason),
                     style = MaterialTheme.typography.bodySmall,
                     color = bgColor.copy(alpha = 0.7f),
                 )
@@ -308,10 +322,13 @@ private fun PlayersCard(
                 )
                 Text(whiteName, fontWeight = FontWeight.Medium, fontSize = 14.sp)
                 if (whiteRating != null) {
-                    Text("($whiteRating)", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        stringResource(R.string.detail_rating_parenthesised, whiteRating),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
             }
-            Text("vs", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.detail_vs), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(
                     Modifier
@@ -321,7 +338,10 @@ private fun PlayersCard(
                 )
                 Text(blackName, fontWeight = FontWeight.Medium, fontSize = 14.sp)
                 if (blackRating != null) {
-                    Text("($blackRating)", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        stringResource(R.string.detail_rating_parenthesised, blackRating),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
             }
         }
@@ -341,13 +361,24 @@ private fun GameInfoCard(
         shape = RoundedCornerShape(12.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Game Info", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            Text(
+                stringResource(R.string.detail_game_info),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+            )
             Spacer(Modifier.height(8.dp))
-            if (opening != null) InfoRow("Opening", opening)
-            if (date != null) InfoRow("Date", date)
-            if (mode != null) InfoRow("Mode", mode.replaceFirstChar { it.uppercase() })
-            InfoRow("Moves", "$totalMoves")
-            if (timeControl != null) InfoRow("Time Control", timeControl)
+            if (opening != null) InfoRow(stringResource(R.string.detail_info_opening), opening)
+            if (date != null) InfoRow(stringResource(R.string.detail_info_date), date)
+            if (mode != null) {
+                InfoRow(
+                    stringResource(R.string.detail_info_mode),
+                    mode.replaceFirstChar { it.uppercase() },
+                )
+            }
+            InfoRow(stringResource(R.string.detail_info_moves), "$totalMoves")
+            if (timeControl != null) {
+                InfoRow(stringResource(R.string.detail_info_time_control), timeControl)
+            }
         }
     }
 }
@@ -376,7 +407,11 @@ private fun MoveListCard(
         shape = RoundedCornerShape(12.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Moves", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            Text(
+                stringResource(R.string.game_moves),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+            )
             Spacer(Modifier.height(8.dp))
             movePairs.forEach { pair ->
                 Row(
@@ -384,7 +419,7 @@ private fun MoveListCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "${pair.num}.",
+                        text = stringResource(R.string.game_move_number, pair.num),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.width(32.dp),

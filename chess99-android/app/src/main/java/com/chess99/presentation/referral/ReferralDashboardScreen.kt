@@ -16,10 +16,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 /**
  * Referral dashboard screen showing stats, invite link, referred users, earnings.
@@ -47,10 +49,10 @@ fun ReferralDashboardScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Referral Program") },
+                title = { Text(stringResource(R.string.referral_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -93,7 +95,7 @@ fun ReferralDashboardScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = { viewModel.refresh() }) {
-                            Text("Retry")
+                            Text(stringResource(R.string.action_retry))
                         }
                     }
                 }
@@ -111,17 +113,17 @@ fun ReferralDashboardScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
                                 StatCard(
-                                    label = "Referrals",
+                                    label = stringResource(R.string.referral_stat_referrals),
                                     value = "${stats.totalReferrals}",
                                     modifier = Modifier.weight(1f),
                                 )
                                 StatCard(
-                                    label = "Active",
+                                    label = stringResource(R.string.referral_stat_active),
                                     value = "${stats.activeReferrals}",
                                     modifier = Modifier.weight(1f),
                                 )
                                 StatCard(
-                                    label = "Earned",
+                                    label = stringResource(R.string.referral_stat_earned),
                                     value = stats.formattedEarnings,
                                     modifier = Modifier.weight(1f),
                                 )
@@ -142,7 +144,7 @@ fun ReferralDashboardScreen(
                                     modifier = Modifier.padding(16.dp),
                                 ) {
                                     Text(
-                                        "Your Referral Link",
+                                        stringResource(R.string.referral_link_title),
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                     )
@@ -153,16 +155,18 @@ fun ReferralDashboardScreen(
                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
+                                    val clipLabel = stringResource(R.string.referral_link_clip_label)
+                                    val copiedMessage = stringResource(R.string.referral_link_copied)
                                     Button(
                                         onClick = {
                                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                            clipboard.setPrimaryClip(ClipData.newPlainText("Referral Link", link))
-                                            viewModel.showSnackbar("Link copied!")
+                                            clipboard.setPrimaryClip(ClipData.newPlainText(clipLabel, link))
+                                            viewModel.showSnackbar(copiedMessage)
                                         },
                                     ) {
                                         Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Copy Link")
+                                        Text(stringResource(R.string.referral_copy_link))
                                     }
                                 }
                             }
@@ -174,7 +178,7 @@ fun ReferralDashboardScreen(
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    "Generate New Code",
+                                    stringResource(R.string.referral_generate_title),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                 )
@@ -183,7 +187,7 @@ fun ReferralDashboardScreen(
                                     OutlinedTextField(
                                         value = newCodeLabel,
                                         onValueChange = { newCodeLabel = it },
-                                        label = { Text("Label (optional)") },
+                                        label = { Text(stringResource(R.string.referral_label_optional)) },
                                         singleLine = true,
                                         modifier = Modifier.weight(1f),
                                     )
@@ -201,7 +205,7 @@ fun ReferralDashboardScreen(
                                                 strokeWidth = 2.dp,
                                             )
                                         } else {
-                                            Text("Generate")
+                                            Text(stringResource(R.string.referral_generate))
                                         }
                                     }
                                 }
@@ -213,7 +217,7 @@ fun ReferralDashboardScreen(
                     if (state.referredUsers.isNotEmpty()) {
                         item {
                             Text(
-                                "Referred Users",
+                                stringResource(R.string.referral_referred_users),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -239,7 +243,7 @@ fun ReferralDashboardScreen(
                                     if (user.isSubscribed) {
                                         Icon(
                                             Icons.Default.Star,
-                                            contentDescription = "Subscribed",
+                                            contentDescription = stringResource(R.string.a11y_subscribed),
                                             tint = Color(0xFFFFD700),
                                         )
                                     }
@@ -252,7 +256,7 @@ fun ReferralDashboardScreen(
                     if (state.earnings.isNotEmpty()) {
                         item {
                             Text(
-                                "Earnings",
+                                stringResource(R.string.referral_earnings),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -287,7 +291,7 @@ fun ReferralDashboardScreen(
                     if (state.payouts.isNotEmpty()) {
                         item {
                             Text(
-                                "Payout History",
+                                stringResource(R.string.referral_payout_history),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -345,7 +349,7 @@ fun ReferralDashboardScreen(
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        "Share your referral link to start earning!",
+                                        stringResource(R.string.referral_empty),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = TextAlign.Center,

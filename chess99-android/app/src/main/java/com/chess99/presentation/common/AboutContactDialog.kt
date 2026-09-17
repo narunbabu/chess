@@ -10,9 +10,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import com.chess99.R
 
 /**
  * About & Contact info dialog.
@@ -27,13 +29,12 @@ fun AboutContactDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("About Chess99", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.about_title), fontWeight = FontWeight.Bold)
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "Chess99 is a real-time multiplayer chess platform built for everyone " +
-                            "\u2014 from beginners to advanced players.",
+                    stringResource(R.string.about_body),
                     style = MaterialTheme.typography.bodyMedium,
                 )
 
@@ -42,23 +43,26 @@ fun AboutContactDialog(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("chess99.com", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.about_website), style = MaterialTheme.typography.bodyMedium)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("support@chess99.com", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        stringResource(R.string.about_support_email),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
 
                 HorizontalDivider()
 
                 Text(
-                    "Version 1.0.0",
+                    stringResource(R.string.about_version),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "Built by Ameyem",
+                    stringResource(R.string.about_built_by),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -66,7 +70,7 @@ fun AboutContactDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.about_close))
             }
         },
         dismissButton = {
@@ -74,12 +78,15 @@ fun AboutContactDialog(
                 onClick = {
                     val intent = Intent(Intent.ACTION_SENDTO).apply {
                         data = "mailto:support@chess99.com".toUri()
-                        putExtra(Intent.EXTRA_SUBJECT, "Chess99 App Feedback")
+                        putExtra(
+                            Intent.EXTRA_SUBJECT,
+                            context.getString(R.string.about_feedback_subject),
+                        )
                     }
                     context.startActivity(intent)
                 },
             ) {
-                Text("Contact Us")
+                Text(stringResource(R.string.about_contact_us))
             }
         },
     )

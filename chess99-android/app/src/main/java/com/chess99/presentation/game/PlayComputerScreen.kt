@@ -11,10 +11,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,14 +22,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import kotlinx.coroutines.launch
+import com.chess99.R
 import com.chess99.domain.model.SyntheticPlayer
 import com.chess99.engine.*
 import com.chess99.presentation.common.*
+import kotlinx.coroutines.launch
 
 /**
  * PlayComputer screen with full game loop.
@@ -112,7 +115,9 @@ fun PlayComputerScreen(
             TopAppBar(
                 title = {
                     Text(
-                        state.opponentDisplayName?.let { "Playing $it" } ?: "Play vs Computer"
+                        state.opponentDisplayName?.let {
+                            stringResource(R.string.game_playing_opponent, it)
+                        } ?: stringResource(R.string.computer_title)
                     )
                 },
                 navigationIcon = {
@@ -123,7 +128,10 @@ fun PlayComputerScreen(
                             onNavigateBack()
                         }
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
             )
@@ -179,25 +187,27 @@ fun PlayComputerScreen(
             if (state.engineInitFailed) {
                 AlertDialog(
                     onDismissRequest = { viewModel.clearError() },
-                    title = { Text("Can't play the computer right now") },
+                    title = { Text(stringResource(R.string.computer_engine_failed_title)) },
                     text = { Text(error) },
                     confirmButton = {
                         TextButton(onClick = {
                             viewModel.clearError()
                             onNavigateToTacticalTrainer()
-                        }) { Text(EngineFailureCopy.ACTION_LABEL) }
+                        }) { Text(stringResource(EngineFailureCopy.ACTION_LABEL)) }
                     },
                     dismissButton = {
-                        TextButton(onClick = { viewModel.clearError() }) { Text("Cancel") }
+                        TextButton(onClick = { viewModel.clearError() }) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
                     },
                 )
             } else {
                 AlertDialog(
                     onDismissRequest = { viewModel.clearError() },
-                    title = { Text("Error") },
+                    title = { Text(stringResource(R.string.error_title)) },
                     text = { Text(error) },
                     confirmButton = {
-                        TextButton(onClick = { viewModel.clearError() }) { Text("OK") }
+                        TextButton(onClick = { viewModel.clearError() }) { Text(stringResource(R.string.action_ok)) }
                     },
                 )
             }
@@ -234,22 +244,26 @@ private fun GameSetupContent(
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Game Setup", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(
+            stringResource(R.string.computer_game_setup),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
         Spacer(modifier = Modifier.height(32.dp))
 
         // Color selection
-        Text("Play as", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.computer_play_as), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             FilterChip(
                 selected = selectedColor == Color.WHITE,
                 onClick = { selectedColor = Color.WHITE },
-                label = { Text("\u2654 White") },
+                label = { Text(stringResource(R.string.color_white)) },
             )
             FilterChip(
                 selected = selectedColor == Color.BLACK,
                 onClick = { selectedColor = Color.BLACK },
-                label = { Text("\u265A Black") },
+                label = { Text(stringResource(R.string.color_black)) },
             )
         }
 
@@ -258,7 +272,10 @@ private fun GameSetupContent(
         // both casual and rated: a rated persona game becomes a rated bot game.
         if (personaState.personas.isNotEmpty()) {
             Spacer(modifier = Modifier.height(24.dp))
-            Text("Choose an opponent", style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.computer_choose_opponent),
+                style = MaterialTheme.typography.titleMedium,
+            )
             Spacer(modifier = Modifier.height(8.dp))
             PersonaChipRow(
                 personas = personaState.personas,
@@ -279,9 +296,16 @@ private fun GameSetupContent(
 
         // Difficulty slider \u2014 a persona pick sets it directly; moving the
         // slider manually deselects the persona ("Custom" per spec T5).
-        Text("Difficulty: $difficulty", style = MaterialTheme.typography.titleMedium)
         Text(
-            text = if (personaState.selectedPersona != null) "Custom" else difficultyLabel(difficulty),
+            stringResource(R.string.computer_difficulty, difficulty),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = if (personaState.selectedPersona != null) {
+                stringResource(R.string.computer_difficulty_custom)
+            } else {
+                difficultyLabel(difficulty)
+            },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -301,7 +325,7 @@ private fun GameSetupContent(
         // Game mode — 3-way selector (Casual / Learning / Rated), matching web's
         // GameModeSelector.jsx. (Companion is a separate existing feature.)
         Text(
-            "Game Mode",
+            stringResource(R.string.computer_game_mode),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.align(Alignment.Start),
         )
@@ -314,11 +338,13 @@ private fun GameSetupContent(
                     shape = SegmentedButtonDefaults.itemShape(index = index, count = GameMode.entries.size),
                 ) {
                     Text(
-                        when (mode) {
-                            GameMode.CASUAL -> "Casual"
-                            GameMode.LEARNING -> "Learning"
-                            GameMode.RATED -> "Rated"
-                        }
+                        stringResource(
+                            when (mode) {
+                                GameMode.CASUAL -> R.string.mode_casual
+                                GameMode.LEARNING -> R.string.mode_learning
+                                GameMode.RATED -> R.string.mode_rated
+                            }
+                        )
                     )
                 }
             }
@@ -326,22 +352,32 @@ private fun GameSetupContent(
         Spacer(modifier = Modifier.height(8.dp))
         when (gameMode) {
             GameMode.RATED -> Text(
-                text = if (personaState.selectedPersona == null)
-                    "Choose a named online opponent above for rated play. Custom computer games are not rated."
-                else "No undo or pause. Rated play requires a server connection.",
+                text = stringResource(
+                    if (personaState.selectedPersona == null) {
+                        R.string.computer_rated_needs_persona
+                    } else {
+                        R.string.computer_rated_note
+                    }
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
             GameMode.LEARNING -> Text(
-                text = "Best-move & undo help from a small pool " +
-                    "(${PlayComputerViewModel.DEFAULT_LEARNING_HELP_LIMIT}); not rated",
+                text = stringResource(
+                    R.string.computer_learning_note,
+                    PlayComputerViewModel.DEFAULT_LEARNING_HELP_LIMIT,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             GameMode.CASUAL -> {
                 val undos = StockfishEngine.undoChances(difficulty, false)
                 Text(
-                    text = "$undos undo chances available",
+                    text = pluralStringResource(
+                        R.plurals.computer_undo_chances_available,
+                        undos,
+                        undos,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -363,7 +399,7 @@ private fun GameSetupContent(
             if (personaState.isStartingGame) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             } else {
-                Text("Start Game", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.computer_start_game), style = MaterialTheme.typography.titleMedium)
             }
         }
     }
@@ -430,7 +466,7 @@ private fun PersonaChip(
                     color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    "Rating: ${persona.rating}",
+                    stringResource(R.string.lobby_player_rating, persona.rating),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -466,7 +502,8 @@ private fun GamePlayContent(
         GameTimerDisplay(
             timeSeconds = state.computerTimeSeconds,
             isActive = state.activeTimer == state.computerColor && state.isTimerRunning,
-            playerName = state.opponentDisplayName ?: "Computer (Lv.${state.difficulty})",
+            playerName = state.opponentDisplayName
+                ?: stringResource(R.string.computer_opponent_default, state.difficulty),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
@@ -501,7 +538,7 @@ private fun GamePlayContent(
         GameTimerDisplay(
             timeSeconds = state.playerTimeSeconds,
             isActive = state.activeTimer == state.playerColor && state.isTimerRunning,
-            playerName = "You",
+            playerName = stringResource(R.string.computer_you),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
@@ -518,18 +555,24 @@ private fun GamePlayContent(
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    if (state.bestMoveInProgress) "Finding a best move..." else "Computer thinking...",
+                    stringResource(
+                        if (state.bestMoveInProgress) R.string.computer_finding_best_move
+                        else R.string.computer_thinking
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
         } else {
             Text(
-                text = when {
-                    game.isCheck() && game.turn == state.playerColor -> "Your king is in check. Your turn."
-                    game.isCheck() -> "Computer is in check. Computer's turn."
-                    isPlayerTurn -> "Your turn"
-                    else -> "Computer's turn"
-                },
+                text = stringResource(
+                    when {
+                        game.isCheck() && game.turn == state.playerColor ->
+                            R.string.computer_status_your_check
+                        game.isCheck() -> R.string.computer_status_computer_check
+                        isPlayerTurn -> R.string.game_your_turn
+                        else -> R.string.computer_status_computer_turn
+                    }
+                ),
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -551,7 +594,7 @@ private fun GamePlayContent(
                     ) {
                         Icon(Icons.Default.Lightbulb, contentDescription = null)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Best")
+                        Text(stringResource(R.string.game_best))
                     }
                 }
 
@@ -564,7 +607,7 @@ private fun GamePlayContent(
                     ) {
                         Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Undo")
+                        Text(stringResource(R.string.action_undo))
                     }
                 }
 
@@ -574,20 +617,28 @@ private fun GamePlayContent(
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                     modifier = Modifier.sizeIn(minHeight = 48.dp),
                 ) {
-                    Icon(Icons.Default.Flag, contentDescription = "Resign")
+                    Icon(Icons.Default.Flag, contentDescription = stringResource(R.string.action_resign))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Resign")
+                    Text(stringResource(R.string.action_resign))
                 }
             }
             if (state.learningMode) {
                 Text(
-                    text = "${state.undoChancesRemaining} help ${if (state.undoChancesRemaining == 1) "chance" else "chances"} left for Best or Undo",
+                    text = pluralStringResource(
+                        R.plurals.computer_help_chances_left,
+                        state.undoChancesRemaining,
+                        state.undoChancesRemaining,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else if (!state.isRated && state.undoChancesRemaining > 0) {
                 Text(
-                    text = "${state.undoChancesRemaining} ${if (state.undoChancesRemaining == 1) "undo" else "undos"} left",
+                    text = pluralStringResource(
+                        R.plurals.computer_undos_left,
+                        state.undoChancesRemaining,
+                        state.undoChancesRemaining,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -642,11 +693,13 @@ private fun GameResultCard(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = when (result.status) {
-                    ResultStatus.WON -> "Victory!"
-                    ResultStatus.LOST -> "Defeat"
-                    ResultStatus.DRAW -> "Draw"
-                },
+                text = stringResource(
+                    when (result.status) {
+                        ResultStatus.WON -> R.string.game_result_victory
+                        ResultStatus.LOST -> R.string.game_result_defeat
+                        ResultStatus.DRAW -> R.string.game_result_draw
+                    }
+                ),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
             )
@@ -661,7 +714,7 @@ private fun GameResultCard(
                     .fillMaxWidth()
                     .sizeIn(minHeight = 48.dp),
             ) {
-                Text("Review game")
+                Text(stringResource(R.string.computer_review_game))
             }
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
@@ -670,7 +723,7 @@ private fun GameResultCard(
                     .fillMaxWidth()
                     .sizeIn(minHeight = 48.dp),
             ) {
-                Text("Play again")
+                Text(stringResource(R.string.computer_play_again))
             }
             TextButton(
                 onClick = onShare,
@@ -678,7 +731,7 @@ private fun GameResultCard(
             ) {
                     Icon(Icons.Default.Share, contentDescription = null)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Share")
+                    Text(stringResource(R.string.action_share))
             }
         }
     }
@@ -692,7 +745,11 @@ private fun MoveListDisplay(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
-        Text("Moves", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Text(
+            stringResource(R.string.game_moves),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+        )
         Spacer(modifier = Modifier.height(4.dp))
 
         // Display moves in pairs (white + black)
@@ -700,7 +757,7 @@ private fun MoveListDisplay(
         for ((index, pair) in pairs.withIndex()) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "${index + 1}.",
+                    text = stringResource(R.string.game_move_number, index + 1),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.width(32.dp),
                 )
@@ -724,9 +781,13 @@ private fun MoveListDisplay(
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-private fun difficultyLabel(depth: Int): String = when {
-    depth <= 4 -> "Easy (${StockfishEngine.undoChances(depth, false)} undos)"
-    depth <= 8 -> "Medium (${StockfishEngine.undoChances(depth, false)} undos)"
-    depth <= 12 -> "Hard (${StockfishEngine.undoChances(depth, false)} undos)"
-    else -> "Expert (${StockfishEngine.undoChances(depth, false)} undo)"
-}
+@Composable
+private fun difficultyLabel(depth: Int): String = stringResource(
+    when {
+        depth <= 4 -> R.string.computer_difficulty_easy
+        depth <= 8 -> R.string.computer_difficulty_medium
+        depth <= 12 -> R.string.computer_difficulty_hard
+        else -> R.string.computer_difficulty_expert
+    },
+    StockfishEngine.undoChances(depth, false),
+)

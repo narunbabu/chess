@@ -30,7 +30,10 @@ interface GameApi {
     @GET("games/{id}")
     suspend fun getGame(@Path("id") id: Int): Response<JsonObject>
 
-    @GET("games/public/{id}")
+    // GameController::publicShow is mounted at /public/games/{id} (routes/api.php,
+    // outside auth:sanctum) — the previous games/public/{id} path matched no
+    // route. This is the endpoint logged-out deep links must load through.
+    @GET("public/games/{id}")
     suspend fun getPublicGame(@Path("id") id: Int): Response<JsonObject>
 
     @GET("games/{id}/moves")
@@ -53,7 +56,10 @@ interface GameApi {
     suspend fun completeGame(@Path("id") id: Int, @Body body: JsonObject): Response<JsonObject>
 
     @POST("games/{id}/pause-navigation")
-    suspend fun pauseNavigation(@Path("id") id: Int): Response<JsonObject>
+    suspend fun pauseNavigation(
+        @Path("id") id: Int,
+        @Body body: JsonObject,
+    ): Response<JsonObject>
 
     @DELETE("games/{id}/unfinished")
     suspend fun deleteUnfinished(@Path("id") id: Int): Response<JsonObject>

@@ -2,20 +2,23 @@ package com.chess99.presentation.social
 
 import android.content.Context
 import android.content.Intent
+import androidx.annotation.ArrayRes
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.SocialApi
 import com.chess99.data.local.TokenManager
 import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Locale
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * ViewModel for the Leaderboard screen.
@@ -85,14 +88,14 @@ class LeaderboardViewModel @Inject constructor(
                     Timber.e("Failed to load leaderboard: ${response.code()} $errorBody")
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = "Failed to load leaderboard (${response.code()})",
+                        error = context.getString(R.string.leaderboard_load_failed_code, response.code()),
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Error loading leaderboard")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = friendlyError(e, "the leaderboard"),
+                    error = friendlyError(context, e, R.string.error_subject_the_leaderboard),
                 )
             }
         }
@@ -128,35 +131,37 @@ class LeaderboardViewModel @Inject constructor(
     // ── Share ─────────────────────────────────────────────────────────────
 
     fun sharePlayer(entry: LeaderboardEntry, category: LeaderboardCategory) {
-        val templates = SHARE_TEMPLATES[category] ?: return
-        val template = templates.random()
-        val text = template
+        val templates = context.resources.getStringArray(shareTemplatesRes(category))
+        if (templates.isEmpty()) return
+        val text = templates.random()
             .replace("{name}", entry.name)
             .replace("{value}", formatValue(entry.value, category))
 
-        val shareText = "$text\n\nhttps://chess99.com/leaderboard"
+        val shareText = context.getString(R.string.leaderboard_share_suffix, text)
 
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, shareText)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        val chooser = Intent.createChooser(intent, "Share via").apply {
+        val chooser = Intent.createChooser(intent, context.getString(R.string.share_via)).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(chooser)
     }
 
     fun shareInvite() {
-        val text = "Join me on Chess99 — play chess online with players worldwide! " +
-            "Climb the leaderboard and prove your skills.\n\nhttps://chess99.com/leaderboard"
+        val text = context.getString(R.string.leaderboard_invite_text)
 
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, text)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        val chooser = Intent.createChooser(intent, "Invite friends").apply {
+        val chooser = Intent.createChooser(
+            intent,
+            context.getString(R.string.leaderboard_invite_chooser),
+        ).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(chooser)
@@ -172,7 +177,7 @@ class LeaderboardViewModel @Inject constructor(
             LeaderboardEntry(
                 rank = e.get("rank")?.asInt ?: (index + 1),
                 userId = e.get("user_id")?.asInt ?: e.get("id")?.asInt ?: 0,
-                name = e.get("name")?.asString ?: "Unknown",
+                name = e.get("name")?.asString ?: context.getString(R.string.unknown_player),
                 avatarUrl = e.get("avatar_url")?.asString,
                 rating = e.get("rating")?.asInt ?: 1200,
                 value = e.get("value")?.asDouble ?: 0.0,
@@ -185,28 +190,14 @@ class LeaderboardViewModel @Inject constructor(
     }
 
     companion object {
-        private val SHARE_TEMPLATES = mapOf(
-            LeaderboardCategory.MOST_GAMES to listOf(
-                "{value} games strong! Can you match {name}'s dedication on Chess99?",
-                "{name} has played {value} games on Chess99! That's commitment. Join the battle!",
-                "Legend alert: {name} with {value} games on Chess99. Think you can keep up?",
-            ),
-            LeaderboardCategory.MOST_WINS to listOf(
-                "Checkmate! {name} has {value} victories on Chess99. Challenge them!",
-                "{value} wins! {name} is dominating Chess99. Dare to take them on?",
-                "Victory machine: {name} with {value} wins on Chess99. Can you stop them?",
-            ),
-            LeaderboardCategory.HIGHEST_POINTS to listOf(
-                "{name} scored {value} points on Chess99! Can you beat that?",
-                "{value} points! {name} is a scoring machine on Chess99.",
-                "Point monster: {name} racked up {value} points. Join Chess99 and compete!",
-            ),
-            LeaderboardCategory.BY_RATING to listOf(
-                "Rated {value}! {name} is a force on Chess99. Dare to challenge?",
-                "{name} hit a {value} rating on Chess99! Think you can climb higher?",
-                "Rating royalty: {name} at {value} on Chess99. The board awaits your challenge!",
-            ),
-        )
+        /** Share copy lives in `res/values/strings.xml` as one array per category. */
+        @ArrayRes
+        private fun shareTemplatesRes(category: LeaderboardCategory): Int = when (category) {
+            LeaderboardCategory.MOST_GAMES -> R.array.leaderboard_share_most_games
+            LeaderboardCategory.MOST_WINS -> R.array.leaderboard_share_most_wins
+            LeaderboardCategory.HIGHEST_POINTS -> R.array.leaderboard_share_highest_points
+            LeaderboardCategory.BY_RATING -> R.array.leaderboard_share_by_rating
+        }
 
         fun formatValue(value: Double, category: LeaderboardCategory): String {
             return if (value == value.toLong().toDouble()) {
@@ -241,18 +232,21 @@ data class LeaderboardUiState(
         }
 }
 
-enum class LeaderboardCategory(val displayName: String, val valueLabel: String) {
-    MOST_GAMES("Most Games", "Games"),
-    MOST_WINS("Most Wins", "Wins"),
-    HIGHEST_POINTS("Highest Points", "Points"),
-    BY_RATING("By Rating", "Rating"),
+enum class LeaderboardCategory(
+    @StringRes val displayNameRes: Int,
+    @StringRes val valueLabelRes: Int,
+) {
+    MOST_GAMES(R.string.leaderboard_category_most_games, R.string.leaderboard_value_games),
+    MOST_WINS(R.string.leaderboard_category_most_wins, R.string.leaderboard_value_wins),
+    HIGHEST_POINTS(R.string.leaderboard_category_highest_points, R.string.leaderboard_value_points),
+    BY_RATING(R.string.leaderboard_category_by_rating, R.string.leaderboard_value_rating),
 }
 
-enum class LeaderboardPeriod(val displayName: String, val apiValue: String) {
-    TODAY("Today", "today"),
-    SEVEN_DAYS("7 Days", "7d"),
-    THIRTY_DAYS("30 Days", "30d"),
-    ALL_TIME("All Time", "all"),
+enum class LeaderboardPeriod(@StringRes val displayNameRes: Int, val apiValue: String) {
+    TODAY(R.string.leaderboard_period_today, "today"),
+    SEVEN_DAYS(R.string.leaderboard_period_7_days, "7d"),
+    THIRTY_DAYS(R.string.leaderboard_period_30_days, "30d"),
+    ALL_TIME(R.string.leaderboard_period_all_time, "all"),
 }
 
 data class LeaderboardEntry(

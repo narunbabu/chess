@@ -1,5 +1,7 @@
 package com.chess99.domain.model
 
+import com.chess99.R
+
 /**
  * Full analysis report for a completed game.
  * Mirrors the backend GameAnalysis model returned by POST /api/games/{id}/analyze.
@@ -34,14 +36,18 @@ data class AnalyzedMove(
     val isMateAfter: Boolean = false,
 )
 
-enum class MoveClassification(val icon: String, val label: String) {
-    BRILLIANT("★", "Brilliant"),
-    EXCELLENT("⭐", "Excellent"),
-    GOOD("✓", "Good"),
-    INACCURACY("?!", "Inaccuracy"),
-    MISTAKE("?", "Mistake"),
-    BLUNDER("??", "Blunder"),
-    BOOK("📗", "Book"),
+/** `icon` is a glyph, not copy; the label is a string resource. */
+enum class MoveClassification(
+    val icon: String,
+    @androidx.annotation.StringRes val labelRes: Int,
+) {
+    BRILLIANT("★", R.string.move_class_brilliant),
+    EXCELLENT("⭐", R.string.move_class_excellent),
+    GOOD("✓", R.string.move_class_good),
+    INACCURACY("?!", R.string.move_class_inaccuracy),
+    MISTAKE("?", R.string.move_class_mistake),
+    BLUNDER("??", R.string.move_class_blunder),
+    BOOK("📗", R.string.move_class_book),
 }
 
 data class QualityCounts(

@@ -1,18 +1,21 @@
 package com.chess99.presentation.parent
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.R
 import com.chess99.data.api.ParentApi
 import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * Parent dashboard / "My Kids" ViewModel.
@@ -22,6 +25,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MyKidsViewModel @Inject constructor(
     private val parentApi: ParentApi,
+    // Injected so failure copy can be read from strings.xml.
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MyKidsUiState())
@@ -44,11 +49,11 @@ class MyKidsViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         isRefreshing = false,
-                        children = data?.arr("children")?.mapNotNull { it.parseChildReport() } ?: emptyList(),
+                        children = data?.arr("children")?.mapNotNull { it.parseChildReport(context) } ?: emptyList(),
                         pendingChildren = data?.arr("pending_children")
-                            ?.mapNotNull { it.parsePending(useGuardianName = false) } ?: emptyList(),
+                            ?.mapNotNull { it.parsePending(context, useGuardianName = false) } ?: emptyList(),
                         guardianRequests = data?.arr("pending_guardian_requests")
-                            ?.mapNotNull { it.parsePending(useGuardianName = true) } ?: emptyList(),
+                            ?.mapNotNull { it.parsePending(context, useGuardianName = true) } ?: emptyList(),
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(isLoading = false, isRefreshing = false)
@@ -72,19 +77,19 @@ class MyKidsViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     _uiState.value = _uiState.value.copy(
                         isLinking = false,
-                        linkNotice = "Invitation sent. Your child confirms it from their own account.",
+                        linkNotice = context.getString(R.string.kids_invite_sent),
                     )
                     loadDashboard(refresh = true)
                 } else {
                     val msg = when (response.code()) {
-                        422 -> "No Chess99 child account was found for that email."
-                        else -> "Could not send the invitation."
+                        422 -> context.getString(R.string.kids_invite_no_account)
+                        else -> context.getString(R.string.kids_invite_failed)
                     }
                     _uiState.value = _uiState.value.copy(isLinking = false, linkError = msg)
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to link child")
-                _uiState.value = _uiState.value.copy(isLinking = false, linkError = friendlyError(e, "linking this child"))
+                _uiState.value = _uiState.value.copy(isLinking = false, linkError = friendlyError(context, e, R.string.error_subject_linking_this_child))
             }
         }
     }
@@ -95,14 +100,14 @@ class MyKidsViewModel @Inject constructor(
             try {
                 val response = parentApi.acceptLink(relationshipId)
                 if (response.isSuccessful) {
-                    _uiState.value = _uiState.value.copy(snackbarMessage = "Guardian link accepted.")
+                    _uiState.value = _uiState.value.copy(snackbarMessage = context.getString(R.string.kids_link_accepted))
                     loadDashboard(refresh = true)
                 } else {
-                    _uiState.value = _uiState.value.copy(snackbarMessage = "Could not accept the link.")
+                    _uiState.value = _uiState.value.copy(snackbarMessage = context.getString(R.string.kids_link_accept_failed))
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to accept guardian link")
-                _uiState.value = _uiState.value.copy(snackbarMessage = friendlyError(e, "this action"))
+                _uiState.value = _uiState.value.copy(snackbarMessage = friendlyError(context, e, R.string.error_subject_this_action))
             } finally {
                 _uiState.value = _uiState.value.copy(busyRelationshipId = null)
             }
@@ -117,11 +122,11 @@ class MyKidsViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     loadDashboard(refresh = true)
                 } else {
-                    _uiState.value = _uiState.value.copy(snackbarMessage = "Could not remove the link.")
+                    _uiState.value = _uiState.value.copy(snackbarMessage = context.getString(R.string.kids_link_remove_failed))
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to revoke link")
-                _uiState.value = _uiState.value.copy(snackbarMessage = friendlyError(e, "this action"))
+                _uiState.value = _uiState.value.copy(snackbarMessage = friendlyError(context, e, R.string.error_subject_this_action))
             } finally {
                 _uiState.value = _uiState.value.copy(busyRelationshipId = null)
             }
@@ -135,14 +140,14 @@ class MyKidsViewModel @Inject constructor(
                 val response = parentApi.sendWeeklyReport(relationshipId)
                 _uiState.value = _uiState.value.copy(
                     snackbarMessage = if (response.isSuccessful) {
-                        "Weekly report card emailed."
+                        context.getString(R.string.kids_report_emailed)
                     } else {
-                        "Could not send the report email."
+                        context.getString(R.string.kids_report_failed)
                     },
                 )
             } catch (e: Exception) {
                 Timber.e(e, "Failed to email report")
-                _uiState.value = _uiState.value.copy(snackbarMessage = friendlyError(e, "this action"))
+                _uiState.value = _uiState.value.copy(snackbarMessage = friendlyError(context, e, R.string.error_subject_this_action))
             } finally {
                 _uiState.value = _uiState.value.copy(emailingRelationshipId = null)
             }
@@ -165,20 +170,20 @@ class MyKidsViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isManaging = false,
                         manageSuccess = true,
-                        snackbarMessage = "Account updated.",
+                        snackbarMessage = context.getString(R.string.kids_account_updated),
                     )
                     loadDashboard(refresh = true)
                 } else {
                     val msg = if (response.code() == 422) {
-                        "Please check the details and try again."
+                        context.getString(R.string.kids_account_invalid)
                     } else {
-                        "Could not update the account."
+                        context.getString(R.string.kids_account_update_failed)
                     }
                     _uiState.value = _uiState.value.copy(isManaging = false, manageError = msg)
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to update child profile")
-                _uiState.value = _uiState.value.copy(isManaging = false, manageError = friendlyError(e, "managing this child"))
+                _uiState.value = _uiState.value.copy(isManaging = false, manageError = friendlyError(context, e, R.string.error_subject_managing_this_child))
             }
         }
     }
@@ -210,7 +215,7 @@ private fun JsonObject.obj(key: String): JsonObject? =
 private fun JsonObject.arr(key: String): JsonArray? =
     get(key)?.takeIf { it.isJsonArray }?.asJsonArray
 
-private fun com.google.gson.JsonElement.parseChildReport(): ChildReport? {
+private fun com.google.gson.JsonElement.parseChildReport(context: Context): ChildReport? {
     val report = takeIf { it.isJsonObject }?.asJsonObject ?: return null
     val child = report.obj("child") ?: return null
     val week = report.obj("week")
@@ -221,7 +226,7 @@ private fun com.google.gson.JsonElement.parseChildReport(): ChildReport? {
         val g = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
         RecentGame(
             gameId = g.get("game_id")?.takeIf { !it.isJsonNull }?.asInt,
-            opponentName = g.str("opponent_name") ?: "Opponent",
+            opponentName = g.str("opponent_name") ?: context.getString(R.string.player_opponent),
             opponentRating = g.get("opponent_rating")?.takeIf { !it.isJsonNull }?.asInt,
             result = g.str("result") ?: "unknown",
         )
@@ -230,7 +235,7 @@ private fun com.google.gson.JsonElement.parseChildReport(): ChildReport? {
     return ChildReport(
         relationshipId = relationshipId,
         childId = child.int("id"),
-        name = child.str("name") ?: "Player",
+        name = child.str("name") ?: context.getString(R.string.player_generic),
         email = child.str("email") ?: "",
         avatarUrl = child.str("avatar_url"),
         rating = child.int("rating", 400),
@@ -250,14 +255,14 @@ private fun com.google.gson.JsonElement.parseChildReport(): ChildReport? {
     )
 }
 
-private fun com.google.gson.JsonElement.parsePending(useGuardianName: Boolean): PendingLink? {
+private fun com.google.gson.JsonElement.parsePending(context: Context, useGuardianName: Boolean): PendingLink? {
     val rel = takeIf { it.isJsonObject }?.asJsonObject ?: return null
     val person = if (useGuardianName) rel.obj("guardian") else rel.obj("child")
     return PendingLink(
         id = rel.int("id"),
         displayName = person?.str("name")
             ?: rel.str("invite_email")
-            ?: if (useGuardianName) "A guardian" else "Child",
+            ?: context.getString(if (useGuardianName) R.string.kids_guardian_fallback else R.string.kids_child_fallback),
         inviteEmail = rel.str("invite_email"),
     )
 }

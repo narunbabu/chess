@@ -17,8 +17,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.chess99.R
 
 /**
  * Native, offline-safe legal pages. These used to be a [com.chess99.presentation.common.WebViewScreen]
@@ -51,7 +53,7 @@ fun LegalScreen(
                 title = { Text(title, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
             )
@@ -71,7 +73,7 @@ fun LegalScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Text(
-                    text = "Last updated: $lastUpdated",
+                    text = stringResource(R.string.legal_last_updated, lastUpdated),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
@@ -101,7 +103,7 @@ fun LegalScreen(
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 section.bullets.forEach { bullet ->
                                     Text(
-                                        text = "•  $bullet",
+                                        text = stringResource(R.string.legal_bullet, bullet),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )

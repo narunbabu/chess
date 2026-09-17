@@ -1,5 +1,8 @@
 package com.chess99.presentation.game
 
+import androidx.annotation.StringRes
+import com.chess99.R
+
 /**
  * Server policy mirrored locally so the UI can fail closed while offline.
  * Android deliberately uses preset-only chat for every minor, which is
@@ -46,10 +49,12 @@ object ChatSafetyRules {
         return trimmed in policy.presetMessages || trimmed in policy.emojiMessages
     }
 
-    fun disabledReason(reason: String?): String = when (reason) {
-        "account_disabled" -> "Chat is disabled for this account."
-        "organization_disabled" -> "Chat is disabled by your organization."
-        "blocked" -> "Chat is blocked between these players."
-        else -> "Chat is unavailable."
+    /** Resource id rather than text: the caller is a composable and resolves it. */
+    @StringRes
+    fun disabledReason(reason: String?): Int = when (reason) {
+        "account_disabled" -> R.string.chat_disabled_account
+        "organization_disabled" -> R.string.chat_disabled_organization
+        "blocked" -> R.string.chat_disabled_blocked
+        else -> R.string.chat_disabled_generic
     }
 }

@@ -8,9 +8,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chess99.R
 import com.chess99.engine.*
 
 /**
@@ -75,12 +77,12 @@ fun CCTBottomSheet(
                 .navigationBarsPadding(),
         ) {
             Text(
-                "Analysis Panel",
+                stringResource(R.string.cct_panel_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                "Checks, Captures & Threats scanner",
+                stringResource(R.string.cct_panel_subtitle),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -88,7 +90,7 @@ fun CCTBottomSheet(
 
             if (!isActive) {
                 Text(
-                    "Start a game to activate the learning panel.",
+                    stringResource(R.string.cct_panel_inactive),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 24.dp),
@@ -119,12 +121,12 @@ private fun CCTRatedGate(cct: CCTResult?) {
         Text("🏆", fontSize = 32.sp)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "Limited in Rated games",
+            stringResource(R.string.cct_rated_gate_title),
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.bodyLarge,
         )
         Text(
-            "CCT counts are visible but move hints and best moves are disabled.",
+            stringResource(R.string.cct_rated_gate_body),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -151,14 +153,14 @@ private fun CCTActivePanel(
         FilterChip(
             selected = state.hintLevel == 1,
             onClick = { onHintLevelChange(if (state.hintLevel == 1) 0 else 1) },
-            label = { Text("CCT") },
+            label = { Text(stringResource(R.string.cct_chip_cct)) },
             leadingIcon = { Text("💡", fontSize = 14.sp) },
             modifier = Modifier.weight(1f),
         )
         FilterChip(
             selected = state.hintLevel == 2,
             onClick = { onHintLevelChange(if (state.hintLevel == 2) 0 else 2) },
-            label = { Text("Best") },
+            label = { Text(stringResource(R.string.game_best)) },
             leadingIcon = { Text("⭐", fontSize = 14.sp) },
             modifier = Modifier.weight(1f),
         )
@@ -211,7 +213,7 @@ private fun CCTActivePanel(
                 )
             } else ButtonDefaults.outlinedButtonColors(),
         ) {
-            Text("My Moves", fontSize = 12.sp)
+            Text(stringResource(R.string.cct_perspective_mine), fontSize = 12.sp)
         }
         OutlinedButton(
             onClick = { onPerspectiveChange("opponent") },
@@ -222,7 +224,7 @@ private fun CCTActivePanel(
                 )
             } else ButtonDefaults.outlinedButtonColors(),
         ) {
-            Text("Their Threats", fontSize = 12.sp)
+            Text(stringResource(R.string.cct_perspective_opponent), fontSize = 12.sp)
         }
     }
 
@@ -234,35 +236,36 @@ private fun CCTActivePanel(
         CCTCountPills(cct)
         Spacer(modifier = Modifier.height(8.dp))
 
+        val mateLabel = stringResource(R.string.cct_mate)
         CCTSection(
-            title = "Checks",
+            title = stringResource(R.string.cct_checks),
             count = cct.checks.size,
             color = CheckColor,
             bgColor = CheckBgColor,
-            items = cct.checks.map { it.san to (if (it.isCheckmate) "Mate" else null) },
+            items = cct.checks.map { it.san to (if (it.isCheckmate) mateLabel else null) },
             showDetails = state.hintLevel >= 1,
         )
         Spacer(modifier = Modifier.height(6.dp))
         CCTSection(
-            title = "Captures",
+            title = stringResource(R.string.cct_captures),
             count = cct.captures.size,
             color = CaptureColor,
             bgColor = CaptureBgColor,
-            items = cct.captures.map { "×${it.victimName}" to null },
+            items = cct.captures.map { stringResource(R.string.cct_capture_chip, stringResource(it.victimName)) to null },
             showDetails = state.hintLevel >= 1,
         )
         Spacer(modifier = Modifier.height(6.dp))
         CCTSection(
-            title = "Threats",
+            title = stringResource(R.string.cct_threats),
             count = cct.threats.size,
             color = ThreatColor,
             bgColor = ThreatBgColor,
-            items = cct.threats.map { "→ ${it.victimName}" to null },
+            items = cct.threats.map { stringResource(R.string.cct_threat_chip, stringResource(it.victimName)) to null },
             showDetails = state.hintLevel >= 1,
         )
     } else {
         Text(
-            "Calculating...",
+            stringResource(R.string.cct_calculating),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(vertical = 8.dp),
@@ -275,7 +278,7 @@ private fun CCTActivePanel(
         HorizontalDivider()
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "Top 3 Moves",
+            stringResource(R.string.cct_top_moves),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
         )
@@ -289,7 +292,7 @@ private fun CCTActivePanel(
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    "Analysing position...",
+                    stringResource(R.string.cct_analysing),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -299,7 +302,7 @@ private fun CCTActivePanel(
         state.bestMoves?.let { moves ->
             if (moves.isEmpty()) {
                 Text(
-                    "No moves found.",
+                    stringResource(R.string.cct_no_moves),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -327,9 +330,9 @@ private fun CCTCountPills(cct: CCTResult) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
-        CountPill("Checks", cct.checks.size, CheckColor, CheckBgColor)
-        CountPill("Captures", cct.captures.size, CaptureColor, CaptureBgColor)
-        CountPill("Threats", cct.threats.size, ThreatColor, ThreatBgColor)
+        CountPill(stringResource(R.string.cct_checks), cct.checks.size, CheckColor, CheckBgColor)
+        CountPill(stringResource(R.string.cct_captures), cct.captures.size, CaptureColor, CaptureBgColor)
+        CountPill(stringResource(R.string.cct_threats), cct.threats.size, ThreatColor, ThreatBgColor)
     }
 }
 
@@ -406,7 +409,7 @@ private fun CCTSection(
             if (expanded) {
                 if (items.isEmpty()) {
                     Text(
-                        "None",
+                        stringResource(R.string.cct_none),
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

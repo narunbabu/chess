@@ -20,10 +20,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chess99.R
 
 data class NewGameRequest(
     val requesterName: String,
@@ -48,7 +50,7 @@ fun NewGameRequestDialog(
         onDismissRequest = onDecline,
         title = {
             Text(
-                text = "New Game Challenge",
+                text = stringResource(R.string.new_game_title),
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 textAlign = TextAlign.Center,
@@ -77,7 +79,7 @@ fun NewGameRequestDialog(
                 ) {
                     PlayerInfo(request.requesterName, request.requesterRating)
                     Text(
-                        text = "VS",
+                        text = stringResource(R.string.new_game_vs),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -87,14 +89,13 @@ fun NewGameRequestDialog(
                 Spacer(Modifier.height(12.dp))
 
                 // Game settings
-                val settings = buildList {
-                    if (request.timeControlMinutes != null) {
-                        add("${request.timeControlMinutes}+${request.incrementSeconds ?: 0}")
-                    }
-                    if (request.gameMode != null) {
-                        add(if (request.gameMode == "rated") "Rated" else "Casual")
-                    }
+                val timeControlLabel = request.timeControlMinutes?.let {
+                    stringResource(R.string.new_game_time_control, it, request.incrementSeconds ?: 0)
                 }
+                val modeLabel = request.gameMode?.let {
+                    stringResource(if (it == "rated") R.string.mode_rated else R.string.mode_casual)
+                }
+                val settings = listOfNotNull(timeControlLabel, modeLabel)
                 if (settings.isNotEmpty()) {
                     Text(
                         text = settings.joinToString(" | "),
@@ -106,7 +107,10 @@ fun NewGameRequestDialog(
                 if (request.colorPreference != null && request.colorPreference != "random") {
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "They want to play as ${request.colorPreference}",
+                        text = stringResource(
+                            R.string.new_game_colour_preference,
+                            request.colorPreference,
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -115,12 +119,12 @@ fun NewGameRequestDialog(
         },
         confirmButton = {
             Button(onClick = onAccept) {
-                Text("Accept")
+                Text(stringResource(R.string.action_accept))
             }
         },
         dismissButton = {
             OutlinedButton(onClick = onDecline) {
-                Text("Decline")
+                Text(stringResource(R.string.action_decline))
             }
         },
     )
@@ -136,7 +140,7 @@ private fun PlayerInfo(name: String, rating: Int?) {
         )
         if (rating != null) {
             Text(
-                text = "($rating)",
+                text = stringResource(R.string.new_game_rating, rating),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -3,6 +3,7 @@ package com.chess99
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import com.chess99.R
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 
@@ -22,35 +23,35 @@ class Chess99App : Application() {
     private fun createNotificationChannels() {
         val gameChannel = NotificationChannel(
             "chess99_game",
-            "Game Notifications",
+            getString(R.string.notif_channel_game),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Notifications for game moves, invitations, and results"
+            description = getString(R.string.notif_channel_game_desc)
             enableVibration(true)
         }
 
         val tournamentChannel = NotificationChannel(
             "chess99_tournament",
-            "Tournament Notifications",
+            getString(R.string.notif_channel_tournament),
             NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
-            description = "Notifications for tournament updates and reminders"
+            description = getString(R.string.notif_channel_tournament_legacy_desc)
         }
 
         val socialChannel = NotificationChannel(
             "chess99_social",
-            "Social Notifications",
+            getString(R.string.notif_channel_social),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Notifications for friend requests and social events"
+            description = getString(R.string.notif_channel_social_desc)
         }
 
         val systemChannel = NotificationChannel(
             "chess99_system",
-            "System Notifications",
+            getString(R.string.notif_channel_system),
             NotificationManager.IMPORTANCE_MIN
         ).apply {
-            description = "System maintenance and informational messages"
+            description = getString(R.string.notif_channel_system_desc)
         }
 
         val manager = getSystemService(NotificationManager::class.java)

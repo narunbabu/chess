@@ -1,0 +1,169 @@
+[
+  {
+    "section": "Tactical trainer — stage catalogue",
+    "file": "presentation/learn/tactical/TacticalModels.kt",
+    "strings": {
+      "tactical_stage_0_title": "Beginner Tactics",
+      "tactical_stage_0_description": "Master the fundamentals: forks, pins, back-rank mates, and skewers.",
+      "tactical_stage_1_title": "Tactical Sharpness",
+      "tactical_stage_1_description": "Stop missing multi-move tactics. Master double attacks, discovered checks, and removing the defender.",
+      "tactical_stage_2_title": "Calculation Depth",
+      "tactical_stage_2_description": "Calculate forcing lines clearly. Zwischenzug, deflection, sacrifices, and in-between moves.",
+      "tactical_stage_3_title": "Positional Tactics",
+      "tactical_stage_3_description": "See tactics arising from position — quiet moves, overloaded pieces, and zugzwang.",
+      "tactical_stage_4_title": "Master Calculation",
+      "tactical_stage_4_description": "Long forcing lines, defensive resources, and endgame precision at master level.",
+      "tactical_theme_fork": "Fork",
+      "tactical_theme_pin": "Pin",
+      "tactical_theme_back_rank_mate": "Back rank mate",
+      "tactical_theme_skewer": "Skewer",
+      "tactical_theme_hanging_pieces": "Hanging pieces",
+      "tactical_theme_double_attacks": "Double attacks",
+      "tactical_theme_pins": "Pins",
+      "tactical_theme_discovered_attacks": "Discovered attacks",
+      "tactical_theme_removing_the_defender": "Removing the defender",
+      "tactical_theme_zwischenzug": "Zwischenzug",
+      "tactical_theme_deflection": "Deflection",
+      "tactical_theme_sacrifices": "Sacrifices",
+      "tactical_theme_forcing_variations": "Forcing variations",
+      "tactical_theme_quiet_moves": "Quiet moves",
+      "tactical_theme_overloaded_pieces": "Overloaded pieces",
+      "tactical_theme_trapped_pieces": "Trapped pieces",
+      "tactical_theme_zugzwang": "Zugzwang",
+      "tactical_theme_long_forcing_lines": "Long forcing lines",
+      "tactical_theme_defensive_resources": "Defensive resources",
+      "tactical_theme_endgame_tactics": "Endgame tactics",
+      "tactical_theme_quiet_killers": "Quiet killers"
+    },
+    "edits": [
+      ["import com.chess99.engine.Color", "import androidx.annotation.StringRes\nimport com.chess99.engine.Color"],
+      [
+        "    val title: String,\n    val eloRange: String,\n    val description: String,\n    val themes: List<String>,",
+        "    @StringRes val title: Int,\n    val eloRange: String,\n    @StringRes val description: Int,\n    val themes: List<Int>,"
+      ],
+      [
+        "            title = \"Beginner Tactics\",\n            eloRange = \"800 → 1400\",\n            description = \"Master the fundamentals: forks, pins, back-rank mates, and skewers.\",\n            themes = listOf(\"Fork\", \"Pin\", \"Back rank mate\", \"Skewer\", \"Hanging pieces\"),",
+        "            title = R.string.tactical_stage_0_title,\n            eloRange = \"800 → 1400\",\n            description = R.string.tactical_stage_0_description,\n            themes = listOf(\n                R.string.tactical_theme_fork,\n                R.string.tactical_theme_pin,\n                R.string.tactical_theme_back_rank_mate,\n                R.string.tactical_theme_skewer,\n                R.string.tactical_theme_hanging_pieces,\n            ),"
+      ],
+      [
+        "            title = \"Tactical Sharpness\",\n            eloRange = \"1400 → 1650\",\n            description = \"Stop missing multi-move tactics. Master double attacks, discovered checks, and removing the defender.\",\n            themes = listOf(\"Double attacks\", \"Pins\", \"Discovered attacks\", \"Removing the defender\"),",
+        "            title = R.string.tactical_stage_1_title,\n            eloRange = \"1400 → 1650\",\n            description = R.string.tactical_stage_1_description,\n            themes = listOf(\n                R.string.tactical_theme_double_attacks,\n                R.string.tactical_theme_pins,\n                R.string.tactical_theme_discovered_attacks,\n                R.string.tactical_theme_removing_the_defender,\n            ),"
+      ],
+      [
+        "            title = \"Calculation Depth\",\n            eloRange = \"1650 → 1900\",\n            description = \"Calculate forcing lines clearly. Zwischenzug, deflection, sacrifices, and in-between moves.\",\n            themes = listOf(\"Zwischenzug\", \"Deflection\", \"Sacrifices\", \"Forcing variations\"),",
+        "            title = R.string.tactical_stage_2_title,\n            eloRange = \"1650 → 1900\",\n            description = R.string.tactical_stage_2_description,\n            themes = listOf(\n                R.string.tactical_theme_zwischenzug,\n                R.string.tactical_theme_deflection,\n                R.string.tactical_theme_sacrifices,\n                R.string.tactical_theme_forcing_variations,\n            ),"
+      ],
+      [
+        "            title = \"Positional Tactics\",\n            eloRange = \"1900 → 2100\",\n            description = \"See tactics arising from position — quiet moves, overloaded pieces, and zugzwang.\",\n            themes = listOf(\"Quiet moves\", \"Overloaded pieces\", \"Trapped pieces\", \"Zugzwang\"),",
+        "            title = R.string.tactical_stage_3_title,\n            eloRange = \"1900 → 2100\",\n            description = R.string.tactical_stage_3_description,\n            themes = listOf(\n                R.string.tactical_theme_quiet_moves,\n                R.string.tactical_theme_overloaded_pieces,\n                R.string.tactical_theme_trapped_pieces,\n                R.string.tactical_theme_zugzwang,\n            ),"
+      ],
+      [
+        "            title = \"Master Calculation\",\n            eloRange = \"2100 → 2200+\",\n            description = \"Long forcing lines, defensive resources, and endgame precision at master level.\",\n            themes = listOf(\"Long forcing lines\", \"Defensive resources\", \"Endgame tactics\", \"Quiet killers\"),",
+        "            title = R.string.tactical_stage_4_title,\n            eloRange = \"2100 → 2200+\",\n            description = R.string.tactical_stage_4_description,\n            themes = listOf(\n                R.string.tactical_theme_long_forcing_lines,\n                R.string.tactical_theme_defensive_resources,\n                R.string.tactical_theme_endgame_tactics,\n                R.string.tactical_theme_quiet_killers,\n            ),"
+      ]
+    ]
+  },
+  {
+    "section": "Tactical trainer — dashboard",
+    "file": "presentation/learn/tactical/TacticalTrainerDashboardScreen.kt",
+    "strings": {
+      "tactical_trainer_title": "Tactical Trainer",
+      "tactical_stat_rating": "Rating",
+      "tactical_stat_solved": "Solved",
+      "tactical_stat_accuracy": "Accuracy",
+      "tactical_stat_streak": "Streak",
+      "tactical_overall_progress": "Overall Progress",
+      "tactical_puzzles_progress": "%1$d / %2$d puzzles",
+      "tactical_peak_and_streak": "Peak rating: %1$d · Best streak: %2$d",
+      "tactical_badges": "Badges",
+      "tactical_stages": "Stages",
+      "tactical_accuracy_short": "%1$d%% acc",
+      "tactical_not_started": "Not started",
+      "tactical_unlock_hint": "Solve %1$d more to unlock %2$s",
+      "tactical_unlock_previous": "Solve %1$d puzzles in previous stage to unlock",
+      "tactical_stage_complete": "Stage Complete!",
+      "tactical_completed_all": "You've completed all %1$d puzzles in",
+      "tactical_stage_unlocked": "%1$s %2$s is now unlocked!",
+      "tactical_back_to_stages": "Back to Stages"
+    },
+    "edits": [
+      ["title = { Text(\"Tactical Trainer\") },", "title = { Text(stringResource(R.string.tactical_trainer_title)) },"],
+      ["Icon(Icons.AutoMirrored.Filled.ArrowBack, \"Back\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))"],
+      ["label = \"Rating\",", "label = stringResource(R.string.tactical_stat_rating),"],
+      ["label = \"Solved\",", "label = stringResource(R.string.tactical_stat_solved),"],
+      ["label = \"Accuracy\",", "label = stringResource(R.string.tactical_stat_accuracy),"],
+      ["label = \"Streak\",", "label = stringResource(R.string.tactical_stat_streak),"],
+      ["\"Overall Progress\",", "stringResource(R.string.tactical_overall_progress),"],
+      ["\"$totalSolvedAcrossStages / $totalPuzzlesAcrossStages puzzles\",", "stringResource(R.string.tactical_puzzles_progress, totalSolvedAcrossStages, totalPuzzlesAcrossStages),"],
+      ["\"Peak rating: ${progress.peakRating} · Best streak: ${progress.bestStreak}\",", "stringResource(R.string.tactical_peak_and_streak, progress.peakRating, progress.bestStreak),"],
+      ["\"Badges\",", "stringResource(R.string.tactical_badges),"],
+      ["\"Stages\",", "stringResource(R.string.tactical_stages),"],
+      ["title = { Text(\"Error\") },", "title = { Text(stringResource(R.string.error_title)) },"],
+      ["TextButton(onClick = onDismissError) { Text(\"OK\") }", "TextButton(onClick = onDismissError) { Text(stringResource(R.string.action_ok)) }"],
+      ["                        stage.title,", "                        stringResource(stage.title),"],
+      ["                        stage.description,", "                        stringResource(stage.description),"],
+      ["                                    theme,", "                                    stringResource(theme),"],
+      ["\"$accuracy% acc\",", "stringResource(R.string.tactical_accuracy_short, accuracy),"],
+      ["\"Not started\",", "stringResource(R.string.tactical_not_started),"],
+      ["\"Solve $remaining more to unlock ${nextStage.title}\",", "stringResource(R.string.tactical_unlock_hint, remaining, stringResource(nextStage.title)),"],
+      ["\"Solve $required puzzles in previous stage to unlock\",", "stringResource(R.string.tactical_unlock_previous, required),"],
+      ["title = { Text(\"Stage Complete!\") },", "title = { Text(stringResource(R.string.tactical_stage_complete)) },"],
+      ["                    \"Stage Complete!\",", "                    stringResource(R.string.tactical_stage_complete),"],
+      ["\"You've completed all ${state.puzzleCount} puzzles in\",", "stringResource(R.string.tactical_completed_all, state.puzzleCount),"],
+      ["                    stage.title,", "                    stringResource(stage.title),"],
+      ["Text(\"Solved\", style = MaterialTheme.typography.labelSmall)", "Text(stringResource(R.string.tactical_stat_solved), style = MaterialTheme.typography.labelSmall)"],
+      ["Text(\"Rating\", style = MaterialTheme.typography.labelSmall)", "Text(stringResource(R.string.tactical_stat_rating), style = MaterialTheme.typography.labelSmall)"],
+      ["\"${nextStage.icon} ${nextStage.title} is now unlocked!\",", "stringResource(R.string.tactical_stage_unlocked, nextStage.icon, stringResource(nextStage.title)),"],
+      ["Text(\"Back to Stages\")", "Text(stringResource(R.string.tactical_back_to_stages))"]
+    ]
+  },
+  {
+    "section": "Tactical trainer — puzzle screen",
+    "file": "presentation/learn/tactical/TacticalPuzzleContent.kt",
+    "strings": {
+      "action_hint": "Hint",
+      "tactical_puzzle_index": "Puzzle %1$d/%2$d",
+      "tactical_puzzle_rating": "Rating: %1$d",
+      "tactical_correct": "Correct!",
+      "tactical_to_move": "%1$s to move. Find the best continuation.",
+      "tactical_hint_square": "Hint: Try moving from %1$s",
+      "tactical_incorrect": "Incorrect. Try again!",
+      "tactical_show_solution_title": "Show the solution?",
+      "tactical_show_solution_body": "You'll get 0 points for this puzzle.",
+      "tactical_show_solution_confirm": "Show solution",
+      "tactical_keep_trying": "Keep trying",
+      "tactical_score": "Score: %1$d/100",
+      "tactical_next_puzzle": "Next Puzzle",
+      "tactical_rating_delta": "Rating %1$s",
+      "tactical_solution_title": "Solution",
+      "tactical_solution_move": "Move %1$d/%2$d"
+    },
+    "edits": [
+      ["state.currentStage?.title ?: \"Tactical Trainer\",", "state.currentStage?.let { stringResource(it.title) } ?: stringResource(R.string.tactical_trainer_title),"],
+      ["\"Puzzle ${state.puzzleIndex + 1}/${state.puzzleCount}\",", "stringResource(R.string.tactical_puzzle_index, state.puzzleIndex + 1, state.puzzleCount),"],
+      ["Icon(Icons.AutoMirrored.Filled.ArrowBack, \"Back\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))"],
+      ["Icon(Icons.Default.Lightbulb, \"Hint\")", "Icon(Icons.Default.Lightbulb, stringResource(R.string.action_hint))"],
+      ["Text(\"Rating: ${puzzle.rating}\", style = MaterialTheme.typography.labelSmall)", "Text(stringResource(R.string.tactical_puzzle_rating, puzzle.rating), style = MaterialTheme.typography.labelSmall)"],
+      [
+        "            val instruction = when {\n                state.isSolved -> \"Correct!\"\n                else -> {\n                    val color = if (state.playerColor == com.chess99.engine.Color.WHITE) \"White\" else \"Black\"\n                    \"$color to move. Find the best continuation.\"\n                }\n            }",
+        "            val instruction = if (state.isSolved) {\n                stringResource(R.string.tactical_correct)\n            } else {\n                val color = stringResource(\n                    if (state.playerColor == com.chess99.engine.Color.WHITE) {\n                        R.string.color_white_name\n                    } else {\n                        R.string.color_black_name\n                    },\n                )\n                stringResource(R.string.tactical_to_move, color)\n            }"
+      ],
+      ["text = \"Hint: Try moving from $hintSq\",", "text = stringResource(R.string.tactical_hint_square, hintSq),"],
+      ["\"Incorrect. Try again!\",", "stringResource(R.string.tactical_incorrect),"],
+      ["title = { Text(\"Show the solution?\") },", "title = { Text(stringResource(R.string.tactical_show_solution_title)) },"],
+      ["text = { Text(\"You'll get 0 points for this puzzle.\") },", "text = { Text(stringResource(R.string.tactical_show_solution_body)) },"],
+      ["TextButton(onClick = onConfirmShowSolution) { Text(\"Show solution\") }", "TextButton(onClick = onConfirmShowSolution) { Text(stringResource(R.string.tactical_show_solution_confirm)) }"],
+      ["TextButton(onClick = onDismissHintDialog) { Text(\"Keep trying\") }", "TextButton(onClick = onDismissHintDialog) { Text(stringResource(R.string.tactical_keep_trying)) }"],
+      ["Text(\"Correct!\", fontWeight = FontWeight.Bold,", "Text(stringResource(R.string.tactical_correct), fontWeight = FontWeight.Bold,"],
+      ["\"Score: ${s.combined ?: s.execScore}/100\",", "stringResource(R.string.tactical_score, s.combined ?: s.execScore),"],
+      ["Text(\"Next Puzzle\")", "Text(stringResource(R.string.tactical_next_puzzle))"],
+      ["\"Rating $ratingText\",", "stringResource(R.string.tactical_rating_delta, ratingText),"],
+      ["title = { Text(\"Solution\") },", "title = { Text(stringResource(R.string.tactical_solution_title)) },"],
+      ["Icon(Icons.AutoMirrored.Filled.ArrowBack, \"Previous\")", "Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_previous_move))"],
+      ["\"Move ${state.solutionMoveIndex + 1}/${puzzle.moves.size}\",", "stringResource(R.string.tactical_solution_move, state.solutionMoveIndex + 1, puzzle.moves.size),"],
+      ["Icon(Icons.AutoMirrored.Filled.ArrowForward, \"Next\")", "Icon(Icons.AutoMirrored.Filled.ArrowForward, stringResource(R.string.a11y_next_move))"],
+      ["Text(\"Dashboard\")", "Text(stringResource(R.string.drawer_dashboard))"],
+      ["Text(\"Next\")", "Text(stringResource(R.string.local_review_next))"]
+    ]
+  }
+]

@@ -4,7 +4,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.chess99.R
 
 /**
  * Which active game is showing [GameNavigationWarningDialog]. The copy has to
@@ -37,21 +39,20 @@ fun GameNavigationWarningDialog(
         },
         title = {
             Text(
-                text = "Leave the game?",
+                text = stringResource(R.string.leave_game_title),
                 fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Text(
-                text = when (gameType) {
-                    ActiveGameType.RATED_MULTIPLAYER ->
-                        "This is a rated game. If you leave now, you resign and it counts as a loss."
-                    ActiveGameType.CASUAL_MULTIPLAYER,
-                    ActiveGameType.CASUAL_BOT ->
-                        "Your game will be paused. You can resume it from Home within an hour."
-                    ActiveGameType.VS_COMPUTER ->
-                        "Your game won't be saved."
-                },
+                text = stringResource(
+                    when (gameType) {
+                        ActiveGameType.RATED_MULTIPLAYER -> R.string.leave_game_rated
+                        ActiveGameType.CASUAL_MULTIPLAYER,
+                        ActiveGameType.CASUAL_BOT -> R.string.leave_game_casual
+                        ActiveGameType.VS_COMPUTER -> R.string.leave_game_vs_computer
+                    }
+                ),
                 style = MaterialTheme.typography.bodyMedium,
             )
         },
@@ -62,12 +63,12 @@ fun GameNavigationWarningDialog(
                     containerColor = MaterialTheme.colorScheme.error,
                 ),
             ) {
-                Text("Leave game")
+                Text(stringResource(R.string.leave_game_confirm))
             }
         },
         dismissButton = {
             OutlinedButton(onClick = onStay) {
-                Text("Keep playing")
+                Text(stringResource(R.string.leave_game_keep_playing))
             }
         },
     )

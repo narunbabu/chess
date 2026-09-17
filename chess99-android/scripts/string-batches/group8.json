@@ -1,0 +1,33 @@
+[
+  {
+    "section": "Legacy notification channels (Application)",
+    "file": "Chess99App.kt",
+    "strings": {
+      "notif_channel_tournament_legacy_desc": "Notifications for tournament updates and reminders"
+    },
+    "edits": [
+      ["            \"Game Notifications\",", "            getString(R.string.notif_channel_game),"],
+      ["            description = \"Notifications for game moves, invitations, and results\"", "            description = getString(R.string.notif_channel_game_desc)"],
+      ["            \"Tournament Notifications\",", "            getString(R.string.notif_channel_tournament),"],
+      ["            description = \"Notifications for tournament updates and reminders\"", "            description = getString(R.string.notif_channel_tournament_legacy_desc)"],
+      ["            \"Social Notifications\",", "            getString(R.string.notif_channel_social),"],
+      ["            description = \"Notifications for friend requests and social events\"", "            description = getString(R.string.notif_channel_social_desc)"],
+      ["            \"System Notifications\",", "            getString(R.string.notif_channel_system),"],
+      ["            description = \"System maintenance and informational messages\"", "            description = getString(R.string.notif_channel_system_desc)"]
+    ]
+  },
+  {
+    "section": "CCT panel",
+    "file": "presentation/game/CCTControls.kt",
+    "strings": {
+      "cct_none": "None",
+      "cct_capture_chip": "×%1$s",
+      "cct_threat_chip": "→ %1$s"
+    },
+    "edits": [
+      ["            items = cct.captures.map { \"×${it.victimName}\" to null },", "            items = cct.captures.map { stringResource(R.string.cct_capture_chip, stringResource(it.victimName)) to null },"],
+      ["            items = cct.threats.map { \"→ ${it.victimName}\" to null },", "            items = cct.threats.map { stringResource(R.string.cct_threat_chip, stringResource(it.victimName)) to null },"],
+      ["                        \"None\",", "                        stringResource(R.string.cct_none),"]
+    ]
+  }
+]

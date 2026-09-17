@@ -9,8 +9,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,10 +79,10 @@ fun HomeScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Chess99", fontWeight = FontWeight.Bold) },
+                    title = { Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                            Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.a11y_menu))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -105,7 +106,11 @@ fun HomeScreen(
     }
 }
 
-private data class DrawerEntry(val label: String, val icon: ImageVector, val route: String)
+private data class DrawerEntry(
+    @androidx.annotation.StringRes val labelRes: Int,
+    val icon: ImageVector,
+    val route: String,
+)
 
 @Composable
 private fun AppDrawer(
@@ -114,23 +119,23 @@ private fun AppDrawer(
     onLogout: () -> Unit,
 ) {
     val entries = listOfNotNull(
-        DrawerEntry("Dashboard", Icons.Default.Dashboard, Screen.Dashboard.route),
-        DrawerEntry("Championships", Icons.Default.EmojiEvents, Screen.ChampionshipList.route),
-        DrawerEntry("Tournament Invites", Icons.Default.MailOutline, Screen.ChampionshipInvitations.route),
-        DrawerEntry("Leaderboard", Icons.Default.Leaderboard, Screen.Leaderboard.route),
-        DrawerEntry("Daily Challenges", Icons.Default.Today, Screen.DailyChallenges.route),
-        DrawerEntry("Game History", Icons.Default.History, Screen.GameHistory.route),
-        DrawerEntry("Organizations", Icons.Default.Groups, Screen.Organizations.route),
-        DrawerEntry("Referrals", Icons.Default.CardGiftcard, Screen.ReferralDashboard.route),
+        DrawerEntry(R.string.drawer_dashboard, Icons.Default.Dashboard, Screen.Dashboard.route),
+        DrawerEntry(R.string.drawer_championships, Icons.Default.EmojiEvents, Screen.ChampionshipList.route),
+        DrawerEntry(R.string.drawer_tournament_invites, Icons.Default.MailOutline, Screen.ChampionshipInvitations.route),
+        DrawerEntry(R.string.drawer_leaderboard, Icons.Default.Leaderboard, Screen.Leaderboard.route),
+        DrawerEntry(R.string.drawer_daily_challenges, Icons.Default.Today, Screen.DailyChallenges.route),
+        DrawerEntry(R.string.drawer_game_history, Icons.Default.History, Screen.GameHistory.route),
+        DrawerEntry(R.string.drawer_organizations, Icons.Default.Groups, Screen.Organizations.route),
+        DrawerEntry(R.string.drawer_referrals, Icons.Default.CardGiftcard, Screen.ReferralDashboard.route),
         // S15: the Ambassador program is 18+ only — hidden for minors and
         // for accounts with no birthday on file yet (fail-closed).
-        if (!hideAmbassador) DrawerEntry("Ambassador", Icons.Default.Campaign, Screen.AmbassadorDashboard.route) else null,
-        DrawerEntry("My Plan", Icons.Default.WorkspacePremium, Screen.Subscription.route),
+        if (!hideAmbassador) DrawerEntry(R.string.drawer_ambassador, Icons.Default.Campaign, Screen.AmbassadorDashboard.route) else null,
+        DrawerEntry(R.string.drawer_my_plan, Icons.Default.WorkspacePremium, Screen.Subscription.route),
     )
     val footer = listOf(
-        DrawerEntry("Privacy Policy", Icons.Default.PrivacyTip, Screen.Privacy.route),
-        DrawerEntry("Terms of Service", Icons.Default.Description, Screen.Terms.route),
-        DrawerEntry("Open-source licences", Icons.Default.Code, Screen.OpenSourceLicenses.route),
+        DrawerEntry(R.string.drawer_privacy, Icons.Default.PrivacyTip, Screen.Privacy.route),
+        DrawerEntry(R.string.drawer_terms, Icons.Default.Description, Screen.Terms.route),
+        DrawerEntry(R.string.drawer_licenses, Icons.Default.Code, Screen.OpenSourceLicenses.route),
     )
 
     ModalDrawerSheet {
@@ -156,13 +161,13 @@ private fun AppDrawer(
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(
-                            "Chess99",
+                            stringResource(R.string.app_name),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
                         )
                         Text(
-                            "Play · Learn · Master",
+                            stringResource(R.string.home_tagline),
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.85f),
                         )
@@ -173,7 +178,7 @@ private fun AppDrawer(
             entries.forEach { e ->
                 NavigationDrawerItem(
                     icon = { Icon(e.icon, contentDescription = null) },
-                    label = { Text(e.label) },
+                    label = { Text(stringResource(e.labelRes)) },
                     selected = false,
                     onClick = { onDestination(e.route) },
                     modifier = Modifier.padding(horizontal = 12.dp),
@@ -183,7 +188,7 @@ private fun AppDrawer(
             footer.forEach { e ->
                 NavigationDrawerItem(
                     icon = { Icon(e.icon, contentDescription = null) },
-                    label = { Text(e.label) },
+                    label = { Text(stringResource(e.labelRes)) },
                     selected = false,
                     onClick = { onDestination(e.route) },
                     modifier = Modifier.padding(horizontal = 12.dp),
@@ -191,7 +196,7 @@ private fun AppDrawer(
             }
             NavigationDrawerItem(
                 icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
-                label = { Text("Logout") },
+                label = { Text(stringResource(R.string.drawer_logout)) },
                 selected = false,
                 onClick = onLogout,
                 modifier = Modifier.padding(horizontal = 12.dp),
@@ -274,19 +279,19 @@ private fun PlayTab(
             }
 
             // ── Primary play actions ────────────────────────────────────────
-            SectionHeader("Start a game")
+            SectionHeader(stringResource(R.string.home_start_a_game))
             Spacer(Modifier.height(10.dp))
             PrimaryPlayCard(
-                title = "Play computer",
-                subtitle = "Practice offline against a computer",
+                title = stringResource(R.string.home_play_computer_title),
+                subtitle = stringResource(R.string.home_play_computer_subtitle),
                 icon = Icons.Default.SmartToy,
                 gradient = listOf(ChessActionGreen, ChessDeepActionGreen),
                 onClick = onPlayComputer,
             )
             Spacer(Modifier.height(12.dp))
             PrimaryPlayCard(
-                title = "Play online",
-                subtitle = "Find a player near your rating",
+                title = stringResource(R.string.home_play_online_title),
+                subtitle = stringResource(R.string.home_play_online_subtitle),
                 icon = Icons.Default.Public,
                 gradient = listOf(Color(0xFFB07D00), Color(0xFF8B5A00)),
                 onClick = onPlayOnline,
@@ -309,12 +314,12 @@ private fun PlayTab(
             Spacer(Modifier.height(24.dp))
 
             // ── Explore grid ──────────────────────────────────────────────
-            SectionHeader("Keep going")
+            SectionHeader(stringResource(R.string.home_keep_going))
             Spacer(Modifier.height(10.dp))
 
             val actions = listOf(
-                QuickAction("Continue learning", Icons.Default.School, MaterialTheme.colorScheme.primary) { onLearn() },
-                QuickAction("Progress", Icons.AutoMirrored.Filled.ShowChart, Color(0xFF5A7A42)) { onNavigate(Screen.Progress.route) },
+                QuickAction(R.string.home_continue_learning, Icons.Default.School, MaterialTheme.colorScheme.primary) { onLearn() },
+                QuickAction(R.string.home_progress, Icons.AutoMirrored.Filled.ShowChart, Color(0xFF5A7A42)) { onNavigate(Screen.Progress.route) },
             )
             actions.chunked(2).forEach { row ->
                 Row(
@@ -351,16 +356,15 @@ private fun ResumeLoadError(hasCachedGames: Boolean, onRetry: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = if (hasCachedGames) {
-                    "Couldn't refresh games. Showing your last known list."
-                } else {
-                    "Couldn't check for games to resume. Offline computer play is still available."
-                },
+                text = stringResource(
+                    if (hasCachedGames) R.string.home_resume_error_cached
+                    else R.string.home_resume_error
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = onRetry) { Text("Retry") }
+            TextButton(onClick = onRetry) { Text(stringResource(R.string.action_retry)) }
         }
     }
 }
@@ -373,7 +377,7 @@ private fun ContinuePlayingSection(
     onSeeAllInLobby: () -> Unit,
 ) {
     Column {
-        SectionHeader("Continue playing")
+        SectionHeader(stringResource(R.string.home_continue_playing))
         Spacer(Modifier.height(10.dp))
         games.take(MAX_CONTINUE_PLAYING_CARDS).forEach { game ->
             ContinuePlayingCard(game = game, onResume = onResume, onDiscard = onDiscard)
@@ -381,7 +385,7 @@ private fun ContinuePlayingSection(
         }
         if (games.size > MAX_CONTINUE_PLAYING_CARDS) {
             TextButton(onClick = onSeeAllInLobby) {
-                Text("See all in Lobby")
+                Text(stringResource(R.string.home_see_all_in_lobby))
             }
         }
     }
@@ -404,7 +408,7 @@ private fun ContinuePlayingCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "vs ${game.opponentName}",
+                    text = stringResource(R.string.home_vs_opponent, game.opponentName),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -414,18 +418,25 @@ private fun ContinuePlayingCard(
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "Playing as ${if (game.playingAsWhite) "White" else "Black"} · ${formatLastMove(game.lastMoveAtIso)}",
+                text = stringResource(
+                    R.string.home_playing_as,
+                    stringResource(
+                        if (game.playingAsWhite) R.string.color_white_name
+                        else R.string.color_black_name
+                    ),
+                    formatLastMove(game.lastMoveAtIso),
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { onResume(game.id) }) {
-                    Text("Resume")
+                    Text(stringResource(R.string.action_resume))
                 }
                 if (game.canDiscard) {
                     OutlinedButton(onClick = { showDiscardConfirm = true }) {
-                        Text("Discard")
+                        Text(stringResource(R.string.home_discard))
                     }
                 }
             }
@@ -435,19 +446,19 @@ private fun ContinuePlayingCard(
     if (showDiscardConfirm) {
         AlertDialog(
             onDismissRequest = { showDiscardConfirm = false },
-            title = { Text("Discard this game?") },
-            text = { Text("This will end the game with no rating impact.") },
+            title = { Text(stringResource(R.string.home_discard_title)) },
+            text = { Text(stringResource(R.string.home_discard_body)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDiscardConfirm = false
                     onDiscard(game.id)
                 }) {
-                    Text("Discard")
+                    Text(stringResource(R.string.home_discard))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardConfirm = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
         )
@@ -456,23 +467,24 @@ private fun ContinuePlayingCard(
 
 @Composable
 private fun GameStatusChip(status: String) {
-    val (containerColor, contentColor, label) = when (status) {
+    val (containerColor, contentColor, labelRes) = when (status) {
         "active" -> Triple(
             MaterialTheme.colorScheme.primaryContainer,
             MaterialTheme.colorScheme.onPrimaryContainer,
-            "Active",
+            R.string.home_status_active,
         )
         "paused" -> Triple(
             MaterialTheme.colorScheme.errorContainer,
             MaterialTheme.colorScheme.onErrorContainer,
-            "Paused",
+            R.string.home_status_paused,
         )
         else -> Triple(
             MaterialTheme.colorScheme.secondaryContainer,
             MaterialTheme.colorScheme.onSecondaryContainer,
-            "Waiting",
+            R.string.home_status_waiting,
         )
     }
+    val label = stringResource(labelRes)
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = containerColor,
@@ -500,7 +512,7 @@ private fun NearbyOpponentsSection(
     onTapReal: (NearbyOpponent) -> Unit,
 ) {
     Column {
-        SectionHeader("Players near your rating")
+        SectionHeader(stringResource(R.string.home_nearby_title))
         Spacer(Modifier.height(10.dp))
         val visible = if (expanded) opponents else opponents.take(NEARBY_OPPONENTS_COLLAPSED_COUNT)
         visible.forEach { opponent ->
@@ -514,7 +526,16 @@ private fun NearbyOpponentsSection(
         }
         if (opponents.size > NEARBY_OPPONENTS_COLLAPSED_COUNT) {
             TextButton(onClick = onToggleExpanded) {
-                Text(if (expanded) "Show less" else "Show ${opponents.size - NEARBY_OPPONENTS_COLLAPSED_COUNT} more")
+                Text(
+                    if (expanded) {
+                        stringResource(R.string.home_show_less)
+                    } else {
+                        stringResource(
+                            R.string.home_show_more,
+                            opponents.size - NEARBY_OPPONENTS_COLLAPSED_COUNT,
+                        )
+                    }
+                )
             }
         }
     }
@@ -556,7 +577,7 @@ private fun NearbyOpponentCard(opponent: NearbyOpponent, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(opponent.name, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
                 Text(
-                    "Rating: ${opponent.rating}",
+                    stringResource(R.string.lobby_player_rating, opponent.rating),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -570,11 +591,13 @@ private fun NearbyOpponentCard(opponent: NearbyOpponent, onClick: () -> Unit) {
 private fun NearbyOpponentStatusDot(opponent: NearbyOpponent) {
     // Computer availability is labelled explicitly and never counted as a
     // human online player.
-    val (dotColor, label) = when {
-        opponent.isSynthetic -> MaterialTheme.colorScheme.primary to "Computer · Available"
-        opponent.inGame -> MaterialTheme.colorScheme.tertiary to "In game"
-        else -> MaterialTheme.colorScheme.primary to "Online"
+    val (dotColor, labelRes) = when {
+        opponent.isSynthetic ->
+            MaterialTheme.colorScheme.primary to R.string.home_status_computer_available
+        opponent.inGame -> MaterialTheme.colorScheme.tertiary to R.string.home_status_in_game
+        else -> MaterialTheme.colorScheme.primary to R.string.home_status_online
     }
+    val label = stringResource(labelRes)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
@@ -588,21 +611,22 @@ private fun NearbyOpponentStatusDot(opponent: NearbyOpponent) {
 }
 
 /** Formats an ISO-8601 timestamp (as returned by Laravel's `datetime` cast) as relative time. */
+@Composable
 private fun formatLastMove(isoTimestamp: String?): String {
-    if (isoTimestamp.isNullOrBlank()) return "No moves yet"
+    if (isoTimestamp.isNullOrBlank()) return stringResource(R.string.home_no_moves_yet)
     val instant = runCatching { java.time.Instant.parse(isoTimestamp) }.getOrNull()
-        ?: return "No moves yet"
+        ?: return stringResource(R.string.home_no_moves_yet)
     val minutes = java.time.Duration.between(instant, java.time.Instant.now()).toMinutes()
     return when {
-        minutes < 1 -> "Just now"
-        minutes < 60 -> "${minutes}m ago"
-        minutes < 60 * 24 -> "${minutes / 60}h ago"
-        else -> "${minutes / (60 * 24)}d ago"
+        minutes < 1 -> stringResource(R.string.home_just_now)
+        minutes < 60 -> stringResource(R.string.home_minutes_ago, minutes)
+        minutes < 60 * 24 -> stringResource(R.string.home_hours_ago, minutes / 60)
+        else -> stringResource(R.string.home_days_ago, minutes / (60 * 24))
     }
 }
 
 private data class QuickAction(
-    val label: String,
+    @androidx.annotation.StringRes val labelRes: Int,
     val icon: ImageVector,
     val tint: Color,
     val onClick: () -> Unit,
@@ -630,20 +654,20 @@ private fun HeroBanner() {
         )
         Column(modifier = Modifier.align(Alignment.CenterStart)) {
             Text(
-                "Welcome back",
+                stringResource(R.string.home_hero_welcome),
                 style = MaterialTheme.typography.labelLarge,
                 color = Color.White.copy(alpha = 0.85f),
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                "Ready to play?",
+                stringResource(R.string.home_hero_ready),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                "Sharpen your game — one move at a time.",
+                stringResource(R.string.home_hero_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.9f),
             )
@@ -737,7 +761,7 @@ private fun QuickActionTile(action: QuickAction, modifier: Modifier = Modifier) 
             }
             Spacer(Modifier.height(10.dp))
             Text(
-                action.label,
+                stringResource(action.labelRes),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,

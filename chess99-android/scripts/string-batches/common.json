@@ -1,0 +1,239 @@
+[
+{
+  "section": "Unfinished-game prompt",
+  "file": "presentation/common/UnfinishedGamePrompt.kt",
+  "strings": {
+    "unfinished_title": "Unfinished Game",
+    "unfinished_intro": "You have an unfinished game:",
+    "unfinished_summary": "vs %1$s • %2$s",
+    "unfinished_question": "Would you like to resume or discard it?"
+  },
+  "edits": [
+    ["                text = \"Unfinished Game\",", "                text = stringResource(R.string.unfinished_title),"],
+    ["                Text(\"You have an unfinished game:\")", "                Text(stringResource(R.string.unfinished_intro))"],
+    ["                    text = \"vs $opponentName \\u2022 $timeControl\",", "                    text = stringResource(R.string.unfinished_summary, opponentName, timeControl),"],
+    ["                    text = \"Would you like to resume or discard it?\",", "                    text = stringResource(R.string.unfinished_question),"],
+    ["                Text(\"Resume\")", "                Text(stringResource(R.string.action_resume))"],
+    ["                Text(\"Discard\")", "                Text(stringResource(R.string.home_discard))"]
+  ]
+},
+{
+  "section": "Presence confirmation",
+  "file": "presentation/common/PresenceConfirmationDialog.kt",
+  "strings": {
+    "presence_title": "Are you still there?",
+    "presence_body": "Confirm your presence to continue the game.",
+    "presence_seconds_remaining": "seconds remaining",
+    "presence_confirm": "I'm here!"
+  },
+  "edits": [
+    ["                text = \"Are you still there?\",", "                text = stringResource(R.string.presence_title),"],
+    ["                    text = \"Confirm your presence to continue the game.\",", "                    text = stringResource(R.string.presence_body),"],
+    ["                    text = \"seconds remaining\",", "                    text = stringResource(R.string.presence_seconds_remaining),"],
+    ["                Text(\"I'm here!\")", "                Text(stringResource(R.string.presence_confirm))"]
+  ]
+},
+{
+  "section": "New-game challenge dialog",
+  "file": "presentation/common/NewGameRequestDialog.kt",
+  "strings": {
+    "new_game_title": "New Game Challenge",
+    "new_game_vs": "VS",
+    "new_game_time_control": "%1$d+%2$d",
+    "new_game_colour_preference": "They want to play as %1$s",
+    "new_game_rating": "(%1$d)"
+  },
+  "edits": [
+    ["                text = \"New Game Challenge\",", "                text = stringResource(R.string.new_game_title),"],
+    ["                        text = \"VS\",", "                        text = stringResource(R.string.new_game_vs),"],
+    ["                val settings = buildList {\n                    if (request.timeControlMinutes != null) {\n                        add(\"${request.timeControlMinutes}+${request.incrementSeconds ?: 0}\")\n                    }\n                    if (request.gameMode != null) {\n                        add(if (request.gameMode == \"rated\") \"Rated\" else \"Casual\")\n                    }\n                }",
+     "                val timeControlLabel = request.timeControlMinutes?.let {\n                    stringResource(R.string.new_game_time_control, it, request.incrementSeconds ?: 0)\n                }\n                val modeLabel = request.gameMode?.let {\n                    stringResource(if (it == \"rated\") R.string.mode_rated else R.string.mode_casual)\n                }\n                val settings = listOfNotNull(timeControlLabel, modeLabel)"],
+    ["                        text = \"They want to play as ${request.colorPreference}\",", "                        text = stringResource(\n                            R.string.new_game_colour_preference,\n                            request.colorPreference,\n                        ),"],
+    ["                Text(\"Accept\")", "                Text(stringResource(R.string.action_accept))"],
+    ["                Text(\"Decline\")", "                Text(stringResource(R.string.action_decline))"],
+    ["                text = \"($rating)\",", "                text = stringResource(R.string.new_game_rating, rating),"]
+  ]
+},
+{
+  "section": "Network error dialog",
+  "file": "presentation/common/NetworkErrorDialog.kt",
+  "strings": {
+    "network_error_title": "Connection Lost",
+    "network_error_body": "Lost connection to the game server.\nThis may be due to a network issue.",
+    "network_error_hint": "Your game state is preserved. Try reconnecting.",
+    "network_error_retry": "Retry Connection",
+    "network_error_leave": "Leave Game"
+  },
+  "edits": [
+    ["                text = \"Connection Lost\",", "                text = stringResource(R.string.network_error_title),"],
+    ["                    text = \"Lost connection to the game server.\\nThis may be due to a network issue.\",", "                    text = stringResource(R.string.network_error_body),"],
+    ["                    text = \"Your game state is preserved. Try reconnecting.\",", "                    text = stringResource(R.string.network_error_hint),"],
+    ["                Text(\"Retry Connection\")", "                Text(stringResource(R.string.network_error_retry))"],
+    ["                Text(\"Leave Game\")", "                Text(stringResource(R.string.network_error_leave))"]
+  ]
+},
+{
+  "section": "Game completion overlay",
+  "file": "presentation/common/GameCompletionAnimation.kt",
+  "strings": {
+    "completion_game_over": "Game Over",
+    "completion_rating": "Rating",
+    "completion_continue": "Continue",
+    "completion_checkmate": "Checkmate!"
+  },
+  "edits": [
+    ["    val (title, icon, color) = when (result.lowercase()) {\n        \"win\" -> Triple(\"Victory!\", Icons.Default.EmojiEvents, Color(0xFF4CAF50))\n        \"loss\" -> Triple(\"Defeat\", Icons.Default.SentimentDissatisfied, Color(0xFFE53935))\n        \"draw\" -> Triple(\"Draw\", Icons.Default.Handshake, Color(0xFFFF9800))\n        else -> Triple(\"Game Over\", Icons.Default.SportsEsports, Color(0xFF9E9E9E))\n    }",
+     "    val (titleRes, icon, color) = when (result.lowercase()) {\n        \"win\" -> Triple(R.string.game_result_victory, Icons.Default.EmojiEvents, Color(0xFF4CAF50))\n        \"loss\" -> Triple(R.string.game_result_defeat, Icons.Default.SentimentDissatisfied, Color(0xFFE53935))\n        \"draw\" -> Triple(R.string.game_result_draw, Icons.Default.Handshake, Color(0xFFFF9800))\n        else -> Triple(R.string.completion_game_over, Icons.Default.SportsEsports, Color(0xFF9E9E9E))\n    }\n    val title = stringResource(titleRes)"],
+    ["                    text = \"Rating\",", "                    text = stringResource(R.string.completion_rating),"],
+    ["                Text(\"Continue\", color = Color.White)", "                Text(stringResource(R.string.completion_continue), color = Color.White)"],
+    ["            text = \"Checkmate!\",", "            text = stringResource(R.string.completion_checkmate),"]
+  ]
+},
+{
+  "section": "About & contact dialog",
+  "file": "presentation/common/AboutContactDialog.kt",
+  "strings": {
+    "about_title": "About Chess99",
+    "about_body": "Chess99 is a real-time multiplayer chess platform built for everyone — from beginners to advanced players.",
+    "about_website": "chess99.com",
+    "about_support_email": "support@chess99.com",
+    "about_version": "Version 1.0.0",
+    "about_built_by": "Built by Ameyem",
+    "about_close": "Close",
+    "about_contact_us": "Contact Us",
+    "about_feedback_subject": "Chess99 App Feedback"
+  },
+  "edits": [
+    ["            Text(\"About Chess99\", fontWeight = FontWeight.Bold)", "            Text(stringResource(R.string.about_title), fontWeight = FontWeight.Bold)"],
+    ["                    \"Chess99 is a real-time multiplayer chess platform built for everyone \" +\n                            \"\\u2014 from beginners to advanced players.\",", "                    stringResource(R.string.about_body),"],
+    ["                    Text(\"chess99.com\", style = MaterialTheme.typography.bodyMedium)", "                    Text(stringResource(R.string.about_website), style = MaterialTheme.typography.bodyMedium)"],
+    ["                    Text(\"support@chess99.com\", style = MaterialTheme.typography.bodyMedium)", "                    Text(\n                        stringResource(R.string.about_support_email),\n                        style = MaterialTheme.typography.bodyMedium,\n                    )"],
+    ["                    \"Version 1.0.0\",", "                    stringResource(R.string.about_version),"],
+    ["                    \"Built by Ameyem\",", "                    stringResource(R.string.about_built_by),"],
+    ["                Text(\"Close\")", "                Text(stringResource(R.string.about_close))"],
+    ["                        putExtra(Intent.EXTRA_SUBJECT, \"Chess99 App Feedback\")", "                        putExtra(\n                            Intent.EXTRA_SUBJECT,\n                            context.getString(R.string.about_feedback_subject),\n                        )"],
+    ["                Text(\"Contact Us\")", "                Text(stringResource(R.string.about_contact_us))"]
+  ]
+},
+{
+  "section": "Upgrade prompt",
+  "file": "presentation/common/UpgradePromptCard.kt",
+  "strings": {
+    "upgrade_title": "Upgrade to Premium",
+    "upgrade_message": "Unlock unlimited games, advanced analysis, and ad-free experience.",
+    "upgrade_action": "Upgrade",
+    "upgrade_free_tier": "Playing on Free tier",
+    "upgrade_go_premium": "Go Premium"
+  },
+  "edits": [
+    ["    title: String = \"Upgrade to Premium\",\n    message: String = \"Unlock unlimited games, advanced analysis, and ad-free experience.\",\n    onUpgrade: () -> Unit,\n) {",
+     "    title: String = stringResource(R.string.upgrade_title),\n    message: String = stringResource(R.string.upgrade_message),\n    onUpgrade: () -> Unit,\n) {"],
+    ["                Text(\"Upgrade\", style = MaterialTheme.typography.labelMedium)", "                Text(stringResource(R.string.upgrade_action), style = MaterialTheme.typography.labelMedium)"],
+    ["                text = \"Playing on Free tier\",", "                text = stringResource(R.string.upgrade_free_tier),"],
+    ["                Text(\"Go Premium\", style = MaterialTheme.typography.labelSmall)", "                Text(stringResource(R.string.upgrade_go_premium), style = MaterialTheme.typography.labelSmall)"]
+  ]
+},
+{
+  "section": "Game preview dialog",
+  "file": "presentation/common/GamePreviewDialog.kt",
+  "strings": {
+    "preview_title": "Join Game?",
+    "preview_host": "Host",
+    "preview_rating": "Rating",
+    "preview_join": "Join"
+  },
+  "edits": [
+    ["            Text(\"Join Game?\", fontWeight = FontWeight.Bold)", "            Text(stringResource(R.string.preview_title), fontWeight = FontWeight.Bold)"],
+    ["                DetailInfoRow(\"Host\", hostName)\n                DetailInfoRow(\"Rating\", \"$hostRating\")\n                DetailInfoRow(\"Time Control\", timeControl)\n                DetailInfoRow(\"Mode\", if (isRated) \"Rated\" else \"Casual\")",
+     "                DetailInfoRow(stringResource(R.string.preview_host), hostName)\n                DetailInfoRow(stringResource(R.string.preview_rating), \"$hostRating\")\n                DetailInfoRow(stringResource(R.string.championship_time_control), timeControl)\n                DetailInfoRow(\n                    stringResource(R.string.lobby_mode),\n                    stringResource(if (isRated) R.string.mode_rated else R.string.mode_casual),\n                )"],
+    ["                Text(\"Join\")", "                Text(stringResource(R.string.preview_join))"],
+    ["                Text(\"Cancel\")", "                Text(stringResource(R.string.action_cancel))"]
+  ]
+},
+{
+  "section": "Leave-game warning",
+  "file": "presentation/common/GameNavigationWarningDialog.kt",
+  "strings": {
+    "leave_game_title": "Leave the game?",
+    "leave_game_rated": "This is a rated game. If you leave now, you resign and it counts as a loss.",
+    "leave_game_casual": "Your game will be paused. You can resume it from Home within an hour.",
+    "leave_game_vs_computer": "Your game won't be saved.",
+    "leave_game_confirm": "Leave game",
+    "leave_game_keep_playing": "Keep playing"
+  },
+  "edits": [
+    ["                text = \"Leave the game?\",", "                text = stringResource(R.string.leave_game_title),"],
+    ["                text = when (gameType) {\n                    ActiveGameType.RATED_MULTIPLAYER ->\n                        \"This is a rated game. If you leave now, you resign and it counts as a loss.\"\n                    ActiveGameType.CASUAL_MULTIPLAYER,\n                    ActiveGameType.CASUAL_BOT ->\n                        \"Your game will be paused. You can resume it from Home within an hour.\"\n                    ActiveGameType.VS_COMPUTER ->\n                        \"Your game won't be saved.\"\n                },",
+     "                text = stringResource(\n                    when (gameType) {\n                        ActiveGameType.RATED_MULTIPLAYER -> R.string.leave_game_rated\n                        ActiveGameType.CASUAL_MULTIPLAYER,\n                        ActiveGameType.CASUAL_BOT -> R.string.leave_game_casual\n                        ActiveGameType.VS_COMPUTER -> R.string.leave_game_vs_computer\n                    }\n                ),"],
+    ["                Text(\"Leave game\")", "                Text(stringResource(R.string.leave_game_confirm))"],
+    ["                Text(\"Keep playing\")", "                Text(stringResource(R.string.leave_game_keep_playing))"]
+  ]
+},
+{
+  "section": "Checkmate banner",
+  "file": "presentation/common/CheckmateNotification.kt",
+  "strings": {
+    "checkmate_banner": "CHECKMATE!",
+    "checkmate_winner": "%1$s wins!"
+  },
+  "edits": [
+    ["                    text = \"CHECKMATE!\",", "                    text = stringResource(R.string.checkmate_banner),"],
+    ["                    text = \"${winner.replaceFirstChar { it.uppercase() }} wins!\",",
+     "                    text = stringResource(\n                        R.string.checkmate_winner,\n                        stringResource(\n                            if (winner.equals(\"black\", ignoreCase = true)) R.string.color_black_name\n                            else R.string.color_white_name\n                        ),\n                    ),"]
+  ]
+},
+{
+  "section": "Global invitation dialog",
+  "file": "presentation/common/GlobalInvitationDialog.kt",
+  "strings": {
+    "invitation_title_rematch": "Rematch Challenge",
+    "invitation_title_resume": "Resume Game Request",
+    "invitation_title_match": "Match Request",
+    "invitation_title_championship": "Championship Game Request",
+    "invitation_title_default": "Game Invitation",
+    "invitation_body_rematch": "has challenged you to a rematch!",
+    "invitation_body_resume": "wants to resume the paused game!",
+    "invitation_body_match": "wants to play you!",
+    "invitation_body_championship": "wants to start your championship match!",
+    "invitation_body_default": "wants to play chess with you!",
+    "invitation_wants_colour": "Wants %1$s",
+    "invitation_play_now": "Play Now",
+    "invitation_accept_and_play": "Accept & Play"
+  },
+  "edits": [
+    ["    val title = when (invitation.type) {\n        \"new_game_request\" -> \"Rematch Challenge\"\n        \"resume_request\" -> \"Resume Game Request\"\n        \"match_request\" -> \"Match Request\"\n        \"championship_resume\" -> \"Championship Game Request\"\n        else -> \"Game Invitation\"\n    }",
+     "    val title = stringResource(\n        when (invitation.type) {\n            \"new_game_request\" -> R.string.invitation_title_rematch\n            \"resume_request\" -> R.string.invitation_title_resume\n            \"match_request\" -> R.string.invitation_title_match\n            \"championship_resume\" -> R.string.invitation_title_championship\n            else -> R.string.invitation_title_default\n        }\n    )"],
+    ["                        text = \"Rating: ${invitation.inviterRating}\",", "                        text = stringResource(\n                            R.string.lobby_player_rating,\n                            invitation.inviterRating,\n                        ),"],
+    ["                val description = when (invitation.type) {\n                    \"new_game_request\" -> \"has challenged you to a rematch!\"\n                    \"resume_request\" -> \"wants to resume the paused game!\"\n                    \"match_request\" -> \"wants to play you!\"\n                    \"championship_resume\" -> \"wants to start your championship match!\"\n                    else -> \"wants to play chess with you!\"\n                }",
+     "                val description = stringResource(\n                    when (invitation.type) {\n                        \"new_game_request\" -> R.string.invitation_body_rematch\n                        \"resume_request\" -> R.string.invitation_body_resume\n                        \"match_request\" -> R.string.invitation_body_match\n                        \"championship_resume\" -> R.string.invitation_body_championship\n                        else -> R.string.invitation_body_default\n                    }\n                )"],
+    ["                val settings = buildList {\n                    if (invitation.timeControlMinutes != null) {\n                        add(\"${invitation.timeControlMinutes}+${invitation.incrementSeconds ?: 0}\")\n                    }\n                    if (invitation.gameMode != null) {\n                        add(if (invitation.gameMode == \"rated\") \"Rated\" else \"Casual\")\n                    }\n                    if (invitation.colorPreference != null && invitation.colorPreference != \"random\") {\n                        add(\"Wants ${invitation.colorPreference}\")\n                    }\n                }",
+     "                val timeControlLabel = invitation.timeControlMinutes?.let {\n                    stringResource(\n                        R.string.new_game_time_control,\n                        it,\n                        invitation.incrementSeconds ?: 0,\n                    )\n                }\n                val modeLabel = invitation.gameMode?.let {\n                    stringResource(if (it == \"rated\") R.string.mode_rated else R.string.mode_casual)\n                }\n                val colourLabel = invitation.colorPreference\n                    ?.takeIf { it != \"random\" }\n                    ?.let { stringResource(R.string.invitation_wants_colour, it) }\n                val settings = listOfNotNull(timeControlLabel, modeLabel, colourLabel)"],
+    ["                Text(\n                    when (invitation.type) {\n                        \"new_game_request\" -> \"Play Now\"\n                        \"resume_request\" -> \"Resume\"\n                        \"championship_resume\" -> \"Accept & Play\"\n                        else -> \"Accept\"\n                    },\n                )",
+     "                Text(\n                    stringResource(\n                        when (invitation.type) {\n                            \"new_game_request\" -> R.string.invitation_play_now\n                            \"resume_request\" -> R.string.action_resume\n                            \"championship_resume\" -> R.string.invitation_accept_and_play\n                            else -> R.string.action_accept\n                        }\n                    ),\n                )"],
+    ["                Text(\"Decline\")", "                Text(stringResource(R.string.action_decline))"]
+  ]
+},
+{
+  "section": "Presence status bar",
+  "file": "presentation/common/PresenceStatusBar.kt",
+  "strings": {
+    "presence_online_count": "%1$d online",
+    "presence_online": "Online",
+    "presence_offline": "Offline"
+  },
+  "edits": [
+    ["            text = if (isConnected) {\n                if (onlineCount > 0) \"$onlineCount online\" else \"Online\"\n            } else {\n                \"Offline\"\n            },",
+     "            text = if (isConnected) {\n                if (onlineCount > 0) {\n                    stringResource(R.string.presence_online_count, onlineCount)\n                } else {\n                    stringResource(R.string.presence_online)\n                }\n            } else {\n                stringResource(R.string.presence_offline)\n            },"]
+  ]
+},
+{
+  "section": "Player info bar",
+  "file": "presentation/common/GameTimerDisplay.kt",
+  "strings": {
+    "player_rating_suffix": " (%1$d)"
+  },
+  "edits": [
+    ["                        text = \" ($rating)\",", "                        text = stringResource(R.string.player_rating_suffix, rating),"]
+  ]
+}
+]

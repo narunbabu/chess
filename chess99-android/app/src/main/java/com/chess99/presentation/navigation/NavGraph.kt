@@ -1,5 +1,6 @@
 package com.chess99.presentation.navigation
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -15,12 +16,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
+import com.chess99.R
 import com.chess99.presentation.auth.ForgotPasswordScreen
 import com.chess99.presentation.auth.LoginScreen
 import com.chess99.presentation.auth.RegisterScreen
@@ -29,9 +32,12 @@ import com.chess99.presentation.auth.SkillAssessmentScreen
 import com.chess99.presentation.championship.ChampionshipDetailScreen
 import com.chess99.presentation.championship.ChampionshipInvitationsScreen
 import com.chess99.presentation.championship.ChampionshipListScreen
+import com.chess99.presentation.daily.DailyChallengesScreen
 import com.chess99.presentation.dashboard.DashboardScreen
 import com.chess99.presentation.game.PlayComputerScreen
 import com.chess99.presentation.game.PlayMultiplayerScreen
+import com.chess99.presentation.game.PublicGameViewerScreen
+import com.chess99.presentation.history.GameDetailScreen
 import com.chess99.presentation.history.GameHistoryScreen
 import com.chess99.presentation.history.GameReviewScreen
 import com.chess99.presentation.history.LocalGameReviewScreen
@@ -40,31 +46,28 @@ import com.chess99.presentation.learn.LearnScreen
 import com.chess99.presentation.learn.PuzzleScreen
 import com.chess99.presentation.learn.TutorialLessonScreen
 import com.chess99.presentation.learn.tactical.TacticalTrainerDashboardScreen
-import com.chess99.presentation.lobby.LobbyScreen
-import com.chess99.presentation.onboarding.OnboardingScreen
-import com.chess99.presentation.payment.SubscriptionScreen
-import com.chess99.presentation.profile.ProfileScreen
-import com.chess99.presentation.referral.ReferralDashboardScreen
-import com.chess99.presentation.parent.MyKidsScreen
-import com.chess99.presentation.game.PublicGameViewerScreen
-import com.chess99.presentation.history.GameDetailScreen
-import com.chess99.presentation.profile.RatingHistoryScreen
-import com.chess99.presentation.profile.OrganizationsScreen
-import com.chess99.presentation.referral.AmbassadorDashboardScreen
-import com.chess99.presentation.referral.BecomeAmbassadorScreen
-import com.chess99.presentation.daily.DailyChallengesScreen
 import com.chess99.presentation.legal.LegalScreen
 import com.chess99.presentation.legal.OpenSourceLicensesScreen
 import com.chess99.presentation.legal.PrivacyPolicyContent
 import com.chess99.presentation.legal.TermsOfServiceContent
+import com.chess99.presentation.lobby.LobbyScreen
+import com.chess99.presentation.onboarding.OnboardingScreen
+import com.chess99.presentation.parent.MyKidsScreen
+import com.chess99.presentation.payment.SubscriptionScreen
+import com.chess99.presentation.profile.OrganizationsScreen
+import com.chess99.presentation.profile.ProfileScreen
+import com.chess99.presentation.profile.RatingHistoryScreen
+import com.chess99.presentation.referral.AmbassadorDashboardScreen
+import com.chess99.presentation.referral.BecomeAmbassadorScreen
+import com.chess99.presentation.referral.ReferralDashboardScreen
 import com.chess99.presentation.social.LeaderboardScreen
 import com.chess99.presentation.social.SharedResultScreen
 
-internal enum class MainDestination(val label: String, val route: String) {
-    Play("Play", Screen.Home.route),
-    Learn("Learn", Screen.Learn.route),
-    Compete("Compete", Screen.ChampionshipList.route),
-    You("You", Screen.Profile.route),
+internal enum class MainDestination(@StringRes val label: Int, val route: String) {
+    Play(R.string.nav_play, Screen.Home.route),
+    Learn(R.string.nav_learn, Screen.Learn.route),
+    Compete(R.string.nav_compete, Screen.ChampionshipList.route),
+    You(R.string.nav_you, Screen.Profile.route),
 }
 
 /** Route ownership drives the selected tab; UI-local indexes are forbidden. */
@@ -143,7 +146,7 @@ private fun MainNavigationBar(
                 selected = destination == selected,
                 onClick = { onSelect(destination) },
                 icon = { Icon(icon, contentDescription = null) },
-                label = { Text(destination.label) },
+                label = { Text(stringResource(destination.label)) },
                 alwaysShowLabel = true,
             )
         }
@@ -375,9 +378,15 @@ fun Chess99NavGraph(
             )
         }
 
-        composable(Screen.Puzzles.route) {
+        // The optional track arg carries the Daily hub's selected challenge
+        // track; navigations from Learn pass none and get the default track.
+        composable(
+            route = "${Screen.Puzzles.route}?track={track}",
+            arguments = listOf(navArgument("track") { type = NavType.StringType; nullable = true; defaultValue = null }),
+        ) { backStackEntry ->
             PuzzleScreen(
                 onNavigateBack = { navController.popBackStack() },
+                track = backStackEntry.arguments?.getString("track"),
             )
         }
 
@@ -556,6 +565,8 @@ fun Chess99NavGraph(
             PublicGameViewerScreen(
                 gameId = gameId,
                 onNavigateBack = { navController.popBackStack() },
+                // Guest-safe, like Onboarding's "Play as guest".
+                onPlay = { navController.navigate(Screen.PlayComputer.route) },
             )
         }
 
@@ -593,7 +604,13 @@ fun Chess99NavGraph(
         composable(Screen.DailyChallenges.route) {
             DailyChallengesScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onSolve = { navController.navigate(Screen.Puzzles.route) },
+                onSolve = { selectedTrack ->
+                    if (selectedTrack != null) {
+                        navController.navigate("${Screen.Puzzles.route}?track=$selectedTrack")
+                    } else {
+                        navController.navigate(Screen.Puzzles.route)
+                    }
+                },
             )
         }
 

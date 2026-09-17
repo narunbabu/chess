@@ -13,10 +13,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 /**
  * Subscription management screen.
@@ -48,10 +50,10 @@ fun SubscriptionScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("My Subscription") },
+                title = { Text(stringResource(R.string.subscription_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -165,14 +167,9 @@ fun SubscriptionScreen(
                         tint = MaterialTheme.colorScheme.error,
                     )
                 },
-                title = { Text("Cancel Subscription?") },
+                title = { Text(stringResource(R.string.subscription_cancel_title)) },
                 text = {
-                    Text(
-                        "Are you sure you want to cancel your subscription? " +
-                            "You will continue to have access until the end of your " +
-                            "current billing period. After that, your account will " +
-                            "revert to the Free tier.",
-                    )
+                    Text(stringResource(R.string.subscription_cancel_body))
                 },
                 confirmButton = {
                     Button(
@@ -190,12 +187,12 @@ fun SubscriptionScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                         }
-                        Text("Cancel Subscription")
+                        Text(stringResource(R.string.subscription_cancel_action))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.dismissCancelDialog() }) {
-                        Text("Keep Subscription")
+                        Text(stringResource(R.string.subscription_keep))
                     }
                 },
             )
@@ -205,10 +202,10 @@ fun SubscriptionScreen(
         state.error?.let { error ->
             AlertDialog(
                 onDismissRequest = { viewModel.clearError() },
-                title = { Text("Error") },
+                title = { Text(stringResource(R.string.error_title)) },
                 text = { Text(error) },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.clearError() }) { Text("OK") }
+                    TextButton(onClick = { viewModel.clearError() }) { Text(stringResource(R.string.action_ok)) }
                 },
             )
         }
@@ -222,7 +219,7 @@ private fun CurrentPlanCard(
     subscription: Subscription?,
 ) {
     val tier = subscription?.tier ?: "free"
-    val planName = subscription?.planName ?: "Free"
+    val planName = subscription?.planName ?: stringResource(R.string.subscription_tier_free)
 
     val tierColor = when (tier) {
         "gold" -> Color(0xFFFFB300)
@@ -268,13 +265,15 @@ private fun CurrentPlanCard(
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             }
 
-            val statusText = when {
-                subscription?.isActive == true -> "Active"
-                subscription?.isCancelled == true -> "Cancelled"
-                subscription?.isExpired == true -> "Expired"
-                tier == "free" -> "Free Tier"
-                else -> "No Subscription"
-            }
+            val statusText = stringResource(
+                when {
+                    subscription?.isActive == true -> R.string.subscription_status_active
+                    subscription?.isCancelled == true -> R.string.subscription_status_cancelled
+                    subscription?.isExpired == true -> R.string.subscription_status_expired
+                    tier == "free" -> R.string.subscription_status_free_tier
+                    else -> R.string.subscription_status_none
+                }
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -302,7 +301,7 @@ private fun SubscriptionDetailsCard(subscription: Subscription) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Subscription Details",
+                stringResource(R.string.subscription_details),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -313,7 +312,7 @@ private fun SubscriptionDetailsCard(subscription: Subscription) {
             if (subscription.startedAt.isNotBlank()) {
                 DetailRow(
                     icon = Icons.Default.CalendarToday,
-                    label = "Started",
+                    label = stringResource(R.string.subscription_started),
                     value = formatDate(subscription.startedAt),
                 )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -323,7 +322,10 @@ private fun SubscriptionDetailsCard(subscription: Subscription) {
             if (subscription.expiresAt.isNotBlank()) {
                 DetailRow(
                     icon = Icons.Default.Event,
-                    label = if (subscription.isCancelled) "Access Until" else "Renews On",
+                    label = stringResource(
+                        if (subscription.isCancelled) R.string.subscription_access_until
+                        else R.string.subscription_renews_on
+                    ),
                     value = formatDate(subscription.expiresAt),
                 )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -332,8 +334,11 @@ private fun SubscriptionDetailsCard(subscription: Subscription) {
             // Auto-renew
             DetailRow(
                 icon = Icons.Default.Autorenew,
-                label = "Auto-Renew",
-                value = if (subscription.autoRenew) "Enabled" else "Disabled",
+                label = stringResource(R.string.subscription_auto_renew),
+                value = stringResource(
+                    if (subscription.autoRenew) R.string.subscription_enabled
+                    else R.string.subscription_disabled
+                ),
                 valueColor = if (subscription.autoRenew) Color(0xFF4CAF50) else Color(0xFFFF9800),
             )
 
@@ -359,7 +364,7 @@ private fun SubscriptionDetailsCard(subscription: Subscription) {
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            "Your subscription has been cancelled. Access continues until the end of the billing period.",
+                            stringResource(R.string.subscription_cancelled_notice),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                         )
@@ -418,14 +423,13 @@ private fun CancelSubscriptionCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Cancel Subscription",
+                stringResource(R.string.subscription_cancel_action),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "If you cancel, your premium features will remain available until " +
-                    "the end of your current billing period.",
+                stringResource(R.string.subscription_cancel_card_body),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -444,7 +448,7 @@ private fun CancelSubscriptionCard(
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Cancel Subscription")
+                Text(stringResource(R.string.subscription_cancel_action))
             }
         }
     }
@@ -465,14 +469,13 @@ private fun RestorePurchasesCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Restore Purchases",
+                stringResource(R.string.subscription_restore),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "If you have previously purchased a subscription on another device, " +
-                    "tap below to restore it.",
+                stringResource(R.string.subscription_restore_body),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -495,7 +498,7 @@ private fun RestorePurchasesCard(
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Restore Purchases")
+                Text(stringResource(R.string.subscription_restore))
             }
         }
     }
@@ -525,9 +528,7 @@ private fun PlansUnavailableCard() {
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Premium plan purchases are not available in this app. " +
-                    "If your Chess99 account has a premium plan, it is active " +
-                    "here automatically.",
+                text = stringResource(R.string.subscription_plans_unavailable),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
