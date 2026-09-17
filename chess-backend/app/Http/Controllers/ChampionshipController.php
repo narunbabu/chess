@@ -794,9 +794,16 @@ class ChampionshipController extends Controller
                 ->orderBy('registered_at')
                 ->get();
 
+            // Each row already carries `dropped` / `dropped_at` / `dropped_reason`
+            // (see ChampionshipParticipant::$appends). The two roster counts are
+            // additive and let a client label the list without re-deriving them.
+            $droppedCount = $participants->filter(fn ($participant) => $participant->isDropped())->count();
+
             return response()->json([
                 'championship_id' => $id,
                 'total_participants' => $participants->count(),
+                'active_participants' => $participants->count() - $droppedCount,
+                'dropped_participants' => $droppedCount,
                 'max_participants' => $championship->max_participants,
                 'participants' => $participants,
             ]);

@@ -63,9 +63,11 @@ class EliminationBracketService
             // For hybrid format, get top qualifiers from Swiss stage
             return $this->getSwissQualifiers($championship);
         } else {
-            // For pure elimination, get all paid participants
+            // For pure elimination, get all paid participants who are still in
+            // (a player dropped for forfeits must not be seeded into a bracket)
             return $championship->participants()
                 ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
+                ->notDropped()
                 ->with('user')
                 ->get();
         }
@@ -78,7 +80,12 @@ class EliminationBracketService
     {
         $topQualifiers = $championship->top_qualifiers;
 
+        // Standings still hold a dropped player's Swiss score; they must not
+        // qualify for the knockout stage.
+        $droppedUserIds = $championship->participants()->dropped()->pluck('user_id')->all();
+
         return $championship->standings()
+            ->when($droppedUserIds, fn ($query) => $query->whereNotIn('user_id', $droppedUserIds))
             ->with('user')
             ->orderBy('points', 'desc')
             ->orderBy('buchholz_score', 'desc')
@@ -317,7 +324,7 @@ class EliminationBracketService
     {
         $previousRoundMatches = $championship->matches()
             ->where('round_number', $roundNumber - 1)
-            ->where('round_type', ChampionshipRoundType::ELIMINATION)
+            ->where('round_type_id', ChampionshipRoundType::ELIMINATION->getId())
             ->completed() // Use model scope instead of direct status query
             ->get();
 
@@ -430,7 +437,7 @@ class EliminationBracketService
     public function getBracketVisualization(Championship $championship): array
     {
         $matches = $championship->matches()
-            ->where('round_type', ChampionshipRoundType::ELIMINATION)
+            ->where('round_type_id', ChampionshipRoundType::ELIMINATION->getId())
             ->orderBy('round_number')
             ->orderBy('id')
             ->get()
@@ -490,7 +497,7 @@ class EliminationBracketService
     public function determineWinner(Championship $championship): ?int
     {
         $finalMatch = $championship->matches()
-            ->where('round_type', ChampionshipRoundType::ELIMINATION)
+            ->where('round_type_id', ChampionshipRoundType::ELIMINATION->getId())
             ->orderBy('round_number', 'desc')
             ->completed() // Use model scope instead of direct status query
             ->first();
@@ -504,7 +511,7 @@ class EliminationBracketService
     public function getFinalStandings(Championship $championship): Collection
     {
         $matches = $championship->matches()
-            ->where('round_type', ChampionshipRoundType::ELIMINATION)
+            ->where('round_type_id', ChampionshipRoundType::ELIMINATION->getId())
             ->orderBy('round_number', 'desc')
             ->get();
 
@@ -580,7 +587,7 @@ class EliminationBracketService
     private function getEliminationRound(Championship $championship, int $userId): ?int
     {
         $lostMatch = $championship->matches()
-            ->where('round_type', ChampionshipRoundType::ELIMINATION)
+            ->where('round_type_id', ChampionshipRoundType::ELIMINATION->getId())
             ->where(function ($query) use ($userId) {
                 $query->where('player1_id', $userId)
                       ->orWhere('player2_id', $userId);
@@ -641,7 +648,7 @@ class EliminationBracketService
     {
         $errors = [];
         $matches = $championship->matches()
-            ->where('round_type', ChampionshipRoundType::ELIMINATION)
+            ->where('round_type_id', ChampionshipRoundType::ELIMINATION->getId())
             ->get()
             ->groupBy('round_number');
 

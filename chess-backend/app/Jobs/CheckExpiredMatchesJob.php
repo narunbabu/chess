@@ -404,32 +404,52 @@ class CheckExpiredMatchesJob implements ShouldQueue
             ->where('user_id', $playerId)
             ->first();
 
-        if ($participant) {
-            $participant->update(['dropped' => true]);
+        if (!$participant) {
+            return;
+        }
 
-            // Forfeit remaining matches
-            $remainingMatches = $championship->matches()
-                ->whereNotCompleted() // Use model scope instead of direct status query
-                ->where(function ($query) use ($playerId) {
-                    $query->where('player1_id', $playerId)
-                          ->orWhere('player2_id', $playerId);
-                })
-                ->get();
+        // championship_participants.dropped_at (see the 2026_09_15 migration);
+        // the old update(['dropped' => true]) hit no column and was discarded,
+        // so the player stayed pairable in later rounds.
+        $participant->markAsDropped('forfeit_limit');
 
-            foreach ($remainingMatches as $match) {
-                $opponentId = $match->player1_id === $playerId
-                    ? $match->player2_id
-                    : $match->player1_id;
+        // Forfeit remaining matches
+        $remainingMatches = $championship->matches()
+            ->whereNotCompleted() // Use model scope instead of direct status query
+            ->where(function ($query) use ($playerId) {
+                $query->where('player1_id', $playerId)
+                      ->orWhere('player2_id', $playerId);
+            })
+            ->get();
 
-                $match->update([
-                    'status' => ChampionshipMatchStatus::COMPLETED,
-                    'result_type' => ChampionshipResultType::FORFEIT_PLAYER1->value,
-                    'winner_id' => $opponentId,
-                    'completed_at' => now(),
-                ]);
+        foreach ($remainingMatches as $match) {
+            // The result type says which SIDE forfeited, so it depends on where
+            // the dropped player sits in this match - it was always
+            // FORFEIT_PLAYER1, which credited the loss to the wrong player (and
+            // contradicted winner_id) whenever they were player2.
+            $droppedIsPlayer1 = (int) $match->player1_id === $playerId;
+            $opponentId = $droppedIsPlayer1 ? $match->player2_id : $match->player1_id;
 
-                // Update opponent's standing
-                $this->addResultToStandings($championship->id, $opponentId, 'win');
+            $match->update([
+                'status' => ChampionshipMatchStatus::COMPLETED,
+                'result_type' => $droppedIsPlayer1
+                    ? ChampionshipResultType::FORFEIT_PLAYER1->value
+                    : ChampionshipResultType::FORFEIT_PLAYER2->value,
+                // A bye row has no opponent: nobody wins it.
+                'winner_id' => $opponentId,
+                'completed_at' => now(),
+            ]);
+
+            // Both sides of the forfeit have to land in the standings: only the
+            // opponent's win was recorded, so the dropped player kept the score
+            // and matches_played they had before the drop and their remaining
+            // matches simply vanished from their record.
+            if ($opponentId) {
+                $this->processPlayerForfeit($match, $playerId, (int) $opponentId);
+            } else {
+                // Bye row: nobody to credit the win to, but the dropped player
+                // still loses the match they will never play.
+                $this->addResultToStandings($championship->id, $playerId, 'loss');
             }
         }
     }

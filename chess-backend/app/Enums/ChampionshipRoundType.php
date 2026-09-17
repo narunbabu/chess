@@ -5,6 +5,7 @@ namespace App\Enums;
 enum ChampionshipRoundType: string
 {
     case SWISS = 'swiss';
+    case ELIMINATION = 'elimination';
     case ROUND_OF_16 = 'round_of_16';
     case QUARTER_FINAL = 'quarter_final';
     case SEMI_FINAL = 'semi_final';
@@ -18,6 +19,7 @@ enum ChampionshipRoundType: string
     {
         return match($this) {
             self::SWISS => 1,
+            self::ELIMINATION => 7,
             self::ROUND_OF_16 => 2,
             self::QUARTER_FINAL => 3,
             self::SEMI_FINAL => 4,
@@ -33,6 +35,7 @@ enum ChampionshipRoundType: string
     {
         return match($this) {
             self::SWISS => 'Swiss Round',
+            self::ELIMINATION => 'Elimination Round',
             self::ROUND_OF_16 => 'Round of 16',
             self::QUARTER_FINAL => 'Quarter Final',
             self::SEMI_FINAL => 'Semi Final',
@@ -64,6 +67,7 @@ enum ChampionshipRoundType: string
     {
         return match($this) {
             self::SWISS => null, // Depends on number of participants
+            self::ELIMINATION => null, // Depends on the number of bracket entrants
             self::ROUND_OF_16 => 8,
             self::QUARTER_FINAL => 4,
             self::SEMI_FINAL => 2,

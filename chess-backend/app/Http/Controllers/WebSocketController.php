@@ -588,6 +588,8 @@ class WebSocketController extends Controller
             'move.is_stalemate' => 'nullable|boolean',
             'move.move_time_ms' => 'nullable|numeric',
             'move.player_rating' => 'nullable|integer',
+            'move.learning_help' => 'nullable|array',
+            'move.learning_help.*' => 'nullable|string|max:40',
             // Accept both players' scores to preserve scoring across moves
             'move.white_player_score' => 'nullable|numeric',
             'move.black_player_score' => 'nullable|numeric',

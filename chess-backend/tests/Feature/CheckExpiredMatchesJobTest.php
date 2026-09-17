@@ -22,14 +22,14 @@ use Tests\TestCase;
  */
 class CheckExpiredMatchesJobTest extends TestCase
 {
-    private function expiredMatchWithGame(callable $gameAttributes): array
+    private function expiredMatchWithGame(callable $gameAttributes, string $format = 'swiss_only'): array
     {
         Queue::fake();
 
         $p1 = User::factory()->create();
         $p2 = User::factory()->create();
 
-        $championship = Championship::factory()->create(['format' => 'swiss_only']);
+        $championship = Championship::factory()->create(['format' => $format]);
 
         $game = Game::factory()->create(array_merge([
             'white_player_id' => $p1->id,
@@ -175,5 +175,201 @@ class CheckExpiredMatchesJobTest extends TestCase
             ChampionshipResultType::FORFEIT_PLAYER1->getId(),
             (int) $remaining->result_type_id
         );
+    }
+
+    public function test_dropped_player_is_recorded_as_dropped_on_the_participant_row(): void
+    {
+        // update(['dropped' => true]) hit no column and was discarded, so the
+        // player could still be paired into later rounds.
+        [$match, $p1, $p2, $p3] = $this->championshipWithSecondForfeit();
+
+        (new CheckExpiredMatchesJob())->handle();
+
+        $participant = $match->championship->participants()
+            ->where('user_id', $p2->id)
+            ->first();
+
+        $this->assertTrue($participant->isDropped());
+        $this->assertSame('forfeit_limit', $participant->dropped_reason);
+        $this->assertSame(
+            0,
+            $match->championship->participants()->notDropped()->where('user_id', $p2->id)->count()
+        );
+        // The players who are still in are untouched.
+        $this->assertSame(
+            2,
+            $match->championship->participants()->notDropped()->count()
+        );
+    }
+
+    public function test_remaining_match_with_the_dropped_player_as_player2_records_forfeit_player2(): void
+    {
+        // The drop loop always wrote FORFEIT_PLAYER1, which contradicted
+        // winner_id and scored the match against the wrong side whenever the
+        // dropped player was player2.
+        [$match, $p1, $p2, $p3, $remaining] = $this->championshipWithSecondForfeit(droppedPlayerIsPlayer1: false);
+
+        (new CheckExpiredMatchesJob())->handle();
+
+        $remaining->refresh();
+        $this->assertSame('completed', $remaining->status);
+        $this->assertSame($p3->id, (int) $remaining->player1_id);
+        $this->assertSame($p3->id, (int) $remaining->winner_id);
+        $this->assertSame(
+            ChampionshipResultType::FORFEIT_PLAYER2->getId(),
+            (int) $remaining->result_type_id
+        );
+    }
+
+    public function test_standings_credit_the_opponent_not_the_dropped_player(): void
+    {
+        // StandingsCalculatorService::getMatchResult() reads result_type, not
+        // winner_id: with the old always-FORFEIT_PLAYER1 write, a drop-forfeited
+        // match where the dropped player was player2 handed the WIN to the
+        // dropped player and a LOSS to their opponent.
+        [$match, $p1, $p2, $p3, $remaining] = $this->championshipWithSecondForfeit(droppedPlayerIsPlayer1: false);
+
+        (new CheckExpiredMatchesJob())->handle();
+        (new StandingsCalculatorService())->updateStandings($match->championship->fresh());
+
+        $droppedStanding = ChampionshipStanding::where('championship_id', $match->championship_id)
+            ->where('user_id', $p2->id)->first();
+        $opponentStanding = ChampionshipStanding::where('championship_id', $match->championship_id)
+            ->where('user_id', $p3->id)->first();
+
+        $this->assertSame(0, (int) $droppedStanding->wins);
+        $this->assertSame(2, (int) $opponentStanding->wins, 'both of p2\'s forfeits are wins for p3');
+    }
+
+    public function test_remaining_bye_row_of_a_dropped_player_has_no_winner(): void
+    {
+        [$match, $p1, $p2] = $this->championshipWithSecondForfeit();
+
+        $bye = ChampionshipMatch::factory()->create([
+            'championship_id' => $match->championship_id,
+            'round_number' => 3,
+            'player1_id' => $p2->id,
+            'player2_id' => null,
+            'status' => 'pending',
+            'deadline' => now()->addDays(2),
+        ]);
+
+        (new CheckExpiredMatchesJob())->handle();
+
+        $bye->refresh();
+        $this->assertSame('completed', $bye->status);
+        $this->assertNull($bye->winner_id);
+        $this->assertSame(
+            ChampionshipResultType::FORFEIT_PLAYER1->getId(),
+            (int) $bye->result_type_id
+        );
+    }
+
+    public function test_the_drop_records_the_dropped_players_loss_not_only_the_opponents_win(): void
+    {
+        // The drop loop credited the opponent a win and stopped there, so the
+        // dropped player's own record never moved: their remaining matches
+        // vanished from losses and matches_played.
+        //
+        // Elimination format on purpose: a Swiss championship recalculates the
+        // whole table from the match rows (updateStandingsAfterForfeit), which
+        // masks the missing increment. Outside Swiss these increments are the
+        // only standings record there is.
+        [$match, $p1, $p2, $p3, $remaining] = $this->championshipWithSecondForfeit(
+            format: 'elimination_only'
+        );
+
+        (new CheckExpiredMatchesJob())->handle();
+
+        $dropped = ChampionshipStanding::where('championship_id', $match->championship_id)
+            ->where('user_id', $p2->id)->first();
+        $opponent = ChampionshipStanding::where('championship_id', $match->championship_id)
+            ->where('user_id', $p3->id)->first();
+
+        $this->assertNotNull($dropped, 'the dropped player must have a standing row');
+        // Two losses: the expired match that triggered the drop, and the
+        // pending match the drop forfeited.
+        $this->assertSame(2, (int) $dropped->losses);
+        $this->assertSame(0, (int) $dropped->wins);
+        $this->assertSame(2, (int) $dropped->matches_played);
+
+        $this->assertSame(1, (int) $opponent->wins);
+        $this->assertSame(1, (int) $opponent->matches_played);
+    }
+
+    public function test_a_forfeited_bye_row_still_counts_as_a_loss_for_the_dropped_player(): void
+    {
+        [$match, $p1, $p2] = $this->championshipWithSecondForfeit(format: 'elimination_only');
+
+        ChampionshipMatch::factory()->create([
+            'championship_id' => $match->championship_id,
+            'round_number' => 3,
+            'player1_id' => $p2->id,
+            'player2_id' => null,
+            'status' => 'pending',
+            'deadline' => now()->addDays(2),
+        ]);
+
+        (new CheckExpiredMatchesJob())->handle();
+
+        $dropped = ChampionshipStanding::where('championship_id', $match->championship_id)
+            ->where('user_id', $p2->id)->first();
+
+        // Expired match + remaining match + bye row.
+        $this->assertSame(3, (int) $dropped->losses);
+        $this->assertSame(3, (int) $dropped->matches_played);
+    }
+
+    /**
+     * An expired match that makes p2's second forfeit, plus one pending match
+     * between p2 and p3 that the drop must resolve.
+     *
+     * @return array{0: ChampionshipMatch, 1: User, 2: User, 3: User, 4: ChampionshipMatch}
+     */
+    private function championshipWithSecondForfeit(
+        bool $droppedPlayerIsPlayer1 = true,
+        string $format = 'swiss_only'
+    ): array {
+        [$match, $p1, $p2] = $this->expiredMatchWithGame(fn (User $p1, User $p2) => [
+            'moves' => [['san' => 'e4', 'user_id' => $p1->id]],
+            'turn' => 'black',
+            'last_move_at' => now()->subMinutes(10),
+        ], $format);
+
+        $championship = $match->championship;
+        $p3 = User::factory()->create();
+
+        foreach ([$p1, $p2, $p3] as $player) {
+            ChampionshipParticipant::create([
+                'championship_id' => $championship->id,
+                'user_id' => $player->id,
+                'payment_status' => 'completed',
+                'registration_status' => 'registered',
+                'amount_paid' => 0,
+                'registered_at' => now(),
+            ]);
+        }
+
+        // p2's first forfeit.
+        ChampionshipMatch::factory()->create([
+            'championship_id' => $championship->id,
+            'player1_id' => $p3->id,
+            'player2_id' => $p2->id,
+            'status' => 'completed',
+            'result_type' => ChampionshipResultType::FORFEIT_PLAYER2->value,
+            'winner_id' => $p3->id,
+            'deadline' => now()->subDays(2),
+        ]);
+
+        $remaining = ChampionshipMatch::factory()->create([
+            'championship_id' => $championship->id,
+            'round_number' => 2,
+            'player1_id' => $droppedPlayerIsPlayer1 ? $p2->id : $p3->id,
+            'player2_id' => $droppedPlayerIsPlayer1 ? $p3->id : $p2->id,
+            'status' => 'pending',
+            'deadline' => now()->addDay(),
+        ]);
+
+        return [$match, $p1, $p2, $p3, $remaining];
     }
 }

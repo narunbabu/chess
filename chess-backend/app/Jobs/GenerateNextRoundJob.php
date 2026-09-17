@@ -137,8 +137,12 @@ class GenerateNextRoundJob implements ShouldQueue
      */
     private function hasEnoughParticipants(): bool
     {
+        // Dropped players (forfeit limit) can no longer be paired, so counting
+        // them here let a championship with one player left keep generating
+        // rounds the pairing services could not fill.
         $eligibleCount = $this->championship->participants()
             ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
+            ->notDropped()
             ->count();
 
         return $eligibleCount >= 2;
@@ -238,6 +242,7 @@ class GenerateNextRoundJob implements ShouldQueue
     {
         $activeParticipants = $this->championship->participants()
             ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
+            ->notDropped()
             ->count();
 
         return $activeParticipants <= 1;

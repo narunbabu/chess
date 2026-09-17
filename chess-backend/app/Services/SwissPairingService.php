@@ -193,8 +193,9 @@ class SwissPairingService
      */
     private function getEligibleParticipants(Championship $championship): Collection
     {
-        // DEBUG: Log what we're working with
-        $allParticipants = $championship->participants()->with('user')->get();
+        // Dropped players (forfeit limit) are out of the tournament and must
+        // never be paired again, whatever the payment bypasses below decide.
+        $allParticipants = $championship->participants()->notDropped()->with('user')->get();
         Log::info("🔍 [DEBUG] getEligibleParticipants called", [
             'championship_id' => $championship->id,
             'total_participants' => $allParticipants->count(),
@@ -227,6 +228,7 @@ class SwissPairingService
         // This ensures consistency with StandingsCalculatorService and other tournament services
         $paidParticipants = $championship->participants()
             ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
+            ->notDropped()
             ->with('user')
             ->get();
 

@@ -60,6 +60,9 @@ class ChampionshipParticipant extends Model
         'registration_date',  // Alias for registered_at (mutator)
         'is_paid',            // Alias for payment_status_id (mutator)
         'seed_number',
+        'dropped',            // Virtual attribute (mutator converts to dropped_at)
+        'dropped_at',
+        'dropped_reason',
     ];
 
     protected $casts = [
@@ -69,6 +72,7 @@ class ChampionshipParticipant extends Model
         'amount_paid'     => 'decimal:2',
         'registered_at'   => 'datetime',
         'seed_number'     => 'integer',
+        'dropped_at'      => 'datetime',
     ];
 
     /**
@@ -76,6 +80,7 @@ class ChampionshipParticipant extends Model
      */
     protected $appends = [
         'payment_status',
+        'dropped',
     ];
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -152,6 +157,31 @@ class ChampionshipParticipant extends Model
     }
 
     /**
+     * Mutator: Allow setting 'dropped' (bool) which maps to the dropped_at stamp.
+     *
+     * Dropping is stored as a timestamp, not a flag, so the moment is auditable;
+     * setting it again does not move an existing stamp. Setting it false clears
+     * the reason too — a re-instated player carries no drop history.
+     */
+    public function setDroppedAttribute($value)
+    {
+        if ($value) {
+            $this->attributes['dropped_at'] = $this->attributes['dropped_at'] ?? now();
+        } else {
+            $this->attributes['dropped_at'] = null;
+            $this->attributes['dropped_reason'] = null;
+        }
+    }
+
+    /**
+     * Accessor: 'dropped' is true whenever a drop stamp exists.
+     */
+    public function getDroppedAttribute(): bool
+    {
+        return ($this->attributes['dropped_at'] ?? null) !== null;
+    }
+
+    /**
      * Mutator: Allow setting 'is_paid' which maps to payment_status_id
      */
     public function setIsPaidAttribute($value)
@@ -193,6 +223,25 @@ class ChampionshipParticipant extends Model
     public function scopeActive($query)
     {
         return $query->whereNotIn('registration_status', ['cancelled', 'refunded']);
+    }
+
+    /**
+     * Scope: participants removed from the tournament (e.g. forfeit limit reached).
+     *
+     * Independent of registration_status: they stay registered (and paid), they
+     * are simply no longer playing, so they must not be paired again.
+     */
+    public function scopeDropped($query)
+    {
+        return $query->whereNotNull('dropped_at');
+    }
+
+    /**
+     * Scope: participants who have not been dropped. Use this for pairing.
+     */
+    public function scopeNotDropped($query)
+    {
+        return $query->whereNull('dropped_at');
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -331,5 +380,29 @@ class ChampionshipParticipant extends Model
     public function isCancelled(): bool
     {
         return $this->registration_status === 'cancelled';
+    }
+
+    public function isDropped(): bool
+    {
+        return $this->dropped_at !== null;
+    }
+
+    /**
+     * Drop this participant from the tournament.
+     *
+     * Idempotent: an already-dropped participant keeps its original stamp and
+     * reason. registration_status and payment_status_id are deliberately left
+     * alone — the player registered and paid, they were removed from play.
+     */
+    public function markAsDropped(string $reason): void
+    {
+        if ($this->isDropped()) {
+            return;
+        }
+
+        $this->update([
+            'dropped_at' => now(),
+            'dropped_reason' => $reason,
+        ]);
     }
 }

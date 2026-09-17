@@ -205,8 +205,12 @@ class MatchSchedulerService
         Carbon $startTime,
         Carbon $endTime
     ): int {
+        // The count has to match what generatePairings() will actually pair:
+        // dropped players are excluded there, so counting them here let a
+        // round be "scheduled" for players who can no longer be paired.
         $participants = $championship->participants()
             ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
+            ->notDropped()
             ->get();
 
         if ($participants->count() < 2) {
@@ -327,6 +331,9 @@ class MatchSchedulerService
 
         // Check if championship should continue
         if (!$this->shouldContinueChampionship($championship)) {
+            // A drop can leave an elimination bracket with one active player;
+            // finalize the tournament instead of leaving it permanently active.
+            $this->updateChampionshipStatus($championship);
             return null;
         }
 
@@ -388,8 +395,10 @@ class MatchSchedulerService
     private function hasEliminationWinner(Championship $championship): bool
     {
         // Check if there's only one participant left who hasn't been eliminated
+        // or dropped for reaching the forfeit limit.
         $activeParticipants = $championship->participants()
             ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
+            ->notDropped()
             ->count();
 
         return $activeParticipants <= 1;

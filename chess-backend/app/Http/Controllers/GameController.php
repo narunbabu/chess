@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\GameStatus as GameStatusEnum;
 use App\Events\GameEndedEvent;
 use App\Models\Game;
 use App\Models\GameHistory;
@@ -414,8 +415,13 @@ class GameController extends Controller
             return response()->json(['error' => 'Game not found'], 404);
         }
 
-        // Only show completed games publicly
-        if ($game->status !== 'completed' && $game->status !== 'ended') {
+        // Only show finished games publicly. The status accessor reads the
+        // game_statuses lookup, whose only finished code is 'finished' — the
+        // legacy 'completed'/'ended' strings it used to compare against are
+        // write-side aliases (GameStatus::fromLegacy maps 'completed' to
+        // FINISHED), so this guard rejected every game and the public replay
+        // link 404'd for everyone.
+        if ($game->status !== GameStatusEnum::FINISHED->value) {
             return response()->json(['error' => 'Game not available'], 404);
         }
 
@@ -469,8 +475,21 @@ class GameController extends Controller
         $resultValue = $game->result;
         $winnerPlayer = $game->winner_player;
 
+        // Which side belongs at the bottom of a shared replay. A public viewer
+        // has no seat of its own, so use the game's stored perspective (the
+        // human's colour in computer games); otherwise the only human seat;
+        // otherwise White.
+        if (in_array($game->player_color, ['white', 'black'], true)) {
+            $playerColor = $game->player_color;
+        } elseif (!$game->white_player_id && $game->black_player_id) {
+            $playerColor = 'black';
+        } else {
+            $playerColor = 'white';
+        }
+
         $response = [
             'id' => $game->id,
+            'player_color' => $playerColor,
             'white_player' => $whitePlayerData,
             'black_player' => $blackPlayerData,
             'moves' => $parsedMoves,
@@ -544,7 +563,7 @@ class GameController extends Controller
 
     /**
      * Convert existing move objects to compact format
-     * Format: "san,time,evaluation;san,time,evaluation;..."
+     * Format: "san,time,evaluation,classification,learning_help;..."
      */
     private function convertMovesToCompactFormat($moves): string
     {
@@ -561,14 +580,36 @@ class GameController extends Controller
                 (isset($move['timeSpent']) ? number_format($move['timeSpent'], 2, '.', '') : '0.00');
             $evaluation = $move['evaluation'] ?? '';
 
-            // Build compact part: san,time,evaluation (evaluation optional)
-            if (!empty($evaluation) && $evaluation !== '' && $evaluation !== null) {
+            $learningHelp = $move['learning_help'] ?? $move['learningHelp']
+                ?? $move['lifelines'] ?? $move['helpUsed'] ?? [];
+            if (is_string($learningHelp)) {
+                $learningHelp = array_filter(array_map('trim', explode('+', $learningHelp)));
+            }
+            if (is_array($learningHelp)) {
+                $learningHelp = array_values(array_filter(array_map(
+                    static fn ($marker) => is_array($marker)
+                        ? ($marker['type'] ?? $marker['kind'] ?? $marker['name'] ?? null)
+                        : (is_string($marker) ? $marker : null),
+                    $learningHelp,
+                )));
+            } else {
+                $learningHelp = [];
+            }
+            $learningHelpToken = implode('+', array_map('rawurlencode', $learningHelp));
+
+            // Keep the fifth compact field aligned with the web parser:
+            // san,time,evaluation,classification,learning_help.
+            $prefix = "{$san},{$timeInSeconds}";
+            $hasEvaluation = !empty($evaluation) && $evaluation !== '' && $evaluation !== null;
+            if ($hasEvaluation) {
                 // Handle evaluation objects or numbers
                 $evalValue = is_object($evaluation) ? ($evaluation->total ?? 0) : $evaluation;
-                $compactParts[] = "{$san},{$timeInSeconds}," . number_format($evalValue, 2, '.', '');
-            } else {
-                $compactParts[] = "{$san},{$timeInSeconds}";
+                $prefix .= ',' . number_format($evalValue, 2, '.', '');
             }
+            if ($learningHelpToken !== '') {
+                $prefix .= ($hasEvaluation ? ',,' : ',,,') . $learningHelpToken;
+            }
+            $compactParts[] = $prefix;
         }
 
         return implode(';', $compactParts);
@@ -1490,16 +1531,20 @@ class GameController extends Controller
             'paused_at' => now(),
             'paused_reason' => $request->input('paused_reason', 'navigation'),
             'paused_by_user_id' => $user->id,
-            'turn_at_pause' => $game->turn
+            'turn_at_pause' => $game->turn,
         ];
 
-        // Update timer state if provided
-        if ($request->has('white_time_remaining_ms')) {
-            $updateData['white_time_paused_ms'] = $request->input('white_time_remaining_ms');
-        }
-        if ($request->has('black_time_remaining_ms')) {
-            $updateData['black_time_paused_ms'] = $request->input('black_time_remaining_ms');
-        }
+        // Preserve the client clock when it is supplied. Older clients sent
+        // an empty pause body, so retain a previously persisted clock or use
+        // the game's time control instead of allowing resume to restore null
+        // as zero milliseconds.
+        $defaultClockMs = max(1, (int) ($game->time_control_minutes ?? 10)) * 60 * 1000;
+        $updateData['white_time_paused_ms'] = $request->has('white_time_remaining_ms')
+            ? $request->input('white_time_remaining_ms')
+            : ($game->white_time_paused_ms ?? $game->white_time_remaining_ms ?? $defaultClockMs);
+        $updateData['black_time_paused_ms'] = $request->has('black_time_remaining_ms')
+            ? $request->input('black_time_remaining_ms')
+            : ($game->black_time_paused_ms ?? $game->black_time_remaining_ms ?? $defaultClockMs);
 
         // Update position if provided
         if ($request->has('fen')) {

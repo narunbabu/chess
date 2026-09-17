@@ -1730,9 +1730,21 @@ class GameRoomService
             ];
         }
 
-        // Restore time with grace time applied
-        $whiteTimeResumed = $game->white_time_paused_ms + $game->white_grace_time_ms;
-        $blackTimeResumed = $game->black_time_paused_ms + $game->black_grace_time_ms;
+        // Restore time with grace time applied. Older Android clients sent
+        // an empty navigation-pause body, so their pause clocks may be null.
+        // Fall back to the last remaining clock, then the game's time
+        // control, instead of treating a legacy pause as zero time.
+        $defaultClockMs = max(1, (int) ($game->time_control_minutes ?? 10)) * 60 * 1000;
+        $whiteTimePaused = (int) ($game->white_time_paused_ms
+            ?? $game->white_time_remaining_ms
+            ?? $defaultClockMs);
+        $blackTimePaused = (int) ($game->black_time_paused_ms
+            ?? $game->black_time_remaining_ms
+            ?? $defaultClockMs);
+        $whiteGraceTime = (int) ($game->white_grace_time_ms ?? 0);
+        $blackGraceTime = (int) ($game->black_grace_time_ms ?? 0);
+        $whiteTimeResumed = $whiteTimePaused + $whiteGraceTime;
+        $blackTimeResumed = $blackTimePaused + $blackGraceTime;
 
         // Determine turn to restore - if turn_at_pause is null, default to current turn or 'white'
         $turnToRestore = $game->turn_at_pause ?? $game->turn ?? 'white';
@@ -1750,10 +1762,10 @@ class GameRoomService
 
         // Store pause info for response, then clear the pause fields
         $pauseInfo = [
-            'white_time_paused_ms' => $game->white_time_paused_ms,
-            'black_time_paused_ms' => $game->black_time_paused_ms,
-            'white_grace_time_ms' => $game->white_grace_time_ms,
-            'black_grace_time_ms' => $game->black_grace_time_ms,
+            'white_time_paused_ms' => $whiteTimePaused,
+            'black_time_paused_ms' => $blackTimePaused,
+            'white_grace_time_ms' => $whiteGraceTime,
+            'black_grace_time_ms' => $blackGraceTime,
             'turn_at_pause' => $game->turn_at_pause,
         ];
 
@@ -1833,6 +1845,56 @@ class GameRoomService
                 'success' => false,
                 'message' => 'Game is not paused (current status: ' . $game->status . ')'
             ];
+        }
+
+        // A bot cannot authenticate as the opponent and answer a resume
+        // invitation. Casual computer games therefore resume as soon as their
+        // human player asks, just like the synthetic takeback path below.
+        // Rated games remain excluded: they are never supposed to be paused.
+        if ($game->game_mode !== 'rated' && ($game->computer_player_id || $game->synthetic_player_id)) {
+            if ($game->white_player_id !== $userId && $game->black_player_id !== $userId) {
+                return [
+                    'success' => false,
+                    'message' => 'User is not a player in this game'
+                ];
+            }
+
+            $resumeResult = $this->resumeGameFromInactivity($gameId, $userId);
+
+            if (!$resumeResult['success']) {
+                return $resumeResult;
+            }
+
+            // A legacy request may still be present from before the bot
+            // auto-accept path existed. Close it without creating a new
+            // invitation for a non-existent bot user.
+            \App\Models\Invitation::where('type', 'resume_request')
+                ->where('game_id', $gameId)
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'accepted',
+                    'responded_at' => now(),
+                ]);
+
+            $game->update([
+                'resume_status' => 'accepted',
+                'resume_requested_by' => null,
+                'resume_requested_at' => null,
+                'resume_request_expires_at' => null,
+            ]);
+
+            Log::info('Resume auto-accepted for casual computer game', [
+                'game_id' => $gameId,
+                'user_id' => $userId,
+                'computer_player_id' => $game->computer_player_id,
+                'synthetic_player_id' => $game->synthetic_player_id,
+            ]);
+
+            return array_merge($resumeResult, [
+                'auto_accepted' => true,
+                'resume_status' => 'accepted',
+                'message' => 'Game resumed automatically for computer opponent',
+            ]);
         }
 
         // Enhanced cleanup of stale resume requests with relaxed constraints

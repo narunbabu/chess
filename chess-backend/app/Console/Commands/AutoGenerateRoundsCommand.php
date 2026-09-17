@@ -191,8 +191,11 @@ class AutoGenerateRoundsCommand extends Command
      */
     private function hasEliminationWinner(Championship $championship): bool
     {
+        // A player dropped for reaching the forfeit limit is out of the
+        // tournament, so they must not keep an elimination bracket "running".
         $activeParticipants = $championship->participants()
             ->where('payment_status_id', PaymentStatus::COMPLETED->getId())
+            ->notDropped()
             ->count();
 
         return $activeParticipants <= 1;
