@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import logo from '../assets/images/logo.png';
 import Footer from '../components/layout/Footer';
 
-// Last reviewed: 2026-06-24
+// Last reviewed: 2026-09-23; keep Android PrivacyPolicyContent in sync.
 // NOTE: If Chess99 has a registered business address, add it to the "Who We Are"
 // and "Contact Us" sections below for GDPR data-controller completeness.
-const LAST_UPDATED = 'June 24, 2026';
+const LAST_UPDATED = 'September 23, 2026';
 const CONTACT_EMAIL = 'support@chess99.com';
 
 const Section = ({ title, children }) => (
@@ -47,7 +47,7 @@ const PrivacyPolicy = () => {
                 <li>
                   <span className="text-white font-medium">Account information</span> — your
                   display name, email address, and a securely hashed password when you create
-                  an account.
+                  an account. We also collect avatars, date of birth for age-related features and optional mobile numbers.
                 </li>
                 <li>
                   <span className="text-white font-medium">Social login data</span> — if you
@@ -65,17 +65,25 @@ const PrivacyPolicy = () => {
                   purchase a subscription, payments are processed by our payment provider
                   (Razorpay). We receive confirmation and subscription status; we do{' '}
                   <span className="text-white">not</span> store your full card or banking
-                  details on our servers.
+                  details on our servers. Where referral or ambassador features are available,
+                  we collect application name, mobile number, UPI ID, optional application text,
+                  referral relationships, earnings and payout records. UPI IDs are payment
+                  information even when Android does not offer purchases.
                 </li>
                 <li>
                   <span className="text-white font-medium">Communications</span> — in-game
                   chat messages and email preferences (e.g. play reminders, weekly digests,
-                  and tournament announcements).
+                  and tournament announcements), sender/recipient and game identifiers,
+                  timestamps, safety reports and blocks, and support requests.
                 </li>
                 <li>
                   <span className="text-white font-medium">Technical &amp; usage data</span> —
                   IP address, browser/device type, and activity on the Service collected
                   through cookies and similar technologies for security and analytics.
+                  Android includes Firebase Analytics, Crashlytics and Cloud Messaging for usage
+                  events, app/device or installation identifiers, crash diagnostics and push tokens.
+                  SDKs may derive approximate location from IP addresses. Meta's Facebook SDK may
+                  process device identifiers and technical data as well as login data.
                 </li>
               </ul>
             </Section>
@@ -85,6 +93,7 @@ const PrivacyPolicy = () => {
                 <li>To create and manage your account and authenticate you.</li>
                 <li>To run matchmaking, multiplayer games, ratings, and tournaments.</li>
                 <li>To process subscriptions and provide premium features.</li>
+                <li>To administer referral/ambassador applications, attribution and payout records where available.</li>
                 <li>To send service and (where you opt in) promotional emails.</li>
                 <li>To keep the Service secure, prevent fraud, and enforce our terms.</li>
                 <li>To improve the Service through aggregated, analytical insights.</li>
@@ -102,14 +111,16 @@ const PrivacyPolicy = () => {
 
             <Section title="How We Share Information">
               <p>
-                We do not sell your personal information. We share data only with service
-                providers who help us operate the Service, including:
+                We do not sell your personal information. Public profiles, ratings and game
+                results are visible to other players; chat is delivered to its participants.
+                Referral features may show referred players' names and subscription status to
+                their referrer. Providers that process data for the Service include:
               </p>
               <ul className="list-disc list-inside space-y-2">
-                <li>Google and Facebook (only if you choose social login).</li>
+                <li>Google for sign-in and Firebase analytics, crash reporting and notifications; Meta for the Facebook SDK and sign-in.</li>
                 <li>Razorpay, for payment processing.</li>
                 <li>Our email and hosting providers, for delivering the Service.</li>
-                <li>Analytics providers, for usage measurement.</li>
+                <li>Analytics and error-monitoring providers, including Sentry on the website, for usage measurement and diagnostics.</li>
               </ul>
               <p>
                 We may also disclose information if required by law or to protect the rights,
@@ -119,9 +130,8 @@ const PrivacyPolicy = () => {
 
             <Section title="Children’s Privacy">
               <p>
-                Chess99 is designed to be enjoyable and safe for young learners. We do not
-                knowingly collect more personal information from children than is necessary to
-                provide the Service. Where required by law, a parent or guardian should create
+                Parents and guardians can contact us to review or request deletion of a child's
+                personal information. Where required by law, a parent or guardian should create
                 and supervise the account of a child. If you believe a child has provided us
                 personal information without appropriate consent, please contact us at{' '}
                 <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#81b64c] hover:underline">
@@ -136,7 +146,8 @@ const PrivacyPolicy = () => {
                 We keep your information for as long as your account is active or as needed to
                 provide the Service. When you delete your account, we delete or anonymize your
                 personal data, except where we must retain certain records to comply with legal,
-                tax, or security obligations.
+                tax, or security obligations. Support will explain any retention period and
+                backup or provider processing timelines in its response to a deletion request.
               </p>
             </Section>
 
@@ -158,16 +169,19 @@ const PrivacyPolicy = () => {
               </p>
             </Section>
 
-            <Section title="Facebook Data Deletion">
+            <Section title="Account and Facebook Data Deletion">
               <p>
-                If you signed in using Facebook and would like us to delete the data associated
-                with your Facebook login, email us at{' '}
+                To request deletion of your Chess99 account and associated personal data, visit{' '}
+                <a href="/delete-account.html" className="text-[#81b64c] hover:underline">Request account deletion</a>
+                {' '}or email{' '}
                 <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#81b64c] hover:underline">
                   {CONTACT_EMAIL}
                 </a>{' '}
-                with the subject “Facebook Data Deletion,” or delete your Chess99 account from
-                your profile settings. We will remove the associated personal data within 30
-                days.
+                with the subject “Chess99 account deletion request”. Android users can open
+                “Request account deletion” in the home menu. This is a support-assisted process;
+                sending the email submits the request. No sign-in or app reinstall is required.
+                We aim to complete verified requests within 30 days and will explain any delay
+                or retention exception. For Facebook-only data requests, use “Facebook Data Deletion”.
               </p>
             </Section>
 

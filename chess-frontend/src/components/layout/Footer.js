@@ -98,6 +98,7 @@ const Footer = () => {
                 Contact
               </button>
               <Link to="/privacy" className="text-[#8b8987] hover:text-[#81b64c] transition-colors text-xs sm:text-sm lg:text-base">Privacy</Link>
+              <a href="/delete-account.html" className="text-[#8b8987] hover:text-[#81b64c] transition-colors text-xs sm:text-sm lg:text-base">Request account deletion</a>
               <Link to="/terms" className="text-[#8b8987] hover:text-[#81b64c] transition-colors text-xs sm:text-sm lg:text-base">Terms</Link>
               <Link to="/community-programs" className="text-[#8b8987] hover:text-[#81b64c] transition-colors text-xs sm:text-sm lg:text-base">Community opportunities</Link>
             </div>
